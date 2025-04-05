@@ -1,5 +1,6 @@
 import { Heart, Search, ShoppingBag, User } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 const Navbar = () => {
   return (
@@ -24,16 +25,18 @@ const Navbar = () => {
           <User />
           <Search />
           <div className="relative">
-            <Heart/>
+            <Heart />
             <p className="absolute top-[-30%] right-[-20%] text-xs text-white bg-red-600 rounded-full px-1 ">
               3
             </p>
           </div>
           <div className="relative">
-            <ShoppingBag />
-            <p className="absolute top-[-30%] right-[-20%] text-xs text-white bg-red-600 rounded-full px-1 ">
-              3
-            </p>
+            <Link href="/cart">
+              <ShoppingBag />
+              <p className="absolute top-[-30%] right-[-20%] text-xs text-white bg-red-600 rounded-full px-1 ">
+                3
+              </p>
+            </Link>
           </div>
         </div>
       </div>

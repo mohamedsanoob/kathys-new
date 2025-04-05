@@ -36,23 +36,23 @@ interface CartItemsProps {
 
 const CartItems: React.FC<CartItemsProps> = ({
   products,
-//   onQuantityChange,
+  //   onQuantityChange,
 }) => {
-//   const handleQuantityChange = async (
-//     productId: string,
-//     variantSku: string,
-//     newQuantity: number
-//   ) => {
-//     if (newQuantity > 0) {
-//       await updateCartItemQuantity(productId, variantSku, newQuantity);
-//       onQuantityChange(); // Refresh cart data after update
-//     }
-//   };
+  //   const handleQuantityChange = async (
+  //     productId: string,
+  //     variantSku: string,
+  //     newQuantity: number
+  //   ) => {
+  //     if (newQuantity > 0) {
+  //       await updateCartItemQuantity(productId, variantSku, newQuantity);
+  //       onQuantityChange(); // Refresh cart data after update
+  //     }
+  //   };
 
-//   const handleRemoveItem = async (productId: string, variantSku: string) => {
-//     await removeProductFromCart(productId, variantSku);
-//     onQuantityChange(); // Refresh cart data after removal
-//   };
+  //   const handleRemoveItem = async (productId: string, variantSku: string) => {
+  //     await removeProductFromCart(productId, variantSku);
+  //     onQuantityChange(); // Refresh cart data after removal
+  //   };
 
   return (
     <table className="w-full">
@@ -105,7 +105,7 @@ const CartItems: React.FC<CartItemsProps> = ({
               </p>
             </td>
             <td className="py-2 text-center">
-              <input
+              {/* <input
                 type="number"
                 min="1"
                 max={product.currentInventory || product.quantity} // Limit to current inventory
@@ -122,7 +122,29 @@ const CartItems: React.FC<CartItemsProps> = ({
                 // }}
                 className="w-20 text-center border border-gray-300 rounded"
                 disabled={product.outOfStock}
-              />
+              /> */}
+              <div className=" border border-gray-200 text-lg flex items-center gap-4 w-fit rounded-md">
+                {/* <button
+                  onClick={decrease}
+                  disabled={productCount <= 1}
+                  className="w-10 h-10 cursor-pointer flex items-center justify-center font-bold text-gray-600"
+                >
+                  −
+                </button>
+                <span className="text-lg w-max font-medium text-gray-800">
+                  {product?.quantity}
+                </span>
+                <button
+                  onClick={increase}
+                  disabled={
+                    !selectedVariant ||
+                    productCount + existingCartQty >= selectedVariant.inventory
+                  }
+                  className="w-10 h-10 cursor-pointer flex items-center justify-center  font-bold text-gray-600"
+                >
+                  +
+                </button> */}
+              </div>
             </td>
             <td className="py-2 text-lg text-center">
               ₹{" "}

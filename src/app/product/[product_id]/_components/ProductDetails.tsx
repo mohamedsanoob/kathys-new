@@ -46,14 +46,6 @@ interface CartProduct {
   shippingCost: number;
   images: string[];
   productPrice: number;
-  // updatedDate: {
-  //   seconds: number;
-  //   nanoseconds: number;
-  // };
-  // createdDate: {
-  //   seconds: number;
-  //   nanoseconds: number;
-  // };
   id: string;
   quantity: number;
   categories: string[];
@@ -66,7 +58,8 @@ interface CartProduct {
   active: boolean;
   productName: string;
   description: string;
-  variantDetails: {
+  variantDetails?: {
+    // Changed to a single object (optional)
     price: number;
     discountedPrice: number;
     inventory: number;
@@ -75,7 +68,7 @@ interface CartProduct {
       value: string;
     }[];
     sku: string;
-  }[];
+  };
   taxRate: number;
   productUnit: string;
 }
@@ -123,6 +116,7 @@ const ProductDetails = ({ product }: { product: Product }) => {
         )
       );
       console.log(matchingVariantDetail, "matchingVariantDetail");
+      console.log(product, "product");
       setSelectedVariant(matchingVariantDetail || null);
 
       if (matchingVariantDetail) {
@@ -131,19 +125,28 @@ const ProductDetails = ({ product }: { product: Product }) => {
           .then((res) => {
             console.log(res, "cartIn produ");
 
+            // const cartMatch = res.find((cartItem: CartProduct) => {
+            //   return (
+            //     cartItem.id === product.id &&
+            //     cartItem.variantDetails?.some((variant) =>
+            //       areCombinationsEqual(
+            //         variant.combination,
+            //         matchingVariantDetail.combination
+            //       )
+            //     )
+            //   );
+            // });
             const cartMatch = res.find((cartItem: CartProduct) => {
               return (
                 cartItem.id === product.id &&
-                cartItem.variantDetails?.some((variant) =>
-                  areCombinationsEqual(
-                    variant.combination,
-                    matchingVariantDetail.combination
-                  )
+                cartItem.variantDetails &&
+                areCombinationsEqual(
+                  cartItem.variantDetails.combination,
+
+                  matchingVariantDetail.combination
                 )
               );
             });
-
-
             console.log(cartMatch, "cartMatch");
             const qty = cartMatch?.quantity || 0;
             setExistingCartQty(qty);
@@ -161,13 +164,7 @@ const ProductDetails = ({ product }: { product: Product }) => {
         setProductCount(1);
       }
     },
-    [
-      selectedOptions,
-      product.variantDetails,
-      areCombinationsEqual,
-      product.id,
-      productCount,
-    ]
+    [selectedOptions, areCombinationsEqual, productCount, product]
   );
 
   const handleClearOptions = useCallback(() => {
@@ -194,35 +191,35 @@ const ProductDetails = ({ product }: { product: Product }) => {
     return result.ntc[0].name;
   }, []);
 
- const handleAddToCart = useCallback(async () => {
-   if (!selectedVariant) {
-     console.warn("Please select all product options before adding to cart.");
-     return;
-   }
-   setIsLoading(true);
-   console.log(product, "product");
-   console.log(selectedVariant, "selected variant");
-   try {
-     await addProductToCart({
-       productId: product.id,
-       variantDetails: selectedVariant,
-       quantity: productCount,
-     });
-     // Optionally provide feedback to the user (e.g., a success message)
+  const handleAddToCart = useCallback(async () => {
+    if (!selectedVariant) {
+      console.warn("Please select all product options before adding to cart.");
+      return;
+    }
+    setIsLoading(true);
+    console.log(product, "product");
+    console.log(selectedVariant, "selected variant");
+    try {
+      await addProductToCart({
+        productId: product.id,
+        variantDetails: selectedVariant,
+        quantity: productCount,
+      });
+      // Optionally provide feedback to the user (e.g., a success message)
 
-     // After successful addition, update existingCartQty
-     setExistingCartQty((prevQty) => prevQty + productCount);
-     // Optionally reset productCount if needed
-     setProductCount(1);
-   } catch (error) {
-     console.error("Failed to add to cart:", error);
-     // Optionally show an error message to the user
-   } finally {
-     setIsLoading(false);
-   }
- }, [product, selectedVariant, productCount]);
+      // After successful addition, update existingCartQty
+      setExistingCartQty((prevQty) => prevQty + productCount);
+      // Optionally reset productCount if needed
+      setProductCount(1);
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+      // Optionally show an error message to the user
+    } finally {
+      setIsLoading(false);
+    }
+  }, [product, selectedVariant, productCount]);
 
-  console.log(productCount,'counttttt')
+  console.log(productCount, "counttttt");
 
   return (
     <div className="w-[55%]">
