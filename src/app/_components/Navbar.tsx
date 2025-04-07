@@ -22,7 +22,9 @@ const Navbar = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <User />
+          <Link href="/account" className="cursor-pointer">
+            <User />
+          </Link>
           <Search />
           <div className="relative">
             <Heart />

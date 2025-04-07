@@ -13,7 +13,8 @@ const Checkout = ({ total }: CheckoutProps) => {
       <div className="flex justify-between w-full border-b border-[#dee0ea] py-[15px_0_10px_0]">
         <h6 className="text-sm font-normal">Subtotal</h6>
         <h6 className="text-sm font-normal">
-          ₹ {total.toLocaleString("en-IN", {
+          ₹{" "}
+          {total.toLocaleString("en-IN", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}
@@ -22,7 +23,8 @@ const Checkout = ({ total }: CheckoutProps) => {
       <div className="flex justify-between">
         <h6 className="text-sm font-normal">Total</h6>
         <h6 className="font-semibold text-xl">
-          ₹ {total.toLocaleString("en-IN", {
+          ₹{" "}
+          {total.toLocaleString("en-IN", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}

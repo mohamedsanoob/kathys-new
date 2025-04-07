@@ -9,7 +9,6 @@ import {
 } from "@/actions/actions";
 import Image from "next/image";
 import { X } from "lucide-react";
-import Footer from "../_components/Footer";
 import Help from "../_components/Help";
 
 interface CartProduct {
@@ -44,7 +43,7 @@ const CartPage = () => {
     [key: string]: number;
   }>({}); // Track local quantity changes
 
-  console.log(pendingUpdates)
+  console.log(pendingUpdates);
 
   const fetchCartAndProductDetails = useCallback(async () => {
     setIsLoading(true);
@@ -179,58 +178,67 @@ const CartPage = () => {
   //   }
   // };
 
-const total = cartProductsWithDetails.reduce((sum, product) => {
-  return sum + (product.productDiscountedPrice || product.productPrice) * product.quantity;
-}, 0);
+  const total = cartProductsWithDetails.reduce((sum, product) => {
+    return (
+      sum +
+      (product.productDiscountedPrice || product.productPrice) *
+        product.quantity
+    );
+  }, 0);
 
   if (isLoading) {
     return <div>Loading cart...</div>;
   }
 
   return (
-    <div style={{height:"100%"}}>
+    <div style={{ height: "100%" }}>
       <Navbar />
       <div className="flex gap-16  m-auto p-20">
         <table className="w-[70%]">
           <thead>
             <tr className="text-center text-gray-400 font-medium border-b border-gray-300">
               <th className="py-2 w-120 text-[0.875rem] opacity-60">Product</th>
-              <th className="py-2 text-[0.875rem] text-left opacity-60">Price</th>
-              <th className="py-2 text-[0.875rem] text-left opacity-60">Quantity</th>
-              <th className="py-2 text-[0.875rem] text-left opacity-60">Subtotal</th>
+              <th className="py-2 text-[0.875rem] text-left opacity-60">
+                Price
+              </th>
+              <th className="py-2 text-[0.875rem] text-left opacity-60">
+                Quantity
+              </th>
+              <th className="py-2 text-[0.875rem] text-left opacity-60">
+                Subtotal
+              </th>
               <th className="py-2 text-[0.875rem] text-left opacity-60"></th>
             </tr>
           </thead>
           <tbody>
             {cartProductsWithDetails?.map((product, index) => (
               <tr key={index} className="border-b border-gray-200 h-[100px]">
-                <td >
+                <td>
                   <div className="flex items-center gap-4  h-[100%]">
-  {product.images[0] && (
-                    <Image
-                      src={product.images[0]}
-                      alt={product.productName}
-                      width={80}
-                      height={80}
-                      className="w-10 h-20 object-cover rounded"
-                    />
-                  )}
-                  <div>
-                    <p className="font-semibold text-[1rem]">
-                      {product.productName}
-                      {" - "}
-                      {product.variantDetails.combination
-                        .map((attr) => `${attr.value}`)
-                        .join(", ")}
-                    </p>
-                    {product.outOfStock && (
-                      <p className="text-red-500 text-sm">
-                        Out of Stock (Available: {product.currentInventory})
-                      </p>
+                    {product.images[0] && (
+                      <Image
+                        src={product.images[0]}
+                        alt={product.productName}
+                        width={80}
+                        height={80}
+                        className="w-10 h-20 object-cover rounded"
+                      />
                     )}
+                    <div>
+                      <p className="font-semibold text-[1rem]">
+                        {product.productName}
+                        {" - "}
+                        {product.variantDetails.combination
+                          .map((attr) => `${attr.value}`)
+                          .join(", ")}
+                      </p>
+                      {product.outOfStock && (
+                        <p className="text-red-500 text-sm">
+                          Out of Stock (Available: {product.currentInventory})
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  </div>
-                
                 </td>
                 <td className="text-left">
                   <p className="text-[1rem]">
@@ -291,7 +299,7 @@ const total = cartProductsWithDetails.reduce((sum, product) => {
             ))}
           </tbody>
         </table>
-    <Checkout total={total} />
+        <Checkout total={total} />
         {/* {Object.keys(pendingUpdates).length > 0 && (
           <button
             onClick={persistCartUpdates}
@@ -300,10 +308,9 @@ const total = cartProductsWithDetails.reduce((sum, product) => {
             Save Cart Updates
           </button>
         )} */}
-    
       </div>
-         
-       <Help/>
+
+      <Help />
     </div>
   );
 };

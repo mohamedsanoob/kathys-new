@@ -322,3 +322,98 @@ export async function getCartProducts() {
 
   return cartProductsWithDetails;
 }
+
+export const removeCartItem = async (productId: string, variantSku: string) => {
+  try {
+    const user = auth.currentUser;
+    const cartId = user?.uid || localStorage.getItem("guestCartId");
+
+    if (!cartId) return;
+
+    const isGuest = !user || user.isAnonymous;
+    const cartRef = doc(db, `${isGuest ? "guest-" : ""}carts`, cartId);
+    const cartSnapshot = await getDoc(cartRef);
+
+    if (!cartSnapshot.exists()) {
+      return;
+    }
+
+    const { products } = cartSnapshot.data() as CartData;
+    const existingProductIndex = products.findIndex(
+      (p) =>
+        p.productId === productId &&
+        p.variantDetails?.sku === variantSku
+    );
+
+    if (existingProductIndex < 0) {
+      return;
+    }
+
+    const updatedProducts = products.filter(
+      (product, index) => index !== existingProductIndex
+    );
+
+    await updateDoc(cartRef, {
+      products: updatedProducts,
+      updatedAt: new Date(),
+    });
+  } catch (error) {
+    console.error("Error removing cart item:", error);
+    throw error;
+  }
+};
+
+export const updateCartItem = async (
+  updates: { productId: string; variantSku: string; quantity: number }[]
+) => {
+  try {
+    console.log("coming here to update multiple items");
+    const user = auth.currentUser;
+    const cartId = user?.uid || localStorage.getItem("guestCartId");
+
+    if (!cartId) {
+      console.log("No cart ID found.");
+      return;
+    }
+
+    const isGuest = !user || user.isAnonymous;
+    const cartRef = doc(db, `${isGuest ? "guest-" : ""}carts`, cartId);
+    const cartSnapshot = await getDoc(cartRef);
+
+    if (!cartSnapshot.exists()) {
+      console.log(`Cart with ID ${cartId} not found.`);
+      return;
+    }
+
+    const { products: existingProducts } = cartSnapshot.data() as CartData;
+    const updatedProducts = [...existingProducts];
+
+    updates.forEach(({ productId, variantSku, quantity }) => {
+      const existingProductIndex = updatedProducts.findIndex(
+        (p) => p.productId === productId && p.variantDetails?.sku === variantSku
+      );
+
+      if (existingProductIndex >= 0) {
+        updatedProducts[existingProductIndex] = {
+          ...updatedProducts[existingProductIndex],
+          quantity: quantity,
+        };
+      } else {
+        console.warn(
+          `Product with ID ${productId} and SKU ${variantSku} not found in cart for update.`
+        );
+      }
+    });
+
+    console.log(updatedProducts, "updatedProducts after applying batch");
+
+    await updateDoc(cartRef, {
+      products: updatedProducts,
+      updatedAt: new Date(),
+    });
+    console.log("Cart items updated successfully in batch.");
+  } catch (error) {
+    console.error("Error updating cart items in batch:", error);
+    throw error;
+  }
+};
