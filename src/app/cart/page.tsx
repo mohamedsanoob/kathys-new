@@ -9,6 +9,8 @@ import {
 } from "@/actions/actions";
 import Image from "next/image";
 import { X } from "lucide-react";
+import Footer from "../_components/Footer";
+import Help from "../_components/Help";
 
 interface CartProduct {
   id: string;
@@ -177,39 +179,44 @@ const CartPage = () => {
   //   }
   // };
 
+const total = cartProductsWithDetails.reduce((sum, product) => {
+  return sum + (product.productDiscountedPrice || product.productPrice) * product.quantity;
+}, 0);
+
   if (isLoading) {
     return <div>Loading cart...</div>;
   }
 
   return (
-    <div>
+    <div style={{height:"100%"}}>
       <Navbar />
-      <div className="flex gap-16 max-w-[1290px] m-auto">
-        <table className="w-full">
+      <div className="flex gap-16  m-auto p-20">
+        <table className="w-[70%]">
           <thead>
             <tr className="text-center text-gray-400 font-medium border-b border-gray-300">
-              <th className="py-2">Product</th>
-              <th className="py-2">Price</th>
-              <th className="py-2">Quantity</th>
-              <th className="py-2">Subtotal</th>
-              <th className="py-2"></th>
+              <th className="py-2 w-120 text-[0.875rem] opacity-60">Product</th>
+              <th className="py-2 text-[0.875rem] text-left opacity-60">Price</th>
+              <th className="py-2 text-[0.875rem] text-left opacity-60">Quantity</th>
+              <th className="py-2 text-[0.875rem] text-left opacity-60">Subtotal</th>
+              <th className="py-2 text-[0.875rem] text-left opacity-60"></th>
             </tr>
           </thead>
           <tbody>
             {cartProductsWithDetails?.map((product, index) => (
-              <tr key={index} className="py-4 border-b border-gray-200">
-                <td className="flex items-center gap-4 py-2">
-                  {product.images[0] && (
+              <tr key={index} className="border-b border-gray-200 h-[100px]">
+                <td >
+                  <div className="flex items-center gap-4  h-[100%]">
+  {product.images[0] && (
                     <Image
                       src={product.images[0]}
                       alt={product.productName}
                       width={80}
                       height={80}
-                      className="w-20 h-20 object-cover rounded"
+                      className="w-10 h-20 object-cover rounded"
                     />
                   )}
                   <div>
-                    <p className="font-semibold text-md">
+                    <p className="font-semibold text-[1rem]">
                       {product.productName}
                       {" - "}
                       {product.variantDetails.combination
@@ -222,9 +229,11 @@ const CartPage = () => {
                       </p>
                     )}
                   </div>
+                  </div>
+                
                 </td>
-                <td className="py-2 text-center">
-                  <p className="text-lg">
+                <td className="text-left">
+                  <p className="text-[1rem]">
                     ₹{" "}
                     {(
                       product.productDiscountedPrice || product?.productPrice
@@ -234,8 +243,8 @@ const CartPage = () => {
                     })}
                   </p>
                 </td>
-                <td className="py-2 text-center">
-                  <div className=" border border-gray-200 text-lg flex items-center gap-4 w-fit rounded-md">
+                <td className="text-left">
+                  <div className=" border border-gray-200 text-lg flex items-center gap-2 w-fit rounded-md">
                     <button
                       onClick={() => handleDecrement(product)}
                       disabled={product.quantity <= 1}
@@ -243,7 +252,7 @@ const CartPage = () => {
                     >
                       −
                     </button>
-                    <span className="text-lg w-max font-medium text-gray-800">
+                    <span className="text-[1rem] w-max font-medium text-gray-800">
                       {product?.quantity}
                     </span>
                     <button
@@ -258,7 +267,7 @@ const CartPage = () => {
                     </button>
                   </div>
                 </td>
-                <td className="py-2 text-lg text-center">
+                <td className="ext-[1rem] text-left">
                   ₹{" "}
                   {(
                     (product.productDiscountedPrice || product.productPrice) *
@@ -268,7 +277,7 @@ const CartPage = () => {
                     maximumFractionDigits: 2,
                   })}
                 </td>
-                <td className="py-2 text-center">
+                <td className="text-center">
                   <button
                     // onClick={() =>
                     //   handleRemoveItem(product.id, product.variantDetails.sku)
@@ -282,7 +291,7 @@ const CartPage = () => {
             ))}
           </tbody>
         </table>
-        <Checkout />
+    <Checkout total={total} />
         {/* {Object.keys(pendingUpdates).length > 0 && (
           <button
             onClick={persistCartUpdates}
@@ -291,7 +300,10 @@ const CartPage = () => {
             Save Cart Updates
           </button>
         )} */}
+    
       </div>
+         
+       <Help/>
     </div>
   );
 };

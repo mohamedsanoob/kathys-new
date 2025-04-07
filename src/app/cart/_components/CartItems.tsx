@@ -58,7 +58,7 @@ const CartItems: React.FC<CartItemsProps> = ({
     <table className="w-full">
       <thead>
         <tr className="text-center text-gray-400 font-medium border-b border-gray-300">
-          <th className="py-2">Product</th>
+          <th className="py-2 h-20">Product</th>
           <th className="py-2">Price</th>
           <th className="py-2">Quantity</th>
           <th className="py-2">Subtotal</th>
