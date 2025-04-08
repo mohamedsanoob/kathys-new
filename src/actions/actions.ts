@@ -3,10 +3,14 @@ import {
   collection,
   doc,
   DocumentData,
+  getCountFromServer,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
   query,
   setDoc,
+  startAfter,
   updateDoc,
   where,
 } from "firebase/firestore";
@@ -112,6 +116,126 @@ export const getAllProducts = async (): Promise<DocumentInterface[]> => {
   }
 };
 
+
+interface Category {
+  id: string;
+  categoryName: string;
+  description: string;
+  active: boolean;
+  // desktopBanner: string;
+  images: string[];
+  isSubcategory: boolean;
+  slug: string;
+  // mobileBanner?: string;
+  // Add any other properties
+}
+
+interface Product {
+  id: string;
+  unitQuantity: number;
+  productCategory: string;
+  variants: { optionValue: string[]; optionName: string }[];
+  productPrice: number;
+  productName: string;
+  description: string;
+  quantity: number;
+  active: boolean;
+  productDiscountedPrice: number;
+  variantDetails: {
+    price: number;
+    discountedPrice: number;
+    inventory: number;
+    combination: { name: string; value: string }[];
+    sku: string;
+  }[];
+  productUnit: string;
+  images: string[];
+  taxRate: number;
+  categories: string[];
+  shippingCost: number;
+  skuId: string;
+  createdDate?: { seconds: number; nanoseconds: number };
+  updatedDate?: { seconds: number; nanoseconds: number };
+}
+
+export const getCollectionsWithProducts = async (): Promise<
+  {
+    id: string;
+    categoryName: string;
+    description: string;
+    products: Product[];
+  }[]
+> => {
+  try {
+    const categoriesSnapshot = await getDocs(collection(db, "categories"));
+    const categories: Category[] = categoriesSnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        categoryName: data.categoryName,
+        description: data.description,
+        active: data.active,
+        desktopBanner: data.desktopBanner,
+        images: data.images || [], // Default to empty array if missing
+        isSubcategory: data.isSubcategory,
+        slug: data.slug,
+        mobileBanner: data.mobileBanner,
+        // Ensure ALL properties from the Category interface are mapped here
+      } as Category;
+    });
+
+    const collectionsWithProducts = await Promise.all(
+      categories.map(async (category) => {
+        const productsQuery = query(
+          collection(db, "products"),
+          where("categories", "array-contains", category.id),
+          limit(4)
+        );
+        const productsSnapshot = await getDocs(productsQuery);
+        const products: Product[] = productsSnapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            unitQuantity: data.unitQuantity,
+            productCategory: data.productCategory,
+            variants: data.variants || [],
+            productPrice: data.productPrice,
+            productName: data.productName,
+            description: data.description,
+            quantity: data.quantity,
+            active: data.active,
+            productDiscountedPrice: data.productDiscountedPrice,
+            variantDetails: data.variantDetails || [],
+            productUnit: data.productUnit,
+            images: data.images || [],
+            taxRate: data.taxRate,
+            categories: data.categories || [],
+            shippingCost: data.shippingCost,
+            skuId: data.skuId,
+            createdDate: data.createdDate,
+            updatedDate: data.updatedDate,
+          } as Product;
+        });
+
+        return {
+          id: category.id,
+          categoryName: category.categoryName,
+          description: category.description,
+          products: products,
+        };
+      })
+    );
+
+    return collectionsWithProducts;
+  } catch (error) {
+    console.error(
+      "Error fetching collections with products from Firestore:",
+      error
+    );
+    throw error;
+  }
+};
+
 export const getCategoryByName = async (
   categoryName: string
 ): Promise<Category | null> => {
@@ -135,22 +259,108 @@ export const getCategoryByName = async (
   }
 };
 
+// export const getProductsByCategory = async (
+//   productIds: string[]
+// ): Promise<Product[]> => {
+//   if (!productIds.length) {
+//     return [];
+//   }
+
+//   const productsCollection = collection(db, "products");
+//   const querySnapshot = await getDocs(
+//     query(productsCollection, where("id", "in", productIds))
+//   );
+
+//   return querySnapshot.docs.map((doc) => {
+//     const productData = doc.data() as Product; // Type assertion
+//     return { ...productData }; // Return the product with the document ID
+//   });
+// };
+
 export const getProductsByCategory = async (
-  productIds: string[]
-): Promise<Product[]> => {
-  if (!productIds.length) {
-    return [];
+  categoryName: string,
+  limitNumber: number,
+  cursorId: string | null = null,
+  sortBy: string = "latest" // Add the sortBy parameter with a default value
+): Promise<{
+  products: Product[];
+  totalCount: number;
+  lastDocumentId?: string;
+}> => {
+  try {
+    // 1. Get the category document to access product IDs
+    const categoryDocSnapshot = await getDocs(
+      query(
+        collection(db, "categories"),
+        where("categoryName", "==", categoryName)
+      )
+    );
+
+    if (categoryDocSnapshot.empty) {
+      return { products: [], totalCount: 0 };
+    }
+
+    const categoryData = categoryDocSnapshot.docs[0].data();
+    const productIds = (categoryData?.products as string[]) || [];
+
+    if (!productIds.length) {
+      return { products: [], totalCount: 0 };
+    }
+
+    // 2. Build the products query with sorting
+    const productsRef = collection(db, "products");
+    let productsQuery = query(
+      productsRef,
+      where("__name__", "in", productIds),
+      limit(limitNumber)
+    );
+
+    // Apply sorting based on the sortBy parameter
+    switch (sortBy) {
+      case "latest":
+        productsQuery = query(productsQuery, orderBy("createdDate", "desc"));
+        break;
+      case "price-low":
+        productsQuery = query(productsQuery, orderBy("productPrice", "asc"));
+        break;
+      case "price-high":
+        productsQuery = query(productsQuery, orderBy("productPrice", "desc"));
+        break;
+      default:
+        productsQuery = query(productsQuery, orderBy("createdDate", "desc")); // Default to latest
+        break;
+    }
+
+    // Apply cursor for pagination (must be after orderBy)
+    if (cursorId) {
+      const cursorDoc = doc(db, "products", cursorId);
+      productsQuery = query(productsQuery, startAfter(cursorDoc));
+    }
+
+    const productsSnapshot = await getDocs(productsQuery);
+    const products = productsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Product[];
+
+    const lastDocumentId =
+      productsSnapshot.docs.length > 0
+        ? productsSnapshot.docs[productsSnapshot.docs.length - 1].id
+        : undefined;
+
+    // 3. Get the total count of products in the category (independent of sorting)
+    const countQuery = query(productsRef, where("__name__", "in", productIds));
+    const countSnapshot = await getCountFromServer(countQuery);
+    const totalCount = countSnapshot.data().count;
+
+    return { products, totalCount, lastDocumentId };
+  } catch (error) {
+    console.error(
+      "Error fetching products by category with pagination and sorting:",
+      error
+    );
+    return { products: [], totalCount: 0 };
   }
-
-  const productsCollection = collection(db, "products");
-  const querySnapshot = await getDocs(
-    query(productsCollection, where("id", "in", productIds))
-  );
-
-  return querySnapshot.docs.map((doc) => {
-    const productData = doc.data() as Product; // Type assertion
-    return { ...productData }; // Return the product with the document ID
-  });
 };
 
 export const getProductById = async (
@@ -340,9 +550,7 @@ export const removeCartItem = async (productId: string, variantSku: string) => {
 
     const { products } = cartSnapshot.data() as CartData;
     const existingProductIndex = products.findIndex(
-      (p) =>
-        p.productId === productId &&
-        p.variantDetails?.sku === variantSku
+      (p) => p.productId === productId && p.variantDetails?.sku === variantSku
     );
 
     if (existingProductIndex < 0) {
