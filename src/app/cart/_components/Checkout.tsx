@@ -34,7 +34,7 @@ const Checkout = ({ total }: CheckoutProps) => {
         </h6>
       </div>
       <Link href="/checkout" style={{width:"100%"}}>
-       <button className="h-12 bg-[#ee403d] hover:bg-[#d93835] text-white cursor-pointer font-semibold rounded-md mt-4 transition-colors duration-200">
+       <button className="h-12 w-full bg-[#ee403d] hover:bg-[#d93835] text-white cursor-pointer font-semibold rounded-md mt-4 transition-colors duration-200">
         Proceed to checkout
       </button>
       </Link>

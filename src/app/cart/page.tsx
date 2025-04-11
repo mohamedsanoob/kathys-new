@@ -177,7 +177,7 @@ const CartPage = () => {
   return (
     <div className="min-h-screen flex flex-col"  style={{position:"relative",height:"100vh"}}>
       <Navbar />
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:p-20 flex-1" style={{overflowY:"scroll",marginTop:"50px"
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:p-[6.5%] flex-1" style={{overflowY:"scroll",marginTop:"50px"
       }}>
         {/* Cart Items - Mobile View */}
         <div className="lg:hidden w-full">
