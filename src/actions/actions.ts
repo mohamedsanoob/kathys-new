@@ -616,3 +616,155 @@ export const updateCartItem = async (
     throw error;
   }
 };
+
+export const getColorsByCategory = async (
+  categoryName: string
+): Promise<string[]> => {
+  try {
+    const categoryDocSnapshot = await getDocs(
+      query(
+        collection(db, "categories"),
+        where("categoryName", "==", categoryName)
+      )
+    );
+
+    if (categoryDocSnapshot.empty) {
+      console.log("Category not found.");
+      return [];
+    }
+
+    const categoryData = categoryDocSnapshot.docs[0].data();
+    const productIds = (categoryData?.products as string[]) || [];
+
+    if (!productIds.length) {
+      console.log("No product IDs in category.");
+      return [];
+    }
+
+    const productsRef = collection(db, "products");
+    const productsSnapshot = await getDocs(
+      query(productsRef, where("__name__", "in", productIds))
+    );
+
+    const products = productsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Product[];
+
+    const colors = new Set<string>();
+
+    products.forEach((product) => {
+      product.variants?.forEach((variant) => {
+        if (
+          variant.optionName?.toLowerCase() === "color" &&
+          Array.isArray(variant.optionValue)
+        ) {
+          variant.optionValue.forEach((colorValue) => {
+            if (typeof colorValue === "string" && colorValue.startsWith("#")) {
+              colors.add(colorValue);
+            }
+          });
+        }
+      });
+      product.variantDetails?.forEach((detail) => {
+        detail.combination?.forEach((combo) => {
+          if (
+            combo.name?.toLowerCase() === "color" &&
+            typeof combo.value === "string" &&
+            combo.value.startsWith("#")
+          ) {
+            colors.add(combo.value);
+          }
+        });
+      });
+    });
+
+    return Array.from(colors);
+  } catch (error) {
+    console.error("Error fetching colors by category:", error);
+    return [];
+  }
+};
+
+export const getMinMaxPriceByCategory = async (
+  categoryName: string
+): Promise<{ minPrice: number | null; maxPrice: number | null }> => {
+  let minPrice: number | null = null;
+  let maxPrice: number | null = null;
+
+  try {
+    const categoryDocSnapshot = await getDocs(
+      query(
+        collection(db, "categories"),
+        where("categoryName", "==", categoryName)
+      )
+    );
+
+    if (categoryDocSnapshot.empty) {
+      console.log("Category not found.");
+      return { minPrice, maxPrice };
+    }
+
+    const categoryData = categoryDocSnapshot.docs[0].data();
+    const productIds = (categoryData?.products as string[]) || [];
+
+    if (!productIds.length) {
+      console.log("No product IDs in category.");
+      return { minPrice, maxPrice };
+    }
+
+    const productsRef = collection(db, "products");
+    const productsSnapshot = await getDocs(
+      query(productsRef, where("__name__", "in", productIds))
+    );
+
+    const products = productsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Product[];
+
+    products.forEach((product) => {
+      // Consider both original price and discounted price
+      const pricesToConsider = [
+        product.productPrice,
+        product.productDiscountedPrice,
+      ];
+
+      pricesToConsider.forEach((price) => {
+        if (typeof price === "number") {
+          if (minPrice === null || price < minPrice) {
+            minPrice = price;
+          }
+          if (maxPrice === null || price > maxPrice) {
+            maxPrice = price;
+          }
+        }
+      });
+
+      // Also consider prices in variantDetails
+      product.variantDetails?.forEach((detail) => {
+        if (typeof detail.price === "number") {
+          if (minPrice === null || detail.price < minPrice) {
+            minPrice = detail.price;
+          }
+          if (maxPrice === null || detail.price > maxPrice) {
+            maxPrice = detail.price;
+          }
+        }
+        if (typeof detail.discountedPrice === "number") {
+          if (minPrice === null || detail.discountedPrice < minPrice) {
+            minPrice = detail.discountedPrice;
+          }
+          if (maxPrice === null || detail.discountedPrice > maxPrice) {
+            maxPrice = detail.discountedPrice;
+          }
+        }
+      });
+    });
+
+    return { minPrice, maxPrice };
+  } catch (error) {
+    console.error("Error fetching min/max price by category:", error);
+    return { minPrice: null, maxPrice: null };
+  }
+};
