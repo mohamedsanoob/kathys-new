@@ -1,10 +1,9 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getProductsByCategory } from "@/actions/actions";
 import { Product } from "@/types/product";
 import Image from "next/image";
 import { LayoutGrid, List } from "lucide-react";
-
 
 interface ProductsSectionProps {
   initialProducts: Product[];
@@ -21,89 +20,64 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
 }) => {
   const [grid, setGrid] = useState(false);
   const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [sortBy, setSortBy] = useState<string>("latest");
-  const [lastDocumentId, setLastDocumentId] = useState<string | undefined>(
-    initialProducts.length > 0 && initialProducts.length === itemsPerPage
-      ? initialProducts[initialProducts.length - 1].id
-      : undefined
-  );
-  const [totalPages, setTotalPages] = useState(
-    Math.ceil(totalProducts / itemsPerPage)
-  );
+  const [lastDoc, setLastDoc] = useState<any>(null);
+  const [sortBy, setSortBy] = useState("latest");
+  const [hasMore, setHasMore] = useState(initialProducts.length === itemsPerPage);
+  const loaderRef = useRef<HTMLDivElement>(null);
 
-  // Use useCallback to memoize the fetchProducts function
-  const fetchProducts = useCallback(
-    async (page: number, sortOption: string, cursor?: string | null) => {
-      console.log(
-        "Fetching page:",
-        page,
-        "with cursor:",
-        cursor,
-        "and sort:",
-        sortOption
+  const fetchMoreProducts = useCallback(async () => {
+    if (loading || !hasMore) return;
+
+    setLoading(true);
+    try {
+      const { products: newProducts, lastVisible } = await getProductsByCategory(
+        categoryName,
+        itemsPerPage,
+        lastDoc,
+        sortBy
       );
-      setLoading(true);
-      try {
-        const { products: newProducts, lastDocumentId: newLastId } =
-          await getProductsByCategory(
-            categoryName,
-            itemsPerPage,
-            cursor, // Pass the cursorId
-            sortOption
-          );
-        console.log(
-          "Fetched products:",
-          newProducts.length,
-          "Last ID:",
-          newLastId
-        );
-        console.log(newProducts, "newProducts");
-        console.log(lastDocumentId, "lastDocumentId before update");
 
-        setProducts(newProducts); // Replace existing products with the new page
-        setCurrentPage(page);
-        setSortBy(sortOption);
-        setLastDocumentId(newLastId); // Update the lastDocumentId
-        console.log(lastDocumentId, "lastDocumentId after update");
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        // Handle error
-      } finally {
-        setLoading(false);
-      }
-    },
-    [categoryName, itemsPerPage] // Dependencies for useCallback
-  );
+      // Filter out duplicates before adding new products
+      setProducts(prev => {
+        const existingIds = new Set(prev.map(p => p.id));
+        const uniqueNewProducts = newProducts.filter(p => !existingIds.has(p.id));
+        return [...prev, ...uniqueNewProducts];
+      });
 
-  const handlePageChange = (newPage: number) => {
-    if (
-      newPage >= 1 &&
-      newPage <= totalPages &&
-      newPage !== currentPage &&
-      !loading
-    ) {
-      const cursor = newPage > currentPage ? lastDocumentId : undefined;
-      fetchProducts(newPage, sortBy, cursor);
+      setLastDoc(lastVisible);
+      setHasMore(newProducts.length === itemsPerPage);
+    } catch (err) {
+      console.error("Error loading more products:", err);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleSortChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const newSortBy = event.target.value;
-    setCurrentPage(1);
-    setProducts([]);
-    setLastDocumentId(undefined);
-    fetchProducts(1, newSortBy, null);
-  };
+  }, [categoryName, itemsPerPage, lastDoc, sortBy, loading, hasMore]);
 
   useEffect(() => {
-    // Initial load or when dependencies change (especially fetchProducts)
-    if (products.length === 0 && totalProducts > 0) {
-      fetchProducts(1, sortBy, null);
-    }
-    setTotalPages(Math.ceil(totalProducts / itemsPerPage));
-  }, [fetchProducts, sortBy, totalProducts, products.length, itemsPerPage]);
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          fetchMoreProducts();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loaderRef.current) observer.observe(loaderRef.current);
+
+    return () => {
+      if (loaderRef.current) observer.unobserve(loaderRef.current);
+    };
+  }, [fetchMoreProducts, hasMore, loading]);
+
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSort = e.target.value;
+    setSortBy(newSort);
+    setProducts([]);
+    setLastDoc(null);
+    setHasMore(true);
+  };
 
   return (
     <div className="flex-1">
@@ -125,7 +99,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
             className={`cursor-pointer w-5 h-5 ${!grid && "text-gray-400"}`}
           />
           <p>
-            Showing 1–{products.length} of {products.length} results
+            Showing 1–{products.length} of {totalProducts} results
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -142,7 +116,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
           </select>
         </div>
       </div>
-      <div className={`grid  gap-4 ${grid ? "grid-cols-4" : "grid-cols-1"}`}>
+      <div className={`grid gap-4 ${grid ? "grid-cols-4" : "grid-cols-1"}`}>
         {products.map((product) =>
           grid ? (
             <div key={product.id} className="flex flex-col gap-2">
@@ -202,31 +176,24 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                   </div>
                 </div>
               </div>
-
               <hr className="text-gray-300 mt-8 mb-4" />
             </div>
           )
         )}
       </div>
-      <div className="mt-8 flex justify-center items-center space-x-2">
-        <button
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1 || loading}
-          className="px-4 py-2 border rounded disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <span>
-          {currentPage} / {totalPages}
-        </span>
-        <button
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages || loading || !lastDocumentId}
-          className="px-4 py-2 border rounded disabled:opacity-50"
-        >
-          Next
-        </button>
-        {loading && <span className="ml-2">Loading...</span>}
+      <div ref={loaderRef} className="mt-8 flex justify-center items-center space-x-2">
+        {loading ? (
+          <span className="ml-2">Loading...</span>
+        ) : hasMore ? (
+          <button
+            onClick={fetchMoreProducts}
+            className="px-4 py-2 border rounded"
+          >
+            Load More
+          </button>
+        ) : (
+          <p className="text-gray-500">No more products to show</p>
+        )}
       </div>
     </div>
   );

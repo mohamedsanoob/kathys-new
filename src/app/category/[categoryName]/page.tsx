@@ -40,7 +40,7 @@ import { Product } from "@/types/product";
 //   productUnit: string;
 // }
 
-const ITEMS_PER_PAGE = 1;
+const ITEMS_PER_PAGE = 2;
 
 const Page = async ({
   params,

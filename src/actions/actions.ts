@@ -12,7 +12,9 @@ import {
   setDoc,
   startAfter,
   updateDoc,
+  endBefore,
   where,
+  DocumentSnapshot,
 } from "firebase/firestore";
 
 interface DocumentInterface extends DocumentData {
@@ -277,45 +279,38 @@ export const getCategoryByName = async (
 //   });
 // };
 
+// Updated getProductsByCategory function
 export const getProductsByCategory = async (
   categoryName: string,
   limitNumber: number,
-  cursorId: string | null = null,
-  sortBy: string = "latest" // Add the sortBy parameter with a default value
+  lastVisibleDoc: DocumentSnapshot | null = null,
+  sortBy: string = "latest"
 ): Promise<{
   products: Product[];
   totalCount: number;
-  lastDocumentId?: string;
+  lastVisible: DocumentSnapshot | null;
 }> => {
   try {
-    // 1. Get the category document to access product IDs
-    const categoryDocSnapshot = await getDocs(
-      query(
-        collection(db, "categories"),
-        where("categoryName", "==", categoryName)
-      )
+    const categoryQuery = query(
+      collection(db, "categories"),
+      where("categoryName", "==", categoryName)
     );
+    const categorySnapshot = await getDocs(categoryQuery);
 
-    if (categoryDocSnapshot.empty) {
-      return { products: [], totalCount: 0 };
+    if (categorySnapshot.empty) {
+      return { products: [], totalCount: 0, lastVisible: null };
     }
 
-    const categoryData = categoryDocSnapshot.docs[0].data();
-    const productIds = (categoryData?.products as string[]) || [];
-
+    const productIds = categorySnapshot.docs[0].data()?.products || [];
     if (!productIds.length) {
-      return { products: [], totalCount: 0 };
+      return { products: [], totalCount: 0, lastVisible: null };
     }
 
-    // 2. Build the products query with sorting
-    const productsRef = collection(db, "products");
     let productsQuery = query(
-      productsRef,
-      where("__name__", "in", productIds),
-      limit(limitNumber)
+      collection(db, "products"),
+      where("__name__", "in", productIds)
     );
 
-    // Apply sorting based on the sortBy parameter
     switch (sortBy) {
       case "latest":
         productsQuery = query(productsQuery, orderBy("createdDate", "desc"));
@@ -327,42 +322,38 @@ export const getProductsByCategory = async (
         productsQuery = query(productsQuery, orderBy("productPrice", "desc"));
         break;
       default:
-        productsQuery = query(productsQuery, orderBy("createdDate", "desc")); // Default to latest
-        break;
+        productsQuery = query(productsQuery, orderBy("createdDate", "desc"));
     }
 
-    // Apply cursor for pagination (must be after orderBy)
-    if (cursorId) {
-      const cursorDoc = doc(db, "products", cursorId);
-      productsQuery = query(productsQuery, startAfter(cursorDoc));
-    }
+    productsQuery = query(
+      productsQuery,
+      limit(limitNumber),
+      ...(lastVisibleDoc ? [startAfter(lastVisibleDoc)] : [])
+    );
 
     const productsSnapshot = await getDocs(productsQuery);
-    const products = productsSnapshot.docs.map((doc) => ({
+    const products = productsSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     })) as Product[];
 
-    const lastDocumentId =
-      productsSnapshot.docs.length > 0
-        ? productsSnapshot.docs[productsSnapshot.docs.length - 1].id
-        : undefined;
-
-    // 3. Get the total count of products in the category (independent of sorting)
-    const countQuery = query(productsRef, where("__name__", "in", productIds));
+    const countQuery = query(
+      collection(db, "products"),
+      where("__name__", "in", productIds)
+    );
     const countSnapshot = await getCountFromServer(countQuery);
     const totalCount = countSnapshot.data().count;
 
-    return { products, totalCount, lastDocumentId };
+    return {
+      products,
+      totalCount,
+      lastVisible: productsSnapshot.docs[productsSnapshot.docs.length - 1] || null
+    };
   } catch (error) {
-    console.error(
-      "Error fetching products by category with pagination and sorting:",
-      error
-    );
-    return { products: [], totalCount: 0 };
+    console.error("Error fetching products:", error);
+    return { products: [], totalCount: 0, lastVisible: null };
   }
 };
-
 export const getProductById = async (
   productId: string
 ): Promise<Product | null> => {
