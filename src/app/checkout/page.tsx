@@ -37,7 +37,7 @@ const CheckoutPage = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<FormData[]>([]);
-  const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState<string | null | undefined>(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [termsError, setTermsError] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
@@ -57,20 +57,8 @@ const CheckoutPage = () => {
       setIsLoading(true);
       try {
         const cartItems = await getCartProducts();
-        const detailedItems = await Promise.all(
-          cartItems.map(async (item: any) => {
-            const product = await getProductById(item.id);
-            if (product) {
-              return {
-                ...product,
-                quantity: item.quantity,
-                variantDetails: item.variantDetails,
-              };
-            }
-            return null;
-          })
-        );
-        setCartProductsWithDetails(detailedItems.filter(Boolean));
+     
+        setCartProductsWithDetails(cartItems.filter(Boolean));
       } catch (err) {
         console.error("Failed to fetch checkout cart details", err);
       } finally {
@@ -99,7 +87,7 @@ const CheckoutPage = () => {
       })) as FormData[];
 
       setSavedAddresses(addresses);
-      const defaultAddress = addresses.find(addr => addr.is_default);
+      const defaultAddress  = addresses.find(addr => addr.is_default);
       setSelectedAddress(defaultAddress ? defaultAddress.id : addresses[0]?.id || null);
     } catch (error) {
       console.error("Error fetching addresses:", error);
@@ -256,7 +244,7 @@ const CheckoutPage = () => {
       await onSubmit(orderData);
     } catch (error) {
       console.error("Checkout error:", error);
-      toast.error(error.message || "Checkout failed. Please try again.");
+      toast.error( "Checkout failed. Please try again.");
     }
   };
 

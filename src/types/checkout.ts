@@ -10,13 +10,33 @@ export interface VariantDetail {
 }
 
 export interface CartProduct {
-  id: string;
+   id: string;
   images: string[];
   productName: string;
   productPrice: number;
   productDiscountedPrice?: number;
   quantity: number;
   variantDetails: VariantDetail;
+  currentInventory?: number;
+  outOfStock?: boolean;
+
+  unitQuantity: number;
+  productCategory: string;
+  variants: { optionValue: string[]; optionName: string }[];
+
+  description: string;
+
+  active: boolean;
+
+  productUnit: string;
+ 
+  taxRate: number;
+  categories: string[];
+  shippingCost: number;
+  
+  skuId: string;
+  createdDate?: { seconds: number; nanoseconds: number };
+  updatedDate?: { seconds: number; nanoseconds: number };
 }
 
 export interface FormData {
@@ -54,6 +74,7 @@ export interface RazorpayOptions {
   };
   notes: {
     address: string;
+   orderId: string;
   };
   theme: {
     color: string;

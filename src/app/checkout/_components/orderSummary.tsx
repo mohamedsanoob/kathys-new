@@ -10,7 +10,7 @@ interface OrderSummaryProps {
   handlePlaceOrder: () => void;
   isValid: boolean;
   currentUser: any;
-  selectedAddress: string | null;
+  selectedAddress: string | null | undefined;
 }
 
 const OrderSummary = ({

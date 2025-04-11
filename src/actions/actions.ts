@@ -42,6 +42,7 @@ interface Product {
   productPrice: number;
   productDiscountedPrice: number;
   categories: string[];
+
   images: string[];
   variants: {
     optionValue: string[];
@@ -58,21 +59,56 @@ interface Product {
     sku: string;
   }[];
 }
+
+
+
 interface Combination {
   name: string;
   value: string;
 }
 interface VariantDetail {
-  combination: Combination[];
+price: number;
   discountedPrice: number;
   inventory: number;
-  price: number;
+  combination: {
+    name: string;
+    value: string;
+  }[];
   sku: string;
 }
 interface CartProduct {
   productId: string;
   quantity: number;
-  variantDetails?: VariantDetail;
+  variantDetails: VariantDetail;
+}
+interface CartReturn {
+    id: string;
+  images: string[];
+  productName: string;
+  productPrice: number;
+  productDiscountedPrice?: number;
+  quantity: number;
+  variantDetails: VariantDetail;
+  currentInventory?: number;
+  outOfStock?: boolean;
+
+  unitQuantity: number;
+  productCategory: string;
+  variants: { optionValue: string[]; optionName: string }[];
+
+  description: string;
+
+  active: boolean;
+
+  productUnit: string;
+ 
+  taxRate: number;
+  categories: string[];
+  shippingCost: number;
+  
+  skuId: string;
+  createdDate?: { seconds: number; nanoseconds: number };
+  updatedDate?: { seconds: number; nanoseconds: number };
 }
 interface CartData {
   userId: string | null;
@@ -138,6 +174,8 @@ interface Product {
   variants: { optionValue: string[]; optionName: string }[];
   productPrice: number;
   productName: string;
+  
+  outOfStock?: boolean;
   description: string;
   quantity: number;
   active: boolean;
@@ -154,6 +192,7 @@ interface Product {
   taxRate: number;
   categories: string[];
   shippingCost: number;
+  currentInventory : number;
   skuId: string;
   createdDate?: { seconds: number; nanoseconds: number };
   updatedDate?: { seconds: number; nanoseconds: number };
@@ -519,48 +558,62 @@ export async function getCartProducts() {
 
   if (!cartId) return [];
 
-  const isGuest = !user || user.isAnonymous;
-  const cartRef = doc(db, `${isGuest ? "guest-" : ""}carts`, cartId);
-  const cartSnapshot = await getDoc(cartRef);
-  const cartItems = cartSnapshot.exists()
-    ? cartSnapshot.data()?.products || []
-    : [];
+  try {
+    const isGuest = !user || user.isAnonymous;
+    const cartRef = doc(db, `${isGuest ? "guest-" : ""}carts`, cartId);
+    const cartSnapshot = await getDoc(cartRef);
+    
+    if (!cartSnapshot.exists()) return [];
+    
+    const cartItems: CartProduct[] = cartSnapshot.data()?.products || [];
+    const productIdsInCart = cartItems.map(item => item.productId).filter(Boolean) as string[];
 
-  // Extract the product IDs from the cart items
-  const productIdsInCart = cartItems
-    .map((item: CartProduct) => item.productId)
-    .filter(Boolean) as string[];
+    if (productIdsInCart.length === 0) return [];
 
-  if (productIdsInCart.length === 0) {
+    // Fetch products
+    const productsRef = collection(db, "products");
+    const q = query(productsRef, where("__name__", "in", productIdsInCart));
+    const productsSnapshot = await getDocs(q);
+    
+    const productsData = productsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Product[]; // Assuming you have a Product type
+
+    // Merge cart items with product data
+    const cartProductsWithDetails = cartItems.reduce((acc, cartItem) => {
+      const matchingProduct = productsData.find(p => p.id === cartItem.productId);
+      
+      if (!matchingProduct) return acc;
+
+      const variant = matchingProduct.variantDetails?.find(v => 
+        v.sku === cartItem.variantDetails?.sku &&
+        v.combination?.every((comb, index) => 
+          comb.value === cartItem.variantDetails?.combination[index]?.value
+        )
+      );
+
+      const currentInventory = variant?.inventory ?? 0;
+      const outOfStock = currentInventory < cartItem.quantity;
+
+      acc.push({
+        ...matchingProduct,
+        variantDetails:cartItem.variantDetails,
+
+        quantity: cartItem.quantity,
+        currentInventory,
+        outOfStock
+      });
+
+      return acc;
+    }, [] as CartReturn[]);
+
+    return cartProductsWithDetails;
+
+  } catch (error) {
+    console.error("Error fetching cart products:", error);
     return [];
   }
-
-  const productsRef = collection(db, "products");
-  const q = query(productsRef, where("__name__", "in", productIdsInCart));
-
-  const productsSnapshot = await getDocs(q);
-  const productsData = productsSnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-
-  const cartProductsWithDetails = cartItems
-    .map((cartItem: CartProduct) => {
-      const matchingProduct = productsData.find(
-        (product) => product.id === cartItem.productId
-      );
-      if (matchingProduct) {
-        return {
-          ...matchingProduct,
-          variantDetails: cartItem.variantDetails,
-          quantity: cartItem.quantity,
-        };
-      }
-      return [];
-    })
-    .filter(Boolean);
-
-  return cartProductsWithDetails;
 }
 
 export const removeCartItem = async (productId: string, variantSku: string) => {

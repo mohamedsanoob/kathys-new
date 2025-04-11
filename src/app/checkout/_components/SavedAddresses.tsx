@@ -3,7 +3,7 @@ import { Check } from "lucide-react";
 
 interface SavedAddressesProps {
   savedAddresses: FormData[];
-  selectedAddress: string | null;
+  selectedAddress: string | null | undefined;
   setSelectedAddress: (value: string | null) => void;
   setShowAddressForm: (value: boolean) => void;
 }
