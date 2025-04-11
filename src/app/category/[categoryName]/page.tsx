@@ -72,7 +72,7 @@ const Page = async ({
     <div>
       <Navbar />
       <div className="flex gap-12 max-w-[1290px] m-auto mt-[3.75rem]">
-        <FilterSection />
+        <FilterSection categoryName={categoryName} />
         <ProductsSection
           initialProducts={initialProducts as Product[]}
           totalProducts={totalCount}
