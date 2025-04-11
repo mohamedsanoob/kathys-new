@@ -45,7 +45,6 @@ const CheckoutPage = () => {
   const {
     register,
     handleSubmit,
-    watch,
     setValue,
     getValues,
     formState: { errors, isValid },

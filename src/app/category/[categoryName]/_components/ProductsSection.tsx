@@ -4,6 +4,7 @@ import { getProductsByCategory } from "@/actions/actions";
 import { Product } from "@/types/product";
 import Image from "next/image";
 import { LayoutGrid, List } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 interface ProductsSectionProps {
   initialProducts: Product[];
@@ -23,25 +24,75 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   const [loading, setLoading] = useState(false);
   const [lastDoc, setLastDoc] = useState<any>(null);
   const [sortBy, setSortBy] = useState("latest");
-  const [hasMore, setHasMore] = useState(initialProducts.length === itemsPerPage);
+  const [hasMore, setHasMore] = useState(
+    initialProducts.length === itemsPerPage
+  );
   const loaderRef = useRef<HTMLDivElement>(null);
+
+  const searchParams = useSearchParams();
+  const minPriceParam = searchParams.get("minPrice");
+  const maxPriceParam = searchParams.get("maxPrice");
+  const colorParam2 = searchParams.get("color");
+  const colorParam = "#".concat(colorParam2 || "");
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    setProducts([]); // Clear existing products
+    setLastDoc(null); // Reset pagination
+    setHasMore(true);
+
+    try {
+      const { products: initialFetchProducts, lastVisible } =
+        await getProductsByCategory(
+          categoryName,
+          itemsPerPage,
+          null, // Initial fetch, no lastDoc
+          sortBy,
+          minPriceParam ? parseInt(minPriceParam) : undefined,
+          maxPriceParam ? parseInt(maxPriceParam) : undefined,
+          colorParam ? colorParam : undefined
+        );
+
+      setProducts(initialFetchProducts);
+      setLastDoc(lastVisible);
+      setHasMore(initialFetchProducts.length === itemsPerPage);
+    } catch (err) {
+      console.error("Error fetching initial products:", err);
+      setProducts([]);
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    categoryName,
+    itemsPerPage,
+    sortBy,
+    minPriceParam,
+    maxPriceParam,
+    colorParam,
+  ]);
 
   const fetchMoreProducts = useCallback(async () => {
     if (loading || !hasMore) return;
 
     setLoading(true);
     try {
-      const { products: newProducts, lastVisible } = await getProductsByCategory(
-        categoryName,
-        itemsPerPage,
-        lastDoc,
-        sortBy
-      );
+      const { products: newProducts, lastVisible } =
+        await getProductsByCategory(
+          categoryName,
+          itemsPerPage,
+          lastDoc,
+          sortBy,
+          minPriceParam ? parseInt(minPriceParam) : undefined,
+          maxPriceParam ? parseInt(maxPriceParam) : undefined,
+          colorParam ? colorParam : undefined
+        );
 
-      // Filter out duplicates before adding new products
-      setProducts(prev => {
-        const existingIds = new Set(prev.map(p => p.id));
-        const uniqueNewProducts = newProducts.filter(p => !existingIds.has(p.id));
+      setProducts((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const uniqueNewProducts = newProducts.filter(
+          (p) => !existingIds.has(p.id)
+        );
         return [...prev, ...uniqueNewProducts];
       });
 
@@ -52,11 +103,25 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [categoryName, itemsPerPage, lastDoc, sortBy, loading, hasMore]);
+  }, [
+    categoryName,
+    itemsPerPage,
+    lastDoc,
+    sortBy,
+    loading,
+    hasMore,
+    minPriceParam,
+    maxPriceParam,
+    colorParam,
+  ]);
+
+  useEffect(() => {
+    fetchProducts(); // Fetch products on initial load and when filter params change
+  }, [fetchProducts]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      entries => {
+      (entries) => {
         if (entries[0].isIntersecting && hasMore && !loading) {
           fetchMoreProducts();
         }
@@ -74,9 +139,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newSort = e.target.value;
     setSortBy(newSort);
-    setProducts([]);
-    setLastDoc(null);
-    setHasMore(true);
+    fetchProducts(); // Re-fetch products on sort change
   };
 
   return (
@@ -171,7 +234,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                       SKU <span>N/A</span>
                     </p>
                     <p>
-                      Category <span>Category name take from params</span>
+                      Category <span>{categoryName}</span>
                     </p>
                   </div>
                 </div>
@@ -181,7 +244,10 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
           )
         )}
       </div>
-      <div ref={loaderRef} className="mt-8 flex justify-center items-center space-x-2">
+      <div
+        ref={loaderRef}
+        className="mt-8 flex justify-center items-center space-x-2"
+      >
         {loading ? (
           <span className="ml-2">Loading...</span>
         ) : hasMore ? (

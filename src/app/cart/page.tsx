@@ -1,15 +1,22 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import Navbar from "../_components/Navbar";
 import Checkout from "./_components/Checkout";
-import {
-  getCartProducts,
-  getProductById,
-  // updateCartItem,
-} from "@/actions/actions";
+import { getCartProducts, getProductById } from "@/actions/actions";
 import Image from "next/image";
 import { X } from "lucide-react";
-import Help from "../_components/Help";
+
+// Type definitions
+interface VariantDetail {
+  price: number;
+  discountedPrice: number;
+  inventory: number;
+  combination: {
+    name: string;
+    value: string;
+  }[];
+  sku: string;
+}
 
 interface CartProduct {
   id: string;
@@ -23,67 +30,42 @@ interface CartProduct {
   outOfStock?: boolean;
 }
 
-interface VariantDetail {
-  price: number;
-  discountedPrice: number;
-  inventory: number;
-  combination: {
-    name: string;
-    value: string;
-  }[];
-  sku: string;
-}
-
 const CartPage = () => {
-  const [cartProductsWithDetails, setCartProductsWithDetails] = useState<
-    (CartProduct & { currentInventory?: number; outOfStock?: boolean })[]
-  >([]);
+  const [cartProducts, setCartProducts] = useState<CartProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pendingUpdates, setPendingUpdates] = useState<{
-    [key: string]: number;
-  }>({});
 
+  // Fetch cart data
   const fetchCartAndProductDetails = useCallback(async () => {
     setIsLoading(true);
     try {
       const cartItems = await getCartProducts();
       const productsWithDetails = await Promise.all(
-        cartItems.map(
-          async (item: {
-            id: string;
-            quantity: number;
-            variantDetails?: VariantDetail;
-          }) => {
-            const productDetails = await getProductById(item.id);
-
-            if (productDetails) {
-              const variant = productDetails.variantDetails.find(
-                (v) =>
-                  v.sku === item.variantDetails?.sku &&
-                  v.combination.every(
-                    (comb, index) =>
-                      comb.value ===
-                      item.variantDetails?.combination[index]?.value
-                  )
-              );
-              const currentInventory = variant?.inventory;
-              return {
-                ...productDetails,
-                quantity: item.quantity,
-                variantDetails: item.variantDetails,
-                currentInventory,
-                outOfStock:
-                  currentInventory !== undefined &&
-                  item.quantity > currentInventory,
-              };
-            }
-            return null;
-          }
-        )
+        cartItems.map(async (item) => {
+          const productDetails = await getProductById(item.id);
+          
+          if (!productDetails) return null;
+          
+          const variant = productDetails.variantDetails.find(
+            (v) =>
+              v.sku === item.variantDetails?.sku &&
+              v.combination.every(
+                (comb, index) =>
+                  comb.value === item.variantDetails?.combination[index]?.value
+              )
+          );
+          
+          const currentInventory = variant?.inventory;
+          return {
+            ...productDetails,
+            quantity: item.quantity,
+            variantDetails: item.variantDetails,
+            currentInventory,
+            outOfStock: currentInventory !== undefined && item.quantity > currentInventory,
+          };
+        })
       );
 
-      setCartProductsWithDetails(productsWithDetails.filter(Boolean));
-      setPendingUpdates({});
+      setCartProducts(productsWithDetails.filter(Boolean));
     } catch (error) {
       console.error("Failed to fetch cart and product details:", error);
     } finally {
@@ -95,76 +77,60 @@ const CartPage = () => {
     fetchCartAndProductDetails();
   }, [fetchCartAndProductDetails]);
 
-  const handleLocalQuantityChange = (
-    productId: string,
-    variantSku: string,
-    newQuantity: number
-  ) => {
+  // Quantity handling functions
+  const updateQuantity = useCallback((productId: string, variantSku: string, newQuantity: number) => {
     if (newQuantity < 1) return;
-
-    setCartProductsWithDetails((prevProducts) =>
+    
+    setCartProducts((prevProducts) =>
       prevProducts.map((product) => {
-        if (
-          product.id === productId &&
-          product.variantDetails.sku === variantSku
-        ) {
-          const updatedProduct = { ...product, quantity: newQuantity };
-          updatedProduct.outOfStock =
-            updatedProduct.currentInventory !== undefined &&
-            newQuantity > updatedProduct.currentInventory;
-          return updatedProduct;
+        if (product.id === productId && product.variantDetails.sku === variantSku) {
+          const outOfStock = 
+            product.currentInventory !== undefined && 
+            newQuantity > product.currentInventory;
+          
+          return { ...product, quantity: newQuantity, outOfStock };
         }
         return product;
       })
     );
+  }, []);
 
-    setPendingUpdates((prevUpdates) => ({
-      ...prevUpdates,
-      [`${productId}-${variantSku}`]: newQuantity,
-    }));
-  };
-
-  const handleIncrement = (product: CartProduct) => {
+  const handleIncrement = useCallback((product: CartProduct) => {
     if (
-      product.currentInventory !== undefined &&
+      product.currentInventory === undefined || 
       product.quantity < product.currentInventory
     ) {
-      handleLocalQuantityChange(
-        product.id,
-        product.variantDetails.sku,
-        product.quantity + 1
-      );
-    } else if (
-      product.currentInventory !== undefined &&
-      product.quantity >= product.currentInventory
-    ) {
-      console.log("Maximum quantity reached");
-    } else {
-      handleLocalQuantityChange(
+      updateQuantity(
         product.id,
         product.variantDetails.sku,
         product.quantity + 1
       );
     }
-  };
+  }, [updateQuantity]);
 
-  const handleDecrement = (product: CartProduct) => {
+  const handleDecrement = useCallback((product: CartProduct) => {
     if (product.quantity > 1) {
-      handleLocalQuantityChange(
+      updateQuantity(
         product.id,
         product.variantDetails.sku,
         product.quantity - 1
       );
     }
-  };
+  }, [updateQuantity]);
 
-  const total = cartProductsWithDetails.reduce((sum, product) => {
-    return (
-      sum +
-      (product.productDiscountedPrice || product.productPrice) *
-        product.quantity
-    );
-  }, 0);
+  // Calculate total (memoized)
+  const total = useMemo(() => cartProducts.reduce((sum, product) => {
+    const price = product.productDiscountedPrice || product.productPrice;
+    return sum + (price * product.quantity);
+  }, 0), [cartProducts]);
+
+  // Format price with Indian locale
+  const formatPrice = (price: number) => {
+    return price.toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -174,93 +140,105 @@ const CartPage = () => {
     );
   }
 
+  // Components for rendering cart items
+  const CartItemMobile = ({ product }: { product: CartProduct }) => (
+    <div className="border-b border-gray-200 py-4 flex flex-col">
+      <div className="flex items-start gap-4">
+        {product.images[0] && (
+          <Image
+            src={product.images[0]}
+            alt={product.productName}
+            width={80}
+            height={80}
+            className="w-16 h-20 object-cover rounded"
+          />
+        )}
+        <div className="flex-1">
+          <p className="font-semibold text-sm">
+            {product.productName}
+            {" - "}
+            {product.variantDetails.combination.map((attr) => attr.value).join(", ")}
+          </p>
+          {product.outOfStock && (
+            <p className="text-red-500 text-xs mt-1">
+              Out of Stock (Available: {product.currentInventory})
+            </p>
+          )}
+          <div className="flex justify-between items-center mt-2">
+            <p className="text-sm font-medium">
+              ₹ {formatPrice(product.productDiscountedPrice || product.productPrice)}
+            </p>
+            <button className="text-gray-500 hover:text-red-500">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="flex justify-between items-center mt-4">
+        <QuantityControl 
+          product={product} 
+          onIncrement={handleIncrement} 
+          onDecrement={handleDecrement}
+          isMobile={true}
+        />
+        <p className="text-sm font-medium">
+          ₹ {formatPrice((product.productDiscountedPrice || product.productPrice) * product.quantity)}
+        </p>
+      </div>
+    </div>
+  );
+
+  const QuantityControl = ({ 
+    product, 
+    onIncrement, 
+    onDecrement,
+    isMobile = false
+  }: { 
+    product: CartProduct, 
+    onIncrement: (product: CartProduct) => void, 
+    onDecrement: (product: CartProduct) => void,
+    isMobile?: boolean
+  }) => {
+    const buttonSize = isMobile ? "w-8 h-8" : "w-10 h-10";
+    const textSize = isMobile ? "text-sm" : "text-[1rem]";
+    
+    return (
+      <div className={`border border-gray-200 flex items-center gap-2 w-fit rounded-md ${isMobile ? 'text-sm' : 'text-lg'}`}>
+        <button
+          onClick={() => onDecrement(product)}
+          disabled={product.quantity <= 1}
+          className={`${buttonSize} cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400`}
+        >
+          −
+        </button>
+        <span className={`${textSize} w-max font-medium text-gray-800`}>
+          {product.quantity}
+        </span>
+        <button
+          onClick={() => onIncrement(product)}
+          disabled={
+            product.currentInventory !== undefined &&
+            product.quantity >= product.currentInventory
+          }
+          className={`${buttonSize} cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400`}
+        >
+          +
+        </button>
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen flex flex-col"  style={{position:"relative",height:"100vh"}}>
+    <div className="min-h-screen flex flex-col" style={{ position: "relative", height: "100vh" }}>
       <Navbar />
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:p-[6.5%] flex-1" style={{overflowY:"scroll",marginTop:"50px"
-      }}>
+      <div 
+        className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:p-[6.5%] flex-1" 
+        style={{ overflowY: "scroll", marginTop: "50px" }}
+      >
         {/* Cart Items - Mobile View */}
         <div className="lg:hidden w-full">
-   
-          {cartProductsWithDetails?.map((product, index) => (
-            <div
-              key={index}
-              className="border-b border-gray-200 py-4 flex flex-col"
-            >
-              <div className="flex items-start gap-4">
-                {product.images[0] && (
-                  <Image
-                    src={product.images[0]}
-                    alt={product.productName}
-                    width={80}
-                    height={80}
-                    className="w-16 h-20 object-cover rounded"
-                  />
-                )}
-                <div className="flex-1">
-                  <p className="font-semibold text-sm">
-                    {product.productName}
-                    {" - "}
-                    {product.variantDetails.combination
-                      .map((attr) => `${attr.value}`)
-                      .join(", ")}
-                  </p>
-                  {product.outOfStock && (
-                    <p className="text-red-500 text-xs mt-1">
-                      Out of Stock (Available: {product.currentInventory})
-                    </p>
-                  )}
-                  <div className="flex justify-between items-center mt-2">
-                    <p className="text-sm font-medium">
-                      ₹{" "}
-                      {(
-                        product.productDiscountedPrice || product?.productPrice
-                      ).toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </p>
-                    <button className="text-gray-500 hover:text-red-500">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-between items-center mt-4">
-                <div className="border border-gray-200 text-sm flex items-center gap-2 w-fit rounded-md">
-                  <button
-                    onClick={() => handleDecrement(product)}
-                    disabled={product.quantity <= 1}
-                    className="w-8 h-8 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
-                  >
-                    −
-                  </button>
-                  <span className="text-sm w-max font-medium text-gray-800">
-                    {product?.quantity}
-                  </span>
-                  <button
-                    onClick={() => handleIncrement(product)}
-                    disabled={
-                      product.currentInventory !== undefined &&
-                      product.quantity >= product.currentInventory
-                    }
-                    className="w-8 h-8 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
-                  >
-                    +
-                  </button>
-                </div>
-                <p className="text-sm font-medium">
-                  ₹{" "}
-                  {(
-                    (product.productDiscountedPrice || product.productPrice) *
-                    product.quantity
-                  ).toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </p>
-              </div>
-            </div>
+          {cartProducts.map((product, index) => (
+            <CartItemMobile key={`${product.id}-${product.variantDetails.sku}-${index}`} product={product} />
           ))}
         </div>
 
@@ -270,21 +248,15 @@ const CartPage = () => {
             <thead>
               <tr className="text-center text-gray-400 font-medium border-b border-gray-300">
                 <th className="py-2 w-120 text-[0.875rem] opacity-60">Product</th>
-                <th className="py-2 text-[0.875rem] text-left opacity-60">
-                  Price
-                </th>
-                <th className="py-2 text-[0.875rem] text-left opacity-60">
-                  Quantity
-                </th>
-                <th className="py-2 text-[0.875rem] text-left opacity-60">
-                  Subtotal
-                </th>
+                <th className="py-2 text-[0.875rem] text-left opacity-60">Price</th>
+                <th className="py-2 text-[0.875rem] text-left opacity-60">Quantity</th>
+                <th className="py-2 text-[0.875rem] text-left opacity-60">Subtotal</th>
                 <th className="py-2 text-[0.875rem] text-left opacity-60"></th>
               </tr>
             </thead>
             <tbody>
-              {cartProductsWithDetails?.map((product, index) => (
-                <tr key={index} className="border-b border-gray-200 h-[100px]">
+              {cartProducts.map((product, index) => (
+                <tr key={`${product.id}-${product.variantDetails.sku}-${index}`} className="border-b border-gray-200 h-[100px]">
                   <td>
                     <div className="flex items-center gap-4 h-[100%]">
                       {product.images[0] && (
@@ -300,9 +272,7 @@ const CartPage = () => {
                         <p className="font-semibold text-[1rem]">
                           {product.productName}
                           {" - "}
-                          {product.variantDetails.combination
-                            .map((attr) => `${attr.value}`)
-                            .join(", ")}
+                          {product.variantDetails.combination.map((attr) => attr.value).join(", ")}
                         </p>
                         {product.outOfStock && (
                           <p className="text-red-500 text-sm">
@@ -314,53 +284,21 @@ const CartPage = () => {
                   </td>
                   <td className="text-left">
                     <p className="text-[1rem]">
-                      ₹{" "}
-                      {(
-                        product.productDiscountedPrice || product?.productPrice
-                      ).toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      ₹ {formatPrice(product.productDiscountedPrice || product.productPrice)}
                     </p>
                   </td>
                   <td className="text-left">
-                    <div className="border border-gray-200 text-lg flex items-center gap-2 w-fit rounded-md">
-                      <button
-                        onClick={() => handleDecrement(product)}
-                        disabled={product.quantity <= 1}
-                        className="w-10 h-10 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
-                      >
-                        −
-                      </button>
-                      <span className="text-[1rem] w-max font-medium text-gray-800">
-                        {product?.quantity}
-                      </span>
-                      <button
-                        onClick={() => handleIncrement(product)}
-                        disabled={
-                          product.currentInventory !== undefined &&
-                          product.quantity >= product.currentInventory
-                        }
-                        className="w-10 h-10 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
-                      >
-                        +
-                      </button>
-                    </div>
+                    <QuantityControl 
+                      product={product} 
+                      onIncrement={handleIncrement} 
+                      onDecrement={handleDecrement}
+                    />
                   </td>
-                  <td className="ext-[1rem] text-left">
-                    ₹{" "}
-                    {(
-                      (product.productDiscountedPrice || product.productPrice) *
-                      product.quantity
-                    ).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                  <td className="text-[1rem] text-left">
+                    ₹ {formatPrice((product.productDiscountedPrice || product.productPrice) * product.quantity)}
                   </td>
                   <td className="text-center">
-                    <button
-                      className="text-gray-500 hover:text-red-500"
-                    >
+                    <button className="text-gray-500 hover:text-red-500">
                       <X className="w-5 h-5" />
                     </button>
                   </td>
@@ -370,13 +308,11 @@ const CartPage = () => {
           </table>
         </div>
 
-        {/* Checkout Section - Always visible but position changes */}
+        {/* Checkout Section */}
         <div className="w-full lg:w-[30%]">
           <Checkout total={total} />
         </div>
       </div>
-
-      
     </div>
   );
 };

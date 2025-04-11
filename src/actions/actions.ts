@@ -12,7 +12,6 @@ import {
   setDoc,
   startAfter,
   updateDoc,
-  endBefore,
   where,
   DocumentSnapshot,
 } from "firebase/firestore";
@@ -280,11 +279,15 @@ export const getCategoryByName = async (
 // };
 
 // Updated getProductsByCategory function
+
 export const getProductsByCategory = async (
   categoryName: string,
   limitNumber: number,
   lastVisibleDoc: DocumentSnapshot | null = null,
-  sortBy: string = "latest"
+  sortBy: string = "latest",
+  minPrice?: number,
+  maxPrice?: number,
+  color?:string,
 ): Promise<{
   products: Product[];
   totalCount: number;
@@ -310,16 +313,32 @@ export const getProductsByCategory = async (
       collection(db, "products"),
       where("__name__", "in", productIds)
     );
+    
+
+    // Apply price filter if minPrice and maxPrice are provided
+    if (minPrice !== undefined && maxPrice !== undefined) {
+      productsQuery = query(
+        productsQuery,
+        where("productPrice", ">=", minPrice),
+        where("productPrice", "<=", maxPrice)
+      );
+    } 
 
     switch (sortBy) {
       case "latest":
         productsQuery = query(productsQuery, orderBy("createdDate", "desc"));
         break;
       case "price-low":
-        productsQuery = query(productsQuery, orderBy("productPrice", "asc"));
+        productsQuery = query(
+          productsQuery,
+          orderBy("productDiscountedPrice", "asc")
+        );
         break;
       case "price-high":
-        productsQuery = query(productsQuery, orderBy("productPrice", "desc"));
+        productsQuery = query(
+          productsQuery,
+          orderBy("productDiscountedPrice", "desc")
+        );
         break;
       default:
         productsQuery = query(productsQuery, orderBy("createdDate", "desc"));
@@ -332,28 +351,48 @@ export const getProductsByCategory = async (
     );
 
     const productsSnapshot = await getDocs(productsQuery);
-    const products = productsSnapshot.docs.map(doc => ({
+    const products = productsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as Product[];
 
-    const countQuery = query(
+    // Recalculate total count based on filters
+    let countQuery = query(
       collection(db, "products"),
       where("__name__", "in", productIds)
     );
+    if (minPrice !== undefined && maxPrice !== undefined) {
+      countQuery = query(
+        countQuery,
+        where("productDiscountedPrice", ">=", minPrice),
+        where("productDiscountedPrice", "<=", maxPrice)
+      );
+    } else if (minPrice !== undefined) {
+      countQuery = query(
+        countQuery,
+        where("productDiscountedPrice", ">=", minPrice)
+      );
+    } else if (maxPrice !== undefined) {
+      countQuery = query(
+        countQuery,
+        where("productDiscountedPrice", "<=", maxPrice)
+      );
+    }
     const countSnapshot = await getCountFromServer(countQuery);
     const totalCount = countSnapshot.data().count;
 
     return {
       products,
       totalCount,
-      lastVisible: productsSnapshot.docs[productsSnapshot.docs.length - 1] || null
+      lastVisible:
+        productsSnapshot.docs[productsSnapshot.docs.length - 1] || null,
     };
   } catch (error) {
     console.error("Error fetching products:", error);
     return { products: [], totalCount: 0, lastVisible: null };
   }
 };
+
 export const getProductById = async (
   productId: string
 ): Promise<Product | null> => {

@@ -16,7 +16,6 @@ const page = ({ searchParams }: { searchParams: { category?: string } }) => {
       case "signout":
         return <Signout />; // Signout component should handle the logic
       default:
-        console.error(`Unknown active component: ${activeComponent}`);
         return <AllOrders />; // Default with error logging
     }
   };
