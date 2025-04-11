@@ -9,10 +9,12 @@ import { auth, db } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
 import { addDoc, collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
-import { FormData, CartProduct, RazorpayResponse, OrderResponse, PaymentSuccessResponse,RazorpayOptions } from "@/types/checkout";
+import { FormData, CartProduct, RazorpayResponse, OrderResponse, PaymentSuccessResponse, RazorpayOptions } from "@/types/checkout";
 import OrderSummary from "./_components/orderSummary";
 import BillingDetails from "./_components/BillingDetails";
 import PhoneAuthModal from "./_components/PhoneAuthModel";
+import { toast } from "react-toastify";
+
 
 declare global {
   interface Window {
@@ -37,7 +39,7 @@ const CheckoutPage = () => {
   const [savedAddresses, setSavedAddresses] = useState<FormData[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const [termsError, setTermsError] = useState(false); 
+  const [termsError, setTermsError] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
 
   const {
@@ -89,14 +91,14 @@ const CheckoutPage = () => {
   const fetchUserAddresses = async () => {
     try {
       if (!currentUser?.uid) return;
-      
+
       const addressesRef = collection(db, `users/${currentUser.uid}/addresses`);
       const snapshot = await getDocs(addressesRef);
       const addresses = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as FormData[];
-      
+
       setSavedAddresses(addresses);
       const defaultAddress = addresses.find(addr => addr.is_default);
       setSelectedAddress(defaultAddress ? defaultAddress.id : addresses[0]?.id || null);
@@ -108,7 +110,7 @@ const CheckoutPage = () => {
   const saveNewAddress = async (data: Omit<FormData, 'id' | 'created_at' | 'user_id' | 'is_default'>) => {
     try {
       if (!currentUser?.uid) return;
-      
+
       const addressId = uuidv4();
       const newAddress: FormData = {
         ...data,
@@ -120,13 +122,14 @@ const CheckoutPage = () => {
 
       const addressRef = doc(db, `users/${currentUser.uid}/addresses`, addressId);
       await setDoc(addressRef, newAddress);
-      
+
       setSavedAddresses([...savedAddresses, newAddress]);
       setSelectedAddress(addressId);
       setShowAddressForm(false);
+      toast.success("Address saved successfully");
     } catch (error) {
       console.error("Error saving address:", error);
-      alert("Failed to save address. Please try again.");
+      toast.error("Failed to save address. Please try again.");
     }
   };
 
@@ -139,12 +142,8 @@ const CheckoutPage = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
       script.src = src;
-      script.onload = () => {
-        resolve(true);
-      };
-      script.onerror = () => {
-        resolve(false);
-      };
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
       document.body.appendChild(script);
     });
   };
@@ -153,7 +152,7 @@ const CheckoutPage = () => {
     try {
       setIsSendingOTP(true);
       const formattedPhone = `+91${phoneNumber.replace(/\D/g, '')}`;
-      
+
       if (window.recaptchaVerifier) {
         window.recaptchaVerifier.clear();
       }
@@ -161,25 +160,16 @@ const CheckoutPage = () => {
       window.recaptchaVerifier = new RecaptchaVerifier(
         auth,
         'recaptcha-container',
-        {
-          size: 'invisible',
-          callback: () => {}
-        },
+        { size: 'invisible', callback: () => {} },
       );
 
-      const confirmation = await signInWithPhoneNumber(
-        auth,
-        formattedPhone,
-        window.recaptchaVerifier
-      );
-
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, window.recaptchaVerifier);
       setConfirmationResult(confirmation);
       setIsOTPSent(true);
-      alert("OTP sent successfully!");
+      toast.success("OTP sent successfully!");
     } catch (error) {
       console.error("OTP Error:", error);
-      alert(`Failed to send OTP: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      
+      toast.error(`Failed to send OTP: ${error instanceof Error ? error.message : 'Unknown error'}`);
       if (window.recaptchaVerifier) {
         window.recaptchaVerifier.clear();
         window.recaptchaVerifier = null;
@@ -194,25 +184,21 @@ const CheckoutPage = () => {
       setIsVerifying(true);
       const result = await confirmationResult.confirm(otp);
       const user = result.user;
-      
+
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
         const generateUserId = () => {
           const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-          let result = '';
-          for (let i = 0; i < 5; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-          }
-          return result;
+          return Array.from({ length: 5 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
         };
 
         const user_id = generateUserId();
 
         await setDoc(userDocRef, {
           id: user.uid,
-          user_id: user_id,
+          user_id,
           phone: user.phoneNumber || `+91${phoneNumber}`,
           preferences: {
             language: "en",
@@ -225,12 +211,12 @@ const CheckoutPage = () => {
         });
       }
 
-      alert("Phone number verified successfully!");
+      toast.success("Phone number verified successfully!");
       setShowLogin(false);
       setValue("mobileNumber", phoneNumber);
     } catch (error) {
       console.error("Error verifying OTP:", error);
-      alert("Invalid OTP. Please try again.");
+      toast.error("Invalid OTP. Please try again.");
     } finally {
       setIsVerifying(false);
     }
@@ -244,13 +230,11 @@ const CheckoutPage = () => {
 
     if (currentUser) {
       if (!selectedAddress) {
-        alert("Please select an address or add a new one");
+        toast.error("Please select an address or add a new one");
         return false;
       }
     } else {
-      if (!isValid) {
-        return false;
-      }
+      if (!isValid) return false;
     }
 
     return true;
@@ -261,7 +245,7 @@ const CheckoutPage = () => {
 
     try {
       let orderData;
-      
+
       if (currentUser) {
         const address = savedAddresses.find(addr => addr.id === selectedAddress);
         if (!address) throw new Error("Selected address not found");
@@ -273,7 +257,7 @@ const CheckoutPage = () => {
       await onSubmit(orderData);
     } catch (error) {
       console.error("Checkout error:", error);
-      alert(error.message || "Checkout failed. Please try again.");
+      toast.error(error.message || "Checkout failed. Please try again.");
     }
   };
 
@@ -324,9 +308,7 @@ const CheckoutPage = () => {
       };
 
       const razorpayLoaded = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
-      if (!razorpayLoaded) {
-        throw new Error("Razorpay SDK failed to load");
-      }
+      if (!razorpayLoaded) throw new Error("Razorpay SDK failed to load");
 
       const orderResponse = await axios.post<OrderResponse>("http://localhost:4000/payment/orders", {
         amount: total,
@@ -334,20 +316,18 @@ const CheckoutPage = () => {
         orderData: orderObject
       });
 
-      if (!orderResponse.data?.order) {
-        throw new Error("Failed to create payment order");
-      }
+      if (!orderResponse.data?.order) throw new Error("Failed to create payment order");
 
       const { id: order_id, currency } = orderResponse.data.order;
 
       const paymentOptions: RazorpayOptions = {
         key: process.env.RAZORPAY_KEY_ID || "rzp_test_N6VzhsIMdUpe3s",
         amount: (total * 100).toString(),
-        currency: currency,
+        currency,
         name: "Your Store Name",
         description: "Order Payment",
         image: "/logo.png",
-        order_id: order_id,
+        order_id,
         handler: async (response: RazorpayResponse) => {
           try {
             const verificationResponse = await axios.post<PaymentSuccessResponse>(
@@ -360,11 +340,11 @@ const CheckoutPage = () => {
                 orderData: orderObject
               }
             );
-            alert(verificationResponse.data.msg || "Payment successful!");
+            toast.success(verificationResponse.data.msg || "Payment successful!");
             localStorage.removeItem("guestCartId");
           } catch (error) {
             console.error("Payment verification failed:", error);
-            alert("Payment verification failed. Please contact support.");
+            toast.error("Payment verification failed. Please contact support.");
           }
         },
         prefill: {
@@ -386,10 +366,10 @@ const CheckoutPage = () => {
                 orderId: order_id,
                 reason: "User closed payment window"
               });
-              alert("Payment cancelled. Your order has been marked as cancelled.");
+              toast.warn("Payment cancelled. Your order has been marked as cancelled.");
             } catch (cancelError) {
               console.error("Order cancellation error:", cancelError);
-              alert("Payment was cancelled but there was an error updating your order.");
+              toast.error("Payment was cancelled but there was an error updating your order.");
             }
           }
         }
@@ -398,22 +378,17 @@ const CheckoutPage = () => {
       const paymentObject = new window.Razorpay(paymentOptions);
       paymentObject.open();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Checkout error:", error);
-      alert(error.response?.data?.error || error.message || "Checkout failed. Please try again.");
+      toast.error(error.response?.data?.error || error.message || "Checkout failed. Please try again.");
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" style={{position:"relative",height:"100vh"}}>
+    <div className="min-h-screen flex flex-col bg-gray-50" style={{ position: "relative", height: "100vh" }}>
       <Navbar />
-<div 
-  className="flex flex-col lg:flex-row gap-8 w-full px-4 md:px-8 lg:px-[6.5%] pb-15 lg:pb-0 overflow-y-auto lg:overflow-y-visible"
-  style={{
-    paddingTop: "7%",
-    height: "100vh"
-  }}
->
+
+      <div className="flex flex-col lg:flex-row gap-8 w-full px-4 md:px-8 lg:px-[6.5%] pb-15 lg:pb-0 overflow-y-auto lg:overflow-y-visible lg:pt-[7%] pt-[20%]" style={{ height: "100vh" }}>
         <BillingDetails
           currentUser={currentUser}
           showLogin={showLogin}
@@ -430,7 +405,7 @@ const CheckoutPage = () => {
           handleSubmit={handleSubmit}
           getValues={getValues}
         />
-        
+
         <OrderSummary
           cartProducts={cartProductsWithDetails}
           total={total}
@@ -461,6 +436,7 @@ const CheckoutPage = () => {
       />
 
       <div id="recaptcha-container" className="hidden"></div>
+ 
     </div>
   );
 };

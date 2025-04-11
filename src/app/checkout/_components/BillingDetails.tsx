@@ -49,8 +49,9 @@ const BillingDetails = ({
         <h5 className="font-semibold text-lg">Billing details</h5>
         {!currentUser?.uid && (
           <button 
+          style={{cursor:"pointer"}}
             onClick={() => setShowLogin(true)} 
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            className="text-red-600 hover:text-red-800 text-sm font-medium"
           >
             Already a user? Sign In
           </button>

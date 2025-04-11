@@ -1,4 +1,5 @@
 import { FormData } from "@/types/checkout";
+import { Check } from "lucide-react";
 
 interface SavedAddressesProps {
   savedAddresses: FormData[];
@@ -16,19 +17,19 @@ const SavedAddresses = ({
   return (
     <div className="space-y-4">
       <h6 className="font-medium mb-2">Saved Addresses</h6>
-      
+
       {savedAddresses.length === 0 ? (
         <p className="text-sm text-gray-500">No saved addresses found.</p>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {savedAddresses.map((address) => (
             <div 
               key={address.id}
               onClick={() => setSelectedAddress(address.id!)}
-              className={`p-4 border rounded cursor-pointer transition-colors ${
+              className={`p-4 border rounded cursor-pointer transition-shadow ${
                 selectedAddress === address.id 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'shadow-md border-gray-200'
+                  : 'border-gray-200 hover:shadow-sm'
               }`}
             >
               <div className="flex justify-between items-start">
@@ -40,18 +41,18 @@ const SavedAddresses = ({
                   {address.email && <p className="text-sm">Email: {address.email}</p>}
                 </div>
                 {selectedAddress === address.id && (
-                  <span className="text-blue-500 text-sm">✓ Selected</span>
+                  <Check className="text-green-600 w-5 h-5" />
                 )}
               </div>
             </div>
           ))}
         </div>
       )}
-      
+
       <button
         onClick={() => setShowAddressForm(true)}
         className="mt-4 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm transition-colors"
-        style={{cursor:"pointer"}}
+        style={{ cursor: "pointer" }}
       >
         + Add New Address
       </button>

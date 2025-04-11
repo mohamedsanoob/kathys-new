@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Jost } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from '@/context/AuthContext'
+import { toast, ToastContainer } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -28,6 +30,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${jost.className} antialiased`}>
         <AuthProvider>
+               <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} closeOnClick pauseOnHover draggable />
           {children}
         </AuthProvider>
       </body>
