@@ -12,7 +12,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="shadow-md sticky top-0 bg-white z-10">
+    <nav className="shadow-md sticky top-0 bg-white z-10" style={{position:"absolute",top:"0",width:"100%"}}>
       <div className="flex items-center justify-between max-w-[1290px] mx-auto h-14 md:h-[5.25rem] px-4 sm:px-6 lg:px-8">
         {/* Logo and Desktop Navigation */}
         <div className="flex items-center">

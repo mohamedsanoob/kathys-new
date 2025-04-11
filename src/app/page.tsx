@@ -8,7 +8,7 @@ import Rating from "./_components/Rating";
 
 export default function Home() {
   return (
-    <div>
+    <div style={{position:"relative",height:"100vh"}}>
       <Navbar />
       <ImageSwiper />
       <Community />

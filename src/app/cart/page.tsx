@@ -41,9 +41,7 @@ const CartPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [pendingUpdates, setPendingUpdates] = useState<{
     [key: string]: number;
-  }>({}); // Track local quantity changes
-
-  console.log(pendingUpdates);
+  }>({});
 
   const fetchCartAndProductDetails = useCallback(async () => {
     setIsLoading(true);
@@ -85,7 +83,7 @@ const CartPage = () => {
       );
 
       setCartProductsWithDetails(productsWithDetails.filter(Boolean));
-      setPendingUpdates({}); // Clear any pending updates on fresh fetch
+      setPendingUpdates({});
     } catch (error) {
       console.error("Failed to fetch cart and product details:", error);
     } finally {
@@ -120,7 +118,6 @@ const CartPage = () => {
       })
     );
 
-    // Track the local update
     setPendingUpdates((prevUpdates) => ({
       ...prevUpdates,
       [`${productId}-${variantSku}`]: newQuantity,
@@ -161,23 +158,6 @@ const CartPage = () => {
     }
   };
 
-  // Function to persist the local updates (you might trigger this on checkout or a "save cart" button)
-  // const persistCartUpdates = async () => {
-  //   try {
-  //     for (const key in pendingUpdates) {
-  //       const [productId, variantSku] = key.split("-");
-  //       const newQuantity = pendingUpdates[key];
-  //       await updateCartItem(productId, variantSku, newQuantity);
-  //     }
-  //     // After successful update, refresh the cart to ensure data consistency
-  //     await fetchCartAndProductDetails();
-  //     setPendingUpdates({}); // Clear pending updates
-  //   } catch (error) {
-  //     console.error("Failed to update cart items:", error);
-  //     // Optionally revert local changes or show an error message
-  //   }
-  // };
-
   const total = cartProductsWithDetails.reduce((sum, product) => {
     return (
       sum +
@@ -187,95 +167,89 @@ const CartPage = () => {
   }, 0);
 
   if (isLoading) {
-    return <div>Loading cart...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
 
   return (
-    <div style={{ height: "100%" }}>
+    <div className="min-h-screen flex flex-col"  style={{position:"relative",height:"100vh"}}>
       <Navbar />
-      <div className="flex gap-16  m-auto p-20">
-        <table className="w-[70%]">
-          <thead>
-            <tr className="text-center text-gray-400 font-medium border-b border-gray-300">
-              <th className="py-2 w-120 text-[0.875rem] opacity-60">Product</th>
-              <th className="py-2 text-[0.875rem] text-left opacity-60">
-                Price
-              </th>
-              <th className="py-2 text-[0.875rem] text-left opacity-60">
-                Quantity
-              </th>
-              <th className="py-2 text-[0.875rem] text-left opacity-60">
-                Subtotal
-              </th>
-              <th className="py-2 text-[0.875rem] text-left opacity-60"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {cartProductsWithDetails?.map((product, index) => (
-              <tr key={index} className="border-b border-gray-200 h-[100px]">
-                <td>
-                  <div className="flex items-center gap-4  h-[100%]">
-                    {product.images[0] && (
-                      <Image
-                        src={product.images[0]}
-                        alt={product.productName}
-                        width={80}
-                        height={80}
-                        className="w-10 h-20 object-cover rounded"
-                      />
-                    )}
-                    <div>
-                      <p className="font-semibold text-[1rem]">
-                        {product.productName}
-                        {" - "}
-                        {product.variantDetails.combination
-                          .map((attr) => `${attr.value}`)
-                          .join(", ")}
-                      </p>
-                      {product.outOfStock && (
-                        <p className="text-red-500 text-sm">
-                          Out of Stock (Available: {product.currentInventory})
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td className="text-left">
-                  <p className="text-[1rem]">
-                    ₹{" "}
-                    {(
-                      product.productDiscountedPrice || product?.productPrice
-                    ).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:p-20 flex-1" style={{overflowY:"scroll",marginTop:"50px"
+      }}>
+        {/* Cart Items - Mobile View */}
+        <div className="lg:hidden w-full">
+   
+          {cartProductsWithDetails?.map((product, index) => (
+            <div
+              key={index}
+              className="border-b border-gray-200 py-4 flex flex-col"
+            >
+              <div className="flex items-start gap-4">
+                {product.images[0] && (
+                  <Image
+                    src={product.images[0]}
+                    alt={product.productName}
+                    width={80}
+                    height={80}
+                    className="w-16 h-20 object-cover rounded"
+                  />
+                )}
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">
+                    {product.productName}
+                    {" - "}
+                    {product.variantDetails.combination
+                      .map((attr) => `${attr.value}`)
+                      .join(", ")}
                   </p>
-                </td>
-                <td className="text-left">
-                  <div className=" border border-gray-200 text-lg flex items-center gap-2 w-fit rounded-md">
-                    <button
-                      onClick={() => handleDecrement(product)}
-                      disabled={product.quantity <= 1}
-                      className="w-10 h-10 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
-                    >
-                      −
-                    </button>
-                    <span className="text-[1rem] w-max font-medium text-gray-800">
-                      {product?.quantity}
-                    </span>
-                    <button
-                      onClick={() => handleIncrement(product)}
-                      disabled={
-                        product.currentInventory !== undefined &&
-                        product.quantity >= product.currentInventory
-                      }
-                      className="w-10 h-10 cursor-pointer flex items-center justify-center  font-bold text-gray-600 disabled:text-gray-400"
-                    >
-                      +
+                  {product.outOfStock && (
+                    <p className="text-red-500 text-xs mt-1">
+                      Out of Stock (Available: {product.currentInventory})
+                    </p>
+                  )}
+                  <div className="flex justify-between items-center mt-2">
+                    <p className="text-sm font-medium">
+                      ₹{" "}
+                      {(
+                        product.productDiscountedPrice || product?.productPrice
+                      ).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+                    <button className="text-gray-500 hover:text-red-500">
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
-                </td>
-                <td className="ext-[1rem] text-left">
+                </div>
+              </div>
+              <div className="flex justify-between items-center mt-4">
+                <div className="border border-gray-200 text-sm flex items-center gap-2 w-fit rounded-md">
+                  <button
+                    onClick={() => handleDecrement(product)}
+                    disabled={product.quantity <= 1}
+                    className="w-8 h-8 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
+                  >
+                    −
+                  </button>
+                  <span className="text-sm w-max font-medium text-gray-800">
+                    {product?.quantity}
+                  </span>
+                  <button
+                    onClick={() => handleIncrement(product)}
+                    disabled={
+                      product.currentInventory !== undefined &&
+                      product.quantity >= product.currentInventory
+                    }
+                    className="w-8 h-8 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="text-sm font-medium">
                   ₹{" "}
                   {(
                     (product.productDiscountedPrice || product.productPrice) *
@@ -284,33 +258,125 @@ const CartPage = () => {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
-                </td>
-                <td className="text-center">
-                  <button
-                    // onClick={() =>
-                    //   handleRemoveItem(product.id, product.variantDetails.sku)
-                    // }
-                    className="text-gray-500 hover:text-red-500"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </td>
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Cart Items - Desktop View */}
+        <div className="hidden lg:block w-full lg:w-[70%]">
+          <table className="w-full">
+            <thead>
+              <tr className="text-center text-gray-400 font-medium border-b border-gray-300">
+                <th className="py-2 w-120 text-[0.875rem] opacity-60">Product</th>
+                <th className="py-2 text-[0.875rem] text-left opacity-60">
+                  Price
+                </th>
+                <th className="py-2 text-[0.875rem] text-left opacity-60">
+                  Quantity
+                </th>
+                <th className="py-2 text-[0.875rem] text-left opacity-60">
+                  Subtotal
+                </th>
+                <th className="py-2 text-[0.875rem] text-left opacity-60"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        <Checkout total={total} />
-        {/* {Object.keys(pendingUpdates).length > 0 && (
-          <button
-            onClick={persistCartUpdates}
-            className="mt-4 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-          >
-            Save Cart Updates
-          </button>
-        )} */}
+            </thead>
+            <tbody>
+              {cartProductsWithDetails?.map((product, index) => (
+                <tr key={index} className="border-b border-gray-200 h-[100px]">
+                  <td>
+                    <div className="flex items-center gap-4 h-[100%]">
+                      {product.images[0] && (
+                        <Image
+                          src={product.images[0]}
+                          alt={product.productName}
+                          width={80}
+                          height={80}
+                          className="w-10 h-20 object-cover rounded"
+                        />
+                      )}
+                      <div>
+                        <p className="font-semibold text-[1rem]">
+                          {product.productName}
+                          {" - "}
+                          {product.variantDetails.combination
+                            .map((attr) => `${attr.value}`)
+                            .join(", ")}
+                        </p>
+                        {product.outOfStock && (
+                          <p className="text-red-500 text-sm">
+                            Out of Stock (Available: {product.currentInventory})
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="text-left">
+                    <p className="text-[1rem]">
+                      ₹{" "}
+                      {(
+                        product.productDiscountedPrice || product?.productPrice
+                      ).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+                  </td>
+                  <td className="text-left">
+                    <div className="border border-gray-200 text-lg flex items-center gap-2 w-fit rounded-md">
+                      <button
+                        onClick={() => handleDecrement(product)}
+                        disabled={product.quantity <= 1}
+                        className="w-10 h-10 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
+                      >
+                        −
+                      </button>
+                      <span className="text-[1rem] w-max font-medium text-gray-800">
+                        {product?.quantity}
+                      </span>
+                      <button
+                        onClick={() => handleIncrement(product)}
+                        disabled={
+                          product.currentInventory !== undefined &&
+                          product.quantity >= product.currentInventory
+                        }
+                        className="w-10 h-10 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </td>
+                  <td className="ext-[1rem] text-left">
+                    ₹{" "}
+                    {(
+                      (product.productDiscountedPrice || product.productPrice) *
+                      product.quantity
+                    ).toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
+                  <td className="text-center">
+                    <button
+                      className="text-gray-500 hover:text-red-500"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Checkout Section - Always visible but position changes */}
+        <div className="w-full lg:w-[30%]">
+          <Checkout total={total} />
+        </div>
       </div>
 
-      <Help />
+      
     </div>
   );
 };
