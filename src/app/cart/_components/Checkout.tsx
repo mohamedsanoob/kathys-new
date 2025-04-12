@@ -47,6 +47,7 @@ const Checkout = ({ total, disabled }: CheckoutProps) => {
             disabled ? "bg-gray-400 cursor-not-allowed" : "bg-[#ee403d] hover:bg-[#d93835]"
           } text-white font-semibold rounded-md mt-4 transition-colors duration-200`}
           disabled={disabled}
+          style={{cursor:"pointer"}}
         >
           Proceed to checkout
         </button>

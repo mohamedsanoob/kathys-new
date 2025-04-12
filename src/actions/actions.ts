@@ -350,7 +350,7 @@ export const getProductsByCategory = async (
 
     let productsQuery = query(
       collection(db, "products"),
-      where("__name__", "in", productIds)
+     where("categories", "array-contains", categorySnapshot.docs[0].data()?.id )
     );
     
 
@@ -358,8 +358,8 @@ export const getProductsByCategory = async (
     if (minPrice !== undefined && maxPrice !== undefined) {
       productsQuery = query(
         productsQuery,
-        where("productPrice", ">=", minPrice),
-        where("productPrice", "<=", maxPrice)
+        where("productDiscountedPrice", ">=", minPrice),
+        where("productDiscountedPrice", "<=", maxPrice)
       );
     } 
 
@@ -398,7 +398,7 @@ export const getProductsByCategory = async (
     // Recalculate total count based on filters
     let countQuery = query(
       collection(db, "products"),
-      where("__name__", "in", productIds)
+  where("categories", "array-contains", categorySnapshot.docs[0].data()?.id )
     );
     if (minPrice !== undefined && maxPrice !== undefined) {
       countQuery = query(
@@ -585,6 +585,8 @@ export async function getCartProducts() {
       const matchingProduct = productsData.find(p => p.id === cartItem.productId);
       
       if (!matchingProduct) return acc;
+
+      console.log(matchingProduct,cartItem,"------->matching")
 
       const variant = matchingProduct.variantDetails?.find(v => 
         v.sku === cartItem.variantDetails?.sku &&

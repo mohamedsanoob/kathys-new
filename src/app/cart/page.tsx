@@ -66,8 +66,6 @@ const CartPage = () => {
     setIsLoading(true);
     try {
       const cartItems = await getCartProducts();
-  
-
       setCartProductsWithDetails(cartItems.filter(Boolean));
       setPendingUpdates({});
     } catch (error) {

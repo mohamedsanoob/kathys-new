@@ -8,7 +8,7 @@ interface BillingDetailsProps {
   showLogin: boolean;
   setShowLogin: (value: boolean) => void;
   savedAddresses: FormData[];
-  selectedAddress: string | null;
+  selectedAddress: string | null | undefined;
   setSelectedAddress: (value: string | null) => void;
   showAddressForm: boolean;
   setShowAddressForm: (value: boolean) => void;
