@@ -26,7 +26,13 @@ const ImageSwiper = () => {
       >
         {images.map((item, index) => (
           <SwiperSlide key={index}>
-            <Image src={item} width={1000} height={1000} alt="image" className="object-fill" style={{objectFit:"fill"}}/>
+            <Image
+              src={item}
+              width={1000}
+              height={1000}
+              alt="image"
+              style={{ objectFit: "fill" }}
+            />
           </SwiperSlide>
         ))}
       </Swiper>
