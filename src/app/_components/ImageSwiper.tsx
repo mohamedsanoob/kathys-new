@@ -22,11 +22,11 @@ const ImageSwiper = () => {
         }}
         loop={true}
         modules={[Pagination, Navigation]}
-        className="mySwiper"
+        className="mySwiper h-[400px] sm:h-[500px]"
       >
         {images.map((item, index) => (
           <SwiperSlide key={index}>
-            <Image src={item} width={1000} height={1000} alt="image" />
+            <Image src={item} width={1000} height={1000} alt="image" className="object-fill" style={{objectFit:"fill"}}/>
           </SwiperSlide>
         ))}
       </Swiper>

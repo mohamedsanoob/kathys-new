@@ -34,9 +34,13 @@
 }
 
 .mySwiper {
-  height: 20%;
   box-sizing: border-box;
   padding: 10px 0;
+}
+@media screen and (max-width: 768px) {
+  .mySwiper {
+    height: 300px;
+  }
 }
 
 .mySwiper .swiper-slide {
@@ -60,7 +64,6 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
-
 
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {

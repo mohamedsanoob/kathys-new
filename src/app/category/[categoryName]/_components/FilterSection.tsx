@@ -43,7 +43,6 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
 
   const handleChange = (_event: Event, newValue: number | number[]) => {
     setValue(newValue as [number, number]);
-    handleChange
   };
 
   const getColorNamesFromHex = (hexColor: string) => {
@@ -55,12 +54,11 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.set("minPrice", value[0].toString());
     newParams.set("maxPrice", value[1].toString());
-    console.log(newParams,"asdas")
-
     router.push(`?${newParams.toString()}`);
   };
 
   const handleColorFilter = (color: string) => {
+    console.log(color,'co')
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.set("color", color.slice(1));
     router.push(`?${newParams.toString()}`);
