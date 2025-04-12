@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${jost.className} antialiased`}>
+      <body className={`${jost.className} antialiased`} style={{height:"100vh",position:"relative"}}>
         <AuthProvider>
           <Navbar />
           <ToastContainer
@@ -36,7 +36,7 @@ export default function RootLayout({
             pauseOnHover
             draggable
           />
-          <div className="pt-14 md:pt-20 pb-16 md:pb-0"> {children}</div>
+          <div className="md:pb-0 overflow-y-scroll h-[100%]"> {children}</div>
           <FooterNav />
         </AuthProvider>
       </body>

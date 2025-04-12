@@ -372,10 +372,10 @@ const CheckoutPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" style={{ position: "relative", height: "100vh" }}>
-      <Navbar />
+    <div className="min-h-screen flex flex-col bg-gray-50 " style={{height:"100%"}}>
+   
 
-      <div className="flex flex-col lg:flex-row gap-8 w-full px-4 md:px-8 lg:px-[6.5%] pb-15 lg:pb-0 overflow-y-auto lg:overflow-y-visible lg:pt-[7%] pt-[20%]" style={{ height: "100vh" }}>
+      <div className="flex flex-col lg:flex-row gap-8 w-full px-4 md:px-8 lg:px-[6%]  lg:pb-0 pb-[70] pt-25 lg:pt-30" style={{height:"100vh",overflowY:"scroll"}}>
         <BillingDetails
           currentUser={currentUser}
           showLogin={showLogin}
