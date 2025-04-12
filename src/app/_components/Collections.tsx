@@ -1,5 +1,5 @@
 import { getCollectionsWithProducts } from "@/actions/actions";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ShoppingBag } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -11,7 +11,7 @@ const Collections = async () => {
       {categoriesWithProducts?.map((category) => (
         <div key={category.id}>
           {/* Header Section */}
-          <div className="flex flex-col md:flex-row justify-between gap-4 py-8 md:py-12">
+          <div className="flex flex-col md:flex-row justify-between py-8 md:py-12">
             <h4 className="text-lg sm:text-xl md:text-2xl font-medium">
               {category.categoryName}
             </h4>
@@ -28,13 +28,18 @@ const Collections = async () => {
                 key={product.id}
                 className="flex flex-col gap-2"
               >
-                <Image
-                  src={product.images[0]}
-                  alt={product.productName}
-                  width={250}
-                  height={250}
-                  className="w-full h-[300px] md:h-[440px] object-cover"
-                />
+                <div className="relative">
+                  <Image
+                    src={product.images[0]}
+                    alt={product.productName}
+                    width={250}
+                    height={250}
+                    className="w-full h-[250px] md:h-[440px] object-cover shadow-md"
+                  />
+                  <div className="absolute top-2 right-2 p-2 bg-white w-fit rounded-full h-fit">
+                    <ShoppingBag className="w-5 h-5" />
+                  </div>
+                </div>
                 <p className="text-sm sm:text-base">{product.productName}</p>
                 <div className="flex gap-2 items-center">
                   <p className="line-through text-xs sm:text-sm text-gray-400">
