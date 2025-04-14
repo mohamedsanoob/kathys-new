@@ -36,7 +36,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
   };
 
   return (
-    <div className="w-[40%] flex flex-col gap-4">
+    <div className="w-full md:w-[40%] flex flex-col gap-4">
       <Swiper
         loop={true}
         spaceBetween={10}
@@ -79,17 +79,34 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
         modules={[FreeMode, Navigation, Thumbs]}
         className="mySwiper"
       >
-        {images.map((image, index) => (
-          <SwiperSlide key={index}>
-            <Image
-              src={image}
-              alt="product-image"
-              width={300}
-              height={300}
-              className="border border-black"
-            />
-          </SwiperSlide>
-        ))}
+        {images.length > 1 && (
+          <Swiper
+            onSwiper={setThumbsSwiper}
+            loop={true}
+            spaceBetween={10}
+            slidesPerView={Math.min(4, images.length)}
+            freeMode={true}
+            watchSlidesProgress={true}
+            modules={[FreeMode, Navigation, Thumbs]}
+            className="mySwiper"
+          >
+            {images.map((image, index) => (
+              <SwiperSlide key={index}>
+                <div
+                  className="relative overflow-hidden border border-gray-300 cursor-pointer"
+                  style={{ height: 75 }}
+                >
+                  <Image
+                    src={image}
+                    alt={`product-thumbnail-${index + 1}`}
+                    fill
+                    style={{ objectFit: "cover" }}
+                  />
+                </div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        )}
       </Swiper>
     </div>
   );

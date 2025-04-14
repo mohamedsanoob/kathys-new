@@ -25,7 +25,7 @@ const Navbar = () => {
   }, [isMobileMenuOpen]);
 
   return (
-    <nav className="shadow-sm  top-0 bg-white z-10 w-full border-b border-gray-100" style={{position:"absolute",width:"100%",background:"white",top:"0"}}>
+    <nav className="shadow-sm absolute top-0 bg-white z-10 w-full border-b border-gray-100">
       <div className="relative flex items-center justify-between mx-auto h-14 md:h-[5.25rem] px-4 sm:px-6 lg:px-8 max-w-[1290px]">
         {/* Mobile Menu Button */}
         <div className="md:hidden z-10">
@@ -206,7 +206,6 @@ const Navbar = () => {
           </ul>
 
           {/* Add margin to prevent overlap with footer nav */}
-          
         </div>
       </div>
     </nav>

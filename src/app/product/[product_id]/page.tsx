@@ -1,5 +1,4 @@
 import { getProductById } from "@/actions/actions";
-import Navbar from "@/app/_components/Navbar";
 import ProductImage from "./_components/ProductImage";
 import ProductDetails from "./_components/ProductDetails";
 import ProductDescription from "./_components/ProductDescription";
@@ -112,22 +111,16 @@ const page = async ({
     };
 
     return (
-      <div>
-        <Navbar />
-        <div className="flex flex-col gap-16 max-w-[1290px] m-auto">
-          <div className="flex justify-between">
-            <ProductImage images={product.images} />
-            <ProductDetails
-              product={simpleProduct as unknown as Product}
-            />{" "}
-            {/* Pass the simple product */}
-          </div>
-          <ProductDescription
-            description={product.description}
-            variants={product?.variants || []}
-          />
-          <RelatedProducts categories={product.categories} />
+      <div className="flex flex-col gap-16 max-w-[1290px] m-auto">
+        <div className="flex flex-col md:flex-row gap-10">
+          <ProductImage images={product.images} />
+          <ProductDetails product={simpleProduct as unknown as Product} />
         </div>
+        <ProductDescription
+          description={product.description}
+          variants={product?.variants || []}
+        />
+        <RelatedProducts categories={product.categories} />
       </div>
     );
   } catch (error) {
