@@ -514,13 +514,19 @@ export const addProductToCart = async ({
       return;
     }
 
+
+
+
     const { products } = cartSnapshot.data() as CartData;
+        console.log(products,variantDetails,"adwsdc")
     const existingProductIndex = products.findIndex(
       (p) =>
+       
         p.productId === productId &&
         JSON.stringify(p.variantDetails?.combination || []) ===
           JSON.stringify(variantDetails?.combination || [])
     );
+
 
     console.log(existingProductIndex, "existingProductIndex");
 
@@ -572,7 +578,7 @@ export async function getCartProducts() {
 
     // Fetch products
     const productsRef = collection(db, "products");
-    const q = query(productsRef, where("__name__", "in", productIdsInCart));
+    const q = query(productsRef, where("id", "in", productIdsInCart));
     const productsSnapshot = await getDocs(q);
     
     const productsData = productsSnapshot.docs.map(doc => ({

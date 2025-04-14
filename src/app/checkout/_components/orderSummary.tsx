@@ -1,16 +1,22 @@
 import { CartProduct } from "@/types/checkout";
+import PaymentModeSelector from "./PaymentModeSelector";
+import { useEffect } from "react";
 
 interface OrderSummaryProps {
   cartProducts: CartProduct[];
   total: number;
   termsAgreed: boolean;
   setTermsAgreed: (value: boolean) => void;
-   setTermsError : (value: boolean) => void;
+  setTermsError: (value: boolean) => void;
   termsError: boolean;
   handlePlaceOrder: () => void;
   isValid: boolean;
   currentUser: any;
   selectedAddress: string | null | undefined;
+  showPaymentMode: boolean;
+  paymentMode: string;
+  setPaymentModeError: (value: boolean) => void;
+  paymentModeError: boolean;
 }
 
 const OrderSummary = ({
@@ -23,8 +29,21 @@ const OrderSummary = ({
   setTermsError,
   isValid,
   currentUser,
-  selectedAddress
+  paymentMode,
+  selectedAddress,
+  showPaymentMode,
+  setPaymentModeError,
+  paymentModeError
 }: OrderSummaryProps) => {
+ 
+
+
+  useEffect(()=>{
+    if(paymentMode!==''){
+        setPaymentModeError(false)
+    }
+  },[paymentMode])
+
   return (
     <div className="w-full lg:w-1/3 h-max bg-white p-6 rounded-lg shadow-sm">
       <div className="w-full flex flex-col">
@@ -63,16 +82,11 @@ const OrderSummary = ({
         </div>
 
         <div className="mt-6 space-y-4">
-          <div className="text-center">
-            <h6 className="font-semibold">UPI/Credit card/Debit Card/Net banking</h6>
-            <h4 className="text-xl mt-1">Pay By Razorpay</h4>
-          </div>
-          
           <p className="text-sm text-gray-500">
             Your personal data will be used to process your order, support your experience 
             throughout this website, and for other purposes described in our privacy policy
           </p>
-
+{/* 
           <div className="flex items-start gap-2.5">
             <input
               type="checkbox"
@@ -91,26 +105,36 @@ const OrderSummary = ({
               </a>
               *
             </label>
-          </div>
+          </div> */}
           
-          {termsError && <p className="text-red-500 text-xs">{termsError}</p>}
+          {termsError && (
+            <p className="text-red-500 text-xs">Please agree to the terms and conditions</p>
+          )}
           
-          <button
-            onClick={handlePlaceOrder}
-            disabled={
-              currentUser 
-                ? !selectedAddress || !termsAgreed 
-                : !isValid || !termsAgreed
-            }
-            className={`w-full py-3 rounded-md text-white font-semibold ${
-              (currentUser ? selectedAddress && termsAgreed : isValid && termsAgreed) 
-                ? "bg-red-600 hover:bg-red-700" 
-                : "bg-gray-400 cursor-not-allowed"
-            } transition-colors`}
-            style={{cursor:"pointer"}}
-          >
-            Place order
-          </button>
+          {showPaymentMode && paymentModeError && (
+            <p className="text-red-500 text-xs">Please select a payment method</p>
+          )}
+          
+       <button
+  onClick={handlePlaceOrder}
+  disabled={
+    currentUser 
+      ? !selectedAddress || !termsAgreed 
+      : !isValid || !termsAgreed 
+  }
+  className={`hidden md:block w-full py-3 rounded-md text-white font-semibold ${
+    (currentUser ? selectedAddress && termsAgreed && (!showPaymentMode || paymentMode) 
+      : isValid && termsAgreed && (!showPaymentMode || paymentMode))
+      ? "bg-red-600 hover:bg-red-700" 
+      : "bg-gray-400 cursor-not-allowed"
+  } transition-colors`}
+>
+  {showPaymentMode 
+    ? paymentMode 
+      ? `Pay ₹${total.toFixed(2)}` 
+      : "Select Payment Method"
+    : "Continue"}
+</button>
         </div>
       </div>
     </div>

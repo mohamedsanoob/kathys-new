@@ -7,10 +7,12 @@ import {
   getProductById,
   updateCartItem,
   removeCartItem,
+  addProductToCart,
 } from "@/actions/actions";
 import Image from "next/image";
 import { X } from "lucide-react";
 import Help from "../_components/Help";
+import Link from "next/link";
 
 interface CartProduct {
   id: string;
@@ -91,7 +93,8 @@ const CartPage = () => {
   const handleLocalQuantityChange = (
     productId: string,
     variantSku: string,
-    newQuantity: number
+    newQuantity: number,
+  
   ) => {
     if (newQuantity < 1) return;
 
@@ -105,7 +108,13 @@ const CartPage = () => {
           updatedProduct.outOfStock =
             updatedProduct.currentInventory !== undefined &&
             newQuantity > updatedProduct.currentInventory;
+            console.log(updatedProduct.id,product.variantDetails,newQuantity)
+       
+              updateCartItem([{productId:updatedProduct.id,variantSku:variantSku,quantity:newQuantity}])
+          
+        
           return updatedProduct;
+   
         }
         return product;
       })
@@ -172,7 +181,7 @@ const CartPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col pt-25 lg:pt-30" >
+    <div className="min-h-screen flex flex-col pt-25 lg:pt-30 pb-20" style={{position:"relative",height:"100%"}}>
   
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:px-[6%] flex-1" >
         {/* Cart Items - Mobile View */}
@@ -180,7 +189,8 @@ const CartPage = () => {
           {cartProductsWithDetails?.map((product, index) => (
             <div
               key={index}
-              className={`border-b py-4 flex flex-col`}
+              className={`py-4 flex flex-col border-b border-gray-300`}
+  
             >
               <div className="flex items-start gap-4">
                 {product.images[0] && (
@@ -284,7 +294,8 @@ const CartPage = () => {
               {cartProductsWithDetails?.map((product, index) => (
                 <tr 
                   key={index} 
-                  className={`h-[100px]`}
+                  className={`h-[100px] border-b border-gray-300`}
+                        
                 >
                   <td>
                     <div className="flex items-center gap-4 h-[100%]">
@@ -375,6 +386,27 @@ const CartPage = () => {
         {/* Checkout Section */}
         <div className="w-full lg:w-[30%]">
           <Checkout total={total} disabled={hasOutOfStockItems || cartProductsWithDetails.length === 0} />
+        </div>
+
+      
+      </div>
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 pb-20 md:hidden">
+        <div className="container mx-auto flex  md:flex-row items-center justify-between gap-4">
+          <div className="text-center md:text-left w-50 ">
+            <p className="font-semibold">Total: ₹{total.toFixed(2)}</p>
+          </div>
+               <Link href={(hasOutOfStockItems || cartProductsWithDetails.length===0)? "#" : "/checkout"} style={{width:"100%"}}>
+                   <button 
+            className={`h-12 w-full md:w-50 ${
+              hasOutOfStockItems || cartProductsWithDetails.length === 0 
+                ? "bg-gray-400 cursor-not-allowed" 
+                : "bg-[#ee403d] hover:bg-[#d93835]"
+            } text-white font-semibold rounded-md transition-colors duration-200`}
+            disabled={hasOutOfStockItems || cartProductsWithDetails.length === 0}
+          >
+            Continue
+          </button></Link>
+      
         </div>
       </div>
     </div>

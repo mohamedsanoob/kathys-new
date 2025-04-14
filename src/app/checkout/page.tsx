@@ -14,6 +14,10 @@ import OrderSummary from "./_components/orderSummary";
 import BillingDetails from "./_components/BillingDetails";
 import PhoneAuthModal from "./_components/PhoneAuthModel";
 import { toast } from "react-toastify";
+import PaymentModeSelector from "./_components/PaymentModeSelector";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react"; // Import ArrowLeft from lucide-react
 
 
 declare global {
@@ -40,7 +44,10 @@ const CheckoutPage = () => {
   const [selectedAddress, setSelectedAddress] = useState<string | null | undefined>(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [termsError, setTermsError] = useState(false);
-  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(true);
+  const [paymentMode, setPaymentMode] = useState<'online' | 'cod' | ''>('');
+    const [showPaymentMode, setShowPaymentMode] = useState(false);
+      const [paymentModeError, setPaymentModeError] = useState(false);
 
   const {
     register,
@@ -74,6 +81,8 @@ const CheckoutPage = () => {
       fetchUserAddresses();
     }
   }, [currentUser]);
+
+
 
   const fetchUserAddresses = async () => {
     try {
@@ -228,6 +237,14 @@ const CheckoutPage = () => {
   };
 
   const handlePlaceOrder = async () => {
+    if(paymentMode==='') {
+        setShowPaymentMode(true)
+        setPaymentModeError(true)
+    }else{
+        setPaymentModeError(false)
+
+    
+
     if (!validateCheckout()) return;
 
     try {
@@ -245,7 +262,7 @@ const CheckoutPage = () => {
     } catch (error) {
       console.error("Checkout error:", error);
       toast.error( "Checkout failed. Please try again.");
-    }
+    }}
   };
 
   const onSubmit = async (data: FormData) => {
@@ -371,11 +388,38 @@ const CheckoutPage = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen flex flex-col bg-gray-50 " style={{height:"100%"}}>
-   
+   const handleOrderButtonClick = () => {
+    console.log("hello")
+    if (showPaymentMode && paymentMode=='') {
+      setPaymentModeError(true);
+      return;
+    }
+    if (!termsAgreed) {
+      setTermsError(true);
+      return;
+    }
+    handlePlaceOrder();
+  };
 
-      <div className="flex flex-col lg:flex-row gap-8 w-full px-4 md:px-8 lg:px-[6%]  lg:pb-0 pb-[70] pt-25 lg:pt-30" style={{height:"100vh",overflowY:"scroll"}}>
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-50 " style={{height:"100%",position:"relative"}}>
+      
+      <div className="sticky top-13 z-10 bg-white border-b border-gray-200 py-4 px-4 flex items-center">
+        <Link href={`${showPaymentMode?'#':'/cart'}`}>
+           <button 
+        style={{cursor:"pointer"}}
+          onClick={() =>{setShowPaymentMode(false);setPaymentMode('')}}
+          className="mr-4 flex items-center gap-1"
+        >
+          <ArrowLeft className="h-5 w-5 text-gray-600" />
+          <span className="ml-2 text-lg font-semibold">{showPaymentMode?"Choose Payment method":currentUser  ?"Choose address":"Add address"}</span>
+        </button>
+        </Link>
+     
+      </div>
+    
+
+      <div className="flex flex-col lg:flex-row lg:gap-8 gap-6 w-full px-4 md:px-8 lg:px-[6%]  lg:pb-0 pb-40 pt-18 lg:pt-30" style={{height:"100vh",overflowY:"scroll"}}>
         <BillingDetails
           currentUser={currentUser}
           showLogin={showLogin}
@@ -391,7 +435,12 @@ const CheckoutPage = () => {
           saveNewAddress={saveNewAddress}
           handleSubmit={handleSubmit}
           getValues={getValues}
+          setPaymentMode={setPaymentMode} paymentMode={paymentMode}
+
+          showPaymentMode={showPaymentMode}
         />
+
+
 
         <OrderSummary
           cartProducts={cartProductsWithDetails}
@@ -400,10 +449,14 @@ const CheckoutPage = () => {
           setTermsAgreed={setTermsAgreed}
           termsError={termsError}
           setTermsError={setTermsError}
-          handlePlaceOrder={handlePlaceOrder}
+          handlePlaceOrder={handleOrderButtonClick }
           isValid={isValid}
           currentUser={currentUser}
           selectedAddress={selectedAddress}
+          paymentMode={paymentMode}
+          showPaymentMode={showPaymentMode}
+            setPaymentModeError={setPaymentModeError}
+  paymentModeError={paymentModeError}
         />
       </div>
 
@@ -423,7 +476,36 @@ const CheckoutPage = () => {
       />
 
       <div id="recaptcha-container" className="hidden"></div>
- 
+  <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 pb-20 md:hidden">
+        <div className="container mx-auto flex  md:flex-row items-center justify-between gap-4">
+          <div className="text-center md:text-left w-50 ">
+            <p className="font-semibold">Total: ₹{total.toFixed(2)}</p>
+          </div>
+
+                 <button
+            onClick={handleOrderButtonClick}
+            disabled={
+              currentUser 
+                ? !selectedAddress || !termsAgreed 
+                : !isValid || !termsAgreed 
+            }
+            className={`w-full py-3 rounded-md text-white font-semibold ${
+              (currentUser ? selectedAddress && termsAgreed && (!showPaymentMode || paymentMode) 
+                : isValid && termsAgreed && (!showPaymentMode || paymentMode))
+                ? "bg-red-600 hover:bg-red-700" 
+                : "bg-gray-400 cursor-not-allowed"
+            } transition-colors`}
+          >
+            {showPaymentMode 
+              ? paymentMode 
+                ? `Pay ₹${total.toFixed(2)}` 
+                : "Select Payment Method"
+              : "Continue"}
+          </button>
+        
+      
+        </div>
+      </div>
     </div>
   );
 };
