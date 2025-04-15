@@ -12,6 +12,14 @@
   --font-mono: var(--font-geist-mono);
 }
 
+
+@media screen and (max-width: 768px) {
+  .image-swiper {
+    height: 300px !important;
+  }
+}
+/* h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] */
+
 .swiper-button-next::after,
 .swiper-button-prev::after {
   color: white;
@@ -39,6 +47,7 @@
 }
 
 .mySwiper {
+  height: fit-content !important;
   box-sizing: border-box;
   padding: 10px 0;
 }
@@ -46,6 +55,12 @@
   .mySwiper {
     height: 300px;
   }
+}
+.swiper-button-next::after,
+.swiper-button-prev::after {
+  color: #000;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
 }
 
 .mySwiper .swiper-slide {

@@ -3,7 +3,6 @@ import SavedAddresses from "./SavedAddresses";
 import AddressForm from "./AddressForm";
 import GuestCheckoutForm from "./GuestCheckoutForm";
 import PaymentModeSelector from "./PaymentModeSelector";
-import { useState } from "react";
 
 interface BillingDetailsProps {
   currentUser: any;

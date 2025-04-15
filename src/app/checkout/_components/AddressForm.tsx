@@ -1,5 +1,3 @@
-import { FormData } from "@/types/checkout";
-
 interface AddressFormProps {
   register: any;
   errors: any;

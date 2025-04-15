@@ -1,17 +1,13 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import Navbar from "../_components/Navbar";
 import Checkout from "./_components/Checkout";
 import {
   getCartProducts,
-  getProductById,
   updateCartItem,
   removeCartItem,
-  addProductToCart,
 } from "@/actions/actions";
 import Image from "next/image";
 import { X } from "lucide-react";
-import Help from "../_components/Help";
 import Link from "next/link";
 
 interface CartProduct {
@@ -60,16 +56,13 @@ const CartPage = () => {
     (CartProduct & { currentInventory?: number; outOfStock?: boolean })[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pendingUpdates, setPendingUpdates] = useState<{
-    [key: string]: number;
-  }>({});
 
   const fetchCartAndProductDetails = useCallback(async () => {
     setIsLoading(true);
     try {
       const cartItems = await getCartProducts();
       setCartProductsWithDetails(cartItems.filter(Boolean));
-      setPendingUpdates({});
+   
     } catch (error) {
       console.error("Failed to fetch cart and product details:", error);
     } finally {
@@ -120,10 +113,7 @@ const CartPage = () => {
       })
     );
 
-    setPendingUpdates((prevUpdates) => ({
-      ...prevUpdates,
-      [`${productId}-${variantSku}`]: newQuantity,
-    }));
+ 
   };
 
   const handleIncrement = (product: CartProduct) => {

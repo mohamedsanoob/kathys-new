@@ -1,5 +1,3 @@
-import { FormData } from "@/types/checkout";
-
 interface GuestCheckoutFormProps {
   register: any;
   errors: any;
@@ -12,8 +10,6 @@ const GuestCheckoutForm = ({
   register,
   errors,
   handleSubmit,
-  isValid,
-  getValues
 }: GuestCheckoutFormProps) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 mt-5">

@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import SwiperCore from "swiper";
 import "swiper/css";
@@ -36,10 +36,11 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
   };
 
   return (
-    <div className="w-full md:w-[40%] flex flex-col gap-4">
+    <div className="w-[90%] md:w-[40%] flex flex-col m-auto gap-4">
       <Swiper
         loop={true}
         spaceBetween={10}
+        centeredSlides={true}
         navigation={true}
         thumbs={{ swiper: thumbsSwiper }}
         modules={[FreeMode, Navigation, Thumbs]}
@@ -49,7 +50,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
           <SwiperSlide key={index}>
             <div
               ref={imageRef}
-              className="relative overflow-hidden cursor-zoom-in"
+              className="relative overflow-hidden cursor-zoom-in h-140"
               onMouseEnter={() => setZoom(true)}
               onMouseLeave={() => setZoom(false)}
               onMouseMove={handleMouseMove}
@@ -57,10 +58,11 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
               <Image
                 src={image}
                 alt="product-image"
-                width={300}
-                height={300}
-                className="transition-transform duration-200"
+                width={1000}
+                height={1000}
+                className="transition-transform duration-200 md:object-contain"
                 style={{
+                  objectFit: "contain",
                   transform: zoom ? `scale(2.4)` : "scale(1)",
                   transformOrigin: `${position.x}% ${position.y}%`,
                 }}
@@ -73,40 +75,24 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
         onSwiper={setThumbsSwiper}
         loop={true}
         spaceBetween={10}
-        slidesPerView={4}
-        freeMode={true}
+        slidesPerView={5}
+        // freeMode={true}
+      
         watchSlidesProgress={true}
         modules={[FreeMode, Navigation, Thumbs]}
         className="mySwiper"
+        style={{ width: "max-content !important" }}
       >
-        {images.length > 1 && (
-          <Swiper
-            onSwiper={setThumbsSwiper}
-            loop={true}
-            spaceBetween={10}
-            slidesPerView={Math.min(4, images.length)}
-            freeMode={true}
-            watchSlidesProgress={true}
-            modules={[FreeMode, Navigation, Thumbs]}
-            className="mySwiper"
-          >
-            {images.map((image, index) => (
-              <SwiperSlide key={index}>
-                <div
-                  className="relative overflow-hidden border border-gray-300 cursor-pointer"
-                  style={{ height: 75 }}
-                >
-                  <Image
-                    src={image}
-                    alt={`product-thumbnail-${index + 1}`}
-                    fill
-                    style={{ objectFit: "cover" }}
-                  />
-                </div>
-              </SwiperSlide>
-            ))}
-          </Swiper>
-        )}
+        {images.map((image, index) => (
+          <SwiperSlide key={index} className="w-10">
+            <div
+              className="relative overflow-hidden border border-gray-300 cursor-pointer"
+              style={{ width: 75, height: 75 }}
+            >
+              <Image src={image} alt={`product-thumbnail-${index + 1}`} fill />
+            </div>
+          </SwiperSlide>
+        ))}
       </Swiper>
     </div>
   );

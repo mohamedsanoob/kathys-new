@@ -1,22 +1,19 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { getCartProducts, getProductById } from "@/actions/actions";
-import Navbar from "@/app/_components/Navbar";
+import { getCartProducts } from "@/actions/actions";
 import axios from "axios";
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import {  RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { auth, db } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
-import { addDoc, collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { FormData, CartProduct, RazorpayResponse, OrderResponse, PaymentSuccessResponse, RazorpayOptions } from "@/types/checkout";
 import OrderSummary from "./_components/orderSummary";
 import BillingDetails from "./_components/BillingDetails";
 import PhoneAuthModal from "./_components/PhoneAuthModel";
 import { toast } from "react-toastify";
-import PaymentModeSelector from "./_components/PaymentModeSelector";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react"; // Import ArrowLeft from lucide-react
 
 

@@ -14,7 +14,7 @@ const images = [
 
 const ImageSwiper = () => {
   return (
-    <div>
+    <div className="pt-15 md:pt-21">
       <Swiper
         navigation={true}
         pagination={{
@@ -22,17 +22,11 @@ const ImageSwiper = () => {
         }}
         loop={true}
         modules={[Pagination, Navigation]}
-        className="mySwiper h-[400px] sm:h-[500px]"
+        className="image-swiper"
       >
         {images.map((item, index) => (
           <SwiperSlide key={index}>
-            <Image
-              src={item}
-              width={1000}
-              height={1000}
-              alt="image"
-              style={{ objectFit: "fill" }}
-            />
+            <Image src={item} width={1000} height={1000} alt="image"   style={{objectFit: "fill"}} />
           </SwiperSlide>
         ))}
       </Swiper>

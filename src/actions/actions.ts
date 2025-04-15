@@ -61,11 +61,6 @@ interface Product {
 }
 
 
-
-interface Combination {
-  name: string;
-  value: string;
-}
 interface VariantDetail {
 price: number;
   discountedPrice: number;
@@ -326,7 +321,6 @@ export const getProductsByCategory = async (
   sortBy: string = "latest",
   minPrice?: number,
   maxPrice?: number,
-  color?:string,
 ): Promise<{
   products: Product[];
   totalCount: number;
@@ -475,7 +469,7 @@ export const getRelatedProducts = async (
     });
   } catch (error) {
     console.error("Error fetching products in categories:", error);
-    return []; // Return empty array on error
+    return [];
   }
 };
 

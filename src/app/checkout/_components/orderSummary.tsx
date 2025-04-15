@@ -1,5 +1,4 @@
 import { CartProduct } from "@/types/checkout";
-import PaymentModeSelector from "./PaymentModeSelector";
 import { useEffect } from "react";
 
 interface OrderSummaryProps {
@@ -23,10 +22,8 @@ const OrderSummary = ({
   cartProducts,
   total,
   termsAgreed,
-  setTermsAgreed,
   termsError,
   handlePlaceOrder,
-  setTermsError,
   isValid,
   currentUser,
   paymentMode,

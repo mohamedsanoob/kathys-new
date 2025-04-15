@@ -22,7 +22,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   const [grid, setGrid] = useState(false);
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState(false);
-  const [lastDoc, setLastDoc] = useState<any>(null);
+  const [lastDoc, setLastDoc] = useState<null | undefined| any>(null);
   const [sortBy, setSortBy] = useState("latest");
   const [hasMore, setHasMore] = useState(
     initialProducts.length === itemsPerPage
@@ -49,8 +49,8 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
           null, // Initial fetch, no lastDoc
           sortBy,
           minPriceParam ? parseInt(minPriceParam) : undefined,
-          maxPriceParam ? parseInt(maxPriceParam) : undefined,
-          colorParam ? colorParam : undefined
+          maxPriceParam ? parseInt(maxPriceParam) : undefined
+          // colorParam ? colorParam : undefined
         );
 
       setProducts(initialFetchProducts);
@@ -84,8 +84,8 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
           lastDoc,
           sortBy,
           minPriceParam ? parseInt(minPriceParam) : undefined,
-          maxPriceParam ? parseInt(maxPriceParam) : undefined,
-          colorParam ? colorParam : undefined
+          maxPriceParam ? parseInt(maxPriceParam) : undefined
+          // colorParam ? colorParam : undefined
         );
 
       setProducts((prev) => {

@@ -1,6 +1,6 @@
 "use client";
 import { Heart, Share, X, Loader2 } from "lucide-react";
-import { useState, useCallback } from "react"; // Import useCallback
+import { useState, useCallback } from "react";
 import namer from "color-namer";
 import { addProductToCart, getCartProducts } from "@/actions/actions";
 
@@ -59,7 +59,6 @@ interface CartProduct {
   productName: string;
   description: string;
   variantDetails?: {
-    // Changed to a single object (optional)
     price: number;
     discountedPrice: number;
     inventory: number;
@@ -115,39 +114,22 @@ const ProductDetails = ({ product }: { product: Product }) => {
           (comb) => newSelectedOptions[comb.name] === comb.value
         )
       );
-      console.log(matchingVariantDetail, "matchingVariantDetail");
-      console.log(product, "product");
       setSelectedVariant(matchingVariantDetail || null);
 
       if (matchingVariantDetail) {
         setIsLoading(true);
         getCartProducts()
           .then((res) => {
-            console.log(res, "cartIn produ");
-
-            // const cartMatch = res.find((cartItem: CartProduct) => {
-            //   return (
-            //     cartItem.id === product.id &&
-            //     cartItem.variantDetails?.some((variant) =>
-            //       areCombinationsEqual(
-            //         variant.combination,
-            //         matchingVariantDetail.combination
-            //       )
-            //     )
-            //   );
-            // });
             const cartMatch = res.find((cartItem: CartProduct) => {
               return (
                 cartItem.id === product.id &&
                 cartItem.variantDetails &&
                 areCombinationsEqual(
                   cartItem.variantDetails.combination,
-
                   matchingVariantDetail.combination
                 )
               );
             });
-            console.log(cartMatch, "cartMatch");
             const qty = cartMatch?.quantity || 0;
             setExistingCartQty(qty);
 
@@ -183,7 +165,7 @@ const ProductDetails = ({ product }: { product: Product }) => {
   }, [productCount, existingCartQty, selectedVariant]);
 
   const decrease = useCallback(() => {
-    setProductCount((prev) => Math.max(0, prev - 1));
+    setProductCount((prev) => Math.max(1, prev - 1));
   }, []);
 
   const getColorNamesFromHex = useCallback((hexColors: string) => {
@@ -197,181 +179,212 @@ const ProductDetails = ({ product }: { product: Product }) => {
       return;
     }
     setIsLoading(true);
-    console.log(product, "product");
-    console.log(selectedVariant, "selected variant");
     try {
       await addProductToCart({
         productId: product.id,
         variantDetails: selectedVariant,
         quantity: productCount,
       });
-      // Optionally provide feedback to the user (e.g., a success message)
-
-      // After successful addition, update existingCartQty
       setExistingCartQty((prevQty) => prevQty + productCount);
-      // Optionally reset productCount if needed
       setProductCount(1);
     } catch (error) {
       console.error("Failed to add to cart:", error);
-      // Optionally show an error message to the user
     } finally {
       setIsLoading(false);
     }
   }, [product, selectedVariant, productCount]);
 
-  console.log(productCount, "counttttt");
-
   return (
-    <div className="w-[55%]">
-      <h1 className="text-2xl font-[500] text-gray-800 mb-2">
+    <div className="w-full lg:w-[55%] px-4 lg:px-8">
+      {/* Product Title */}
+      <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 mb-3">
         {product.productName}
       </h1>
-      <div className="flex gap-4 mb-3">
-        <p className="line-through text-lg  text-gray-400">
-          ₹ {product.productPrice.toFixed(2)}
+
+      {/* Price Section */}
+      <div className="flex items-center gap-4 mb-4">
+        <p className="text-xl font-bold text-gray-900">
+          ₹{product.productDiscountedPrice.toFixed(2)}
         </p>
-        <p className="text-xl font-[600]">
-          ₹ {product.productDiscountedPrice.toFixed(2)}
-        </p>
+        {product.productDiscountedPrice < product.productPrice && (
+          <p className="text-lg line-through text-gray-500">
+            ₹{product.productPrice.toFixed(2)}
+          </p>
+        )}
       </div>
-      <div className="flex flex-col gap-4">
+
+      {/* Variants Section */}
+      <div className="space-y-6 mb-6">
         {product.variants?.map((variant) => (
-          <div key={variant.optionName} className="flex flex-col gap-1">
-            <p className="font-medium">
-              {variant.optionName}: {selectedOptions[variant.optionName]}
-            </p>
-            <div className="flex gap-2 flex-wrap">
+          <div key={variant.optionName} className="space-y-2">
+            <h3 className="font-medium text-gray-900 capitalize">
+              {variant.optionName}:{" "}
+              <span className="text-gray-700">
+                {selectedOptions[variant.optionName] || "Select"}
+              </span>
+            </h3>
+            <div className="flex flex-wrap gap-2">
               {variant.optionValue.map((value) =>
                 variant?.optionName === "color" ? (
-                  <div key={value}>
-                    <div
+                  <div key={value} className="flex flex-col items-center">
+                    <button
                       onClick={() =>
                         handleOptionClick(variant.optionName, value)
                       }
-                      className={`w-8.5 h-8.5 cursor-pointer flex justify-center items-center border-2 ${
+                      className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
                         selectedOptions[variant.optionName] === value
-                          ? "border-red-700"
-                          : "border-gray-200"
-                      } rounded-full`}
+                          ? "border-amber-600 ring-2 ring-amber-200"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      aria-label={`Select color ${value}`}
                     >
                       <div
                         style={{ backgroundColor: value }}
-                        className={` w-6 h-6 rounded-full cursor-pointer`}
+                        className="w-7 h-7 rounded-full"
                       />
-                    </div>
-                    <p className="text-center text-xs text-gray-600">
+                    </button>
+                    <span className="text-xs text-gray-500 mt-1">
                       {getColorNamesFromHex(value)}
-                    </p>
+                    </span>
                   </div>
                 ) : (
-                  <p
+                  <button
                     key={value}
                     onClick={() => handleOptionClick(variant.optionName, value)}
-                    className={`border py-1 px-8 flex items-center cursor-pointer ${
+                    className={`px-4 py-2 rounded-md border text-sm font-medium transition-all ${
                       selectedOptions[variant.optionName] === value
-                        ? "bg-amber-600 text-white border-none"
-                        : "border-gray-200 text-gray-700"
+                        ? "bg-amber-600 text-white border-amber-600"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                     }`}
                   >
                     {value}
-                  </p>
+                  </button>
                 )
               )}
             </div>
           </div>
         ))}
+
+        {/* Clear Selection */}
         {Object.keys(selectedOptions).length > 0 && (
-          <p
+          <button
             onClick={handleClearOptions}
-            className="cursor-pointer flex items-center gap-1 text-sm text-gray-600"
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
-            <X className="w-4 h-4" /> Clear
-          </p>
+            <X className="w-4 h-4" /> Clear selection
+          </button>
         )}
+
+        {/* Stock Status */}
         {selectedVariant && (
-          <p
-            className={`px-2 py-0.5 ${
+          <div
+            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
               selectedVariant?.inventory > 0
-                ? "text-green-700 bg-green-100"
-                : "text-red-700 bg-red-100"
-            }  font-medium rounded-md  w-fit text-sm`}
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
           >
-            {selectedVariant?.inventory > 0 ? "In stock" : "Out of stock"}
-          </p>
+            {selectedVariant?.inventory > 0 ? "In Stock" : "Out of Stock"}
+            {selectedVariant?.inventory > 0 && (
+              <span className="ml-1">
+                ({selectedVariant.inventory} available)
+              </span>
+            )}
+          </div>
         )}
       </div>
-      <div className="flex gap-2 mt-4">
-        <div className=" border border-gray-200 text-lg flex items-center gap-4 w-fit rounded-md">
-          <button
-            onClick={decrease}
-            disabled={productCount <= 1}
-            className="w-10 h-10 cursor-pointer flex items-center justify-center font-bold text-gray-600"
-          >
-            −
-          </button>
-          <span className="text-lg w-max font-medium text-gray-800">
-            {productCount}
-            {existingCartQty > 0 && ` (+${existingCartQty} in cart)`}
-          </span>
-          <button
-            onClick={increase}
-            disabled={
-              !selectedVariant ||
-              productCount + existingCartQty >= selectedVariant.inventory
-            }
-            className="w-10 h-10 cursor-pointer flex items-center justify-center  font-bold text-gray-600"
-          >
-            +
-          </button>
+
+      {/* Quantity and Add to Cart */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg md:shadow-none p-4 md:p-0 md:static md:bg-transparent z-10">
+        <div className="flex flex-col md:flex-col gap-4 max-w-4xl mx-auto">
+          <div className="flex flex-row md:flex-col gap-4 items-stretch">
+            {/* Quantity selector row */}
+            <div className="flex items-center gap-4 flex-1">
+              <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+                <button
+                  onClick={decrease}
+                  disabled={productCount <= 1}
+                  className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Decrease quantity"
+                >
+                  −
+                </button>
+                <span className="w-12 text-center font-medium text-gray-900">
+                  {productCount}
+                </span>
+                <button
+                  onClick={increase}
+                  disabled={
+                    !selectedVariant ||
+                    productCount + existingCartQty >= selectedVariant.inventory
+                  }
+                  className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
+              </div>
+              {existingCartQty > 0 && (
+                <span className="text-sm text-gray-500">
+                  ({existingCartQty} in cart)
+                </span>
+              )}
+            </div>
+
+            {/* Add to Cart button - now in same row on mobile */}
+            <button
+              onClick={handleAddToCart}
+              disabled={
+                !selectedVariant ||
+                productCount + existingCartQty > selectedVariant.inventory ||
+                isLoading ||
+                productCount === 0
+              }
+              className={`py-3 px-6 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors flex-1 ${
+                !selectedVariant ||
+                productCount + existingCartQty > selectedVariant.inventory ||
+                isLoading ||
+                productCount === 0
+                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-amber-600 hover:bg-amber-700 text-white"
+              }`}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="animate-spin w-5 h-5" />
+                  Adding...
+                </>
+              ) : (
+                "Add to Cart"
+              )}
+            </button>
+          </div>
         </div>
-        <button
-          disabled={
-            !selectedVariant ||
-            productCount + existingCartQty > selectedVariant.inventory ||
-            isLoading ||
-            productCount === 0
-          }
-          onClick={handleAddToCart}
-          className={`w-full px-4 text-white py-2 bg-black font-bold cursor-pointer transition-opacity duration-200 rounded-md flex items-center justify-center gap-2 ${
-            !selectedVariant ||
-            productCount + existingCartQty > selectedVariant.inventory ||
-            isLoading ||
-            productCount === 0
-              ? "opacity-50 cursor-not-allowed"
-              : "opacity-100"
-          }`}
-        >
-          {isLoading ? (
-            <Loader2 className="animate-spin w-5 h-5" />
-          ) : (
-            "Add to cart"
-          )}
+      </div>
+
+      {/* Product Actions */}
+      <div className="flex gap-6 mb-6 mt-6">
+        <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+          <Heart className="w-5 h-5" />
+          <span className="text-sm">Add to Wishlist</span>
+        </button>
+        <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+          <Share className="w-5 h-5" />
+          <span className="text-sm">Share</span>
         </button>
       </div>
-      <div className="flex gap-8 mt-6 text-gray-600 text-sm">
-        <div className="flex gap-2 items-center cursor-pointer">
-          <Heart className="w-5 h-5" />
-          <p>Add to wish list</p>
-        </div>
-        <div className="flex gap-2 items-center cursor-pointer">
-          <Share className="w-5 h-5" />
-          <p>Share this product</p>
-        </div>
-      </div>
-      <hr className="text-gray-300 my-4" />
-      <div className="text-gray-600 text-sm">
+
+      <hr className="border-t border-gray-200 my-4" />
+
+      {/* Product Meta */}
+      <div className="space-y-2 text-sm text-gray-600">
         <p>
-          SKU:
-          <span className="text-black font-medium">
-            {selectedVariant?.sku || "N/A"}
-          </span>
+          <span className="font-medium text-gray-900">SKU:</span>{" "}
+          {selectedVariant?.sku || "N/A"}
         </p>
         <p>
-          Category:
-          <span className="text-black font-medium">
-            {" "}
-            {product.productCategory || "N/A"}
-          </span>
+          <span className="font-medium text-gray-900">Category:</span>{" "}
+          {product.productCategory || "N/A"}
         </p>
       </div>
     </div>

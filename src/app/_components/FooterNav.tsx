@@ -1,11 +1,18 @@
 "use client";
-import React from "react";
 import { Home, Search, Heart, ShoppingBag, Menu } from "lucide-react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
 const FooterNav = () => {
+  const { product_id } = useParams();
+  console.log(product_id, "product_id");
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] md:hidden z-10" style={{position:"absolute",bottom:"0"}}>
+    <div
+      className={`${
+        product_id !== undefined && "hidden"
+      } fixed bottom-0 left-0 right-0 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] md:hidden z-10`}
+      style={{ position: "absolute", bottom: "0" }}
+    >
       <div className="flex justify-between items-center px-4 py-3">
         <Link href="/" className="flex flex-col items-center">
           <Home size={20} />
