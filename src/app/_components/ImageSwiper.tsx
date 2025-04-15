@@ -14,23 +14,27 @@ const images = [
 
 const ImageSwiper = () => {
   return (
-    <div className="pt-15 md:pt-21">
-      <Swiper
-        navigation={true}
-        pagination={{
-          dynamicBullets: true,
-        }}
-        loop={true}
-        modules={[Pagination, Navigation]}
-        className="image-swiper"
-      >
-        {images.map((item, index) => (
-          <SwiperSlide key={index}>
-            <Image src={item} width={1000} height={1000} alt="image"   style={{objectFit: "fill"}} />
-          </SwiperSlide>
-        ))}
-      </Swiper>
-    </div>
+    <Swiper
+      navigation={true}
+      pagination={{
+        dynamicBullets: true,
+      }}
+      loop={true}
+      modules={[Pagination, Navigation]}
+      className="image-swiper"
+    >
+      {images.map((item, index) => (
+        <SwiperSlide key={index}>
+          <Image
+            src={item}
+            width={1000}
+            height={1000}
+            alt="image"
+            style={{ objectFit: "fill" }}
+          />
+        </SwiperSlide>
+      ))}
+    </Swiper>
   );
 };
 
