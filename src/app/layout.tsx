@@ -39,7 +39,7 @@ export default function RootLayout({
             pauseOnHover
             draggable
           />
-          <div className="md:pb-0 overflow-y-scroll h-[100%] pt-20 md:pt-26">
+          <div className="md:pb-0 overflow-y-scroll h-[100%]">
             {children}
           </div>
           <FooterNav />
