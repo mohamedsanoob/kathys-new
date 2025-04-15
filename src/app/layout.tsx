@@ -27,7 +27,7 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${jost.className} antialiased`}
-        style={{ height: "100vh", position: "relative" }}
+        style={{ height: "100vh" }}
       >
         <AuthProvider>
           <Navbar />
