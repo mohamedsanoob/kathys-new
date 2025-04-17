@@ -164,14 +164,14 @@ const CartPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
+      <div className="flex justify-center items-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col pt-25 lg:pt-30 pb-20" style={{position:"relative",height:"100%"}}>
+    <div className="flex flex-col  lg:pt-30 h-[100%]" >
   
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:px-[6%] flex-1" >
         {/* Cart Items - Mobile View */}
@@ -380,7 +380,7 @@ const CartPage = () => {
 
       
       </div>
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 pb-20 md:hidden">
+        <div className="bg-white border-t border-gray-200 py-3 px-4  md:hidden">
         <div className="container mx-auto flex  md:flex-row items-center justify-between gap-4">
           <div className="text-center md:text-left w-50 ">
             <p className="font-semibold">Total: ₹{total.toFixed(2)}</p>

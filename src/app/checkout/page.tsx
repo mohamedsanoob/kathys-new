@@ -399,9 +399,9 @@ const CheckoutPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 " style={{height:"100%",position:"relative"}}>
+    <div className="flex flex-col bg-gray-50 " style={{height:"100%"}}>
       
-      <div className="sticky top-13 z-10 bg-white border-b border-gray-200 py-4 px-4 flex items-center">
+      <div className="bg-white border-b border-gray-200 py-4 px-4 flex items-center">
         <Link href={`${showPaymentMode?'#':'/cart'}`}>
            <button 
         style={{cursor:"pointer"}}
@@ -416,7 +416,7 @@ const CheckoutPage = () => {
       </div>
     
 
-      <div className="flex flex-col lg:flex-row lg:gap-8 gap-6 w-full px-4 md:px-8 lg:px-[6%]  lg:pb-0 pb-40 pt-18 lg:pt-30" style={{height:"100vh",overflowY:"scroll"}}>
+      <div className="flex flex-col lg:flex-row lg:gap-8 gap-6 w-full px-4 md:px-8 lg:px-[6%]  lg:pb-0 pb-6 pt-6" style={{overflowY:"scroll"}}>
         <BillingDetails
           currentUser={currentUser}
           showLogin={showLogin}
@@ -473,7 +473,7 @@ const CheckoutPage = () => {
       />
 
       <div id="recaptcha-container" className="hidden"></div>
-  <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 pb-20 md:hidden">
+  <div className=" left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 md:hidden">
         <div className="container mx-auto flex  md:flex-row items-center justify-between gap-4">
           <div className="text-center md:text-left w-50 ">
             <p className="font-semibold">Total: ₹{total.toFixed(2)}</p>

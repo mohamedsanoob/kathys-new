@@ -11,7 +11,7 @@ const FooterNav = () => {
       className={`${
         product_id !== undefined && "hidden"
       } w-full bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] md:hidden z-10`}
-      style={{ position: "absolute", bottom: "0" }}
+
     >
       <div className="flex justify-between items-center px-4 py-3">
         <Link href="/" className="flex flex-col items-center">
