@@ -295,7 +295,7 @@ const ProductDetails = ({ product }: { product: Product }) => {
       </div>
 
       {/* Quantity and Add to Cart */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg md:shadow-none p-4 md:p-0 md:static md:bg-transparent z-10">
+      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg md:shadow-none p-4 md:p-0 md:static z-2">
         <div className="flex flex-col md:flex-col gap-4 max-w-4xl mx-auto">
           <div className="flex flex-row md:flex-col gap-4 items-stretch">
             {/* Quantity selector row */}

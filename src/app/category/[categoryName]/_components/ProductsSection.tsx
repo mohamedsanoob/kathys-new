@@ -1,10 +1,13 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { getProductsByCategory } from "@/actions/actions";
 import { Product } from "@/types/product";
 import Image from "next/image";
-import { LayoutGrid, List } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { LayoutGrid, List, ListFilter, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import namer from "color-namer";
+import ProductListItem from "./ProductListItem";
+import ProductGridItem from "./ProductGridItem";
 
 interface ProductsSectionProps {
   initialProducts: Product[];
@@ -19,10 +22,11 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   itemsPerPage,
   categoryName,
 }) => {
-  const [grid, setGrid] = useState(false);
+  const [isGridView, setIsGridView] = useState(true);
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState(false);
-  const [lastDoc, setLastDoc] = useState<null | undefined| any>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastDoc, setLastDoc] = useState<null | undefined | any>(null);
   const [sortBy, setSortBy] = useState("latest");
   const [hasMore, setHasMore] = useState(
     initialProducts.length === itemsPerPage
@@ -30,52 +34,51 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   const loaderRef = useRef<HTMLDivElement>(null);
 
   const searchParams = useSearchParams();
-  const minPriceParam = searchParams.get("minPrice");
-  const maxPriceParam = searchParams.get("maxPrice");
-  const colorParam2 = searchParams.get("color");
-  const colorParam = "#".concat(colorParam2 || "");
+  const router = useRouter();
+
+  // Memoize params to avoid unnecessary recalculations
+  const { minPriceParam, maxPriceParam, colorParam } = useMemo(() => {
+    const minPrice = searchParams.get("minPrice");
+    const maxPrice = searchParams.get("maxPrice");
+    const color = searchParams.get("color");
+    return {
+      minPriceParam: minPrice ? parseInt(minPrice) : undefined,
+      maxPriceParam: maxPrice ? parseInt(maxPrice) : undefined,
+      colorParam: color ? `#${color}` : "",
+    };
+  }, [searchParams]);
+
+  const toggleFilter = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.set("filter", "open");
+    router.replace(`?${params.toString()}`);
+  }, [searchParams, router]);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
-    setProducts([]); // Clear existing products
-    setLastDoc(null); // Reset pagination
-    setHasMore(true);
-
     try {
       const { products: initialFetchProducts, lastVisible } =
         await getProductsByCategory(
           categoryName,
           itemsPerPage,
-          null, // Initial fetch, no lastDoc
+          null,
           sortBy,
-          minPriceParam ? parseInt(minPriceParam) : undefined,
-          maxPriceParam ? parseInt(maxPriceParam) : undefined
-          // colorParam ? colorParam : undefined
+          minPriceParam,
+          maxPriceParam
         );
 
       setProducts(initialFetchProducts);
       setLastDoc(lastVisible);
       setHasMore(initialFetchProducts.length === itemsPerPage);
-    } catch (err) {
-      console.error("Error fetching initial products:", err);
-      setProducts([]);
-      setHasMore(false);
     } finally {
       setLoading(false);
     }
-  }, [
-    categoryName,
-    itemsPerPage,
-    sortBy,
-    minPriceParam,
-    maxPriceParam,
-    colorParam,
-  ]);
+  }, [categoryName, itemsPerPage, sortBy, minPriceParam, maxPriceParam]);
 
   const fetchMoreProducts = useCallback(async () => {
-    if (loading || !hasMore) return;
+    if (loadingMore || !hasMore) return;
 
-    setLoading(true);
+    setLoadingMore(true);
     try {
       const { products: newProducts, lastVisible } =
         await getProductsByCategory(
@@ -83,9 +86,8 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
           itemsPerPage,
           lastDoc,
           sortBy,
-          minPriceParam ? parseInt(minPriceParam) : undefined,
-          maxPriceParam ? parseInt(maxPriceParam) : undefined
-          // colorParam ? colorParam : undefined
+          minPriceParam,
+          maxPriceParam
         );
 
       setProducts((prev) => {
@@ -98,80 +100,147 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
 
       setLastDoc(lastVisible);
       setHasMore(newProducts.length === itemsPerPage);
-    } catch (err) {
-      console.error("Error loading more products:", err);
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
   }, [
     categoryName,
     itemsPerPage,
     lastDoc,
     sortBy,
-    loading,
+    loadingMore,
     hasMore,
     minPriceParam,
     maxPriceParam,
-    colorParam,
   ]);
 
+  // Initial load and filter changes
   useEffect(() => {
-    fetchProducts(); // Fetch products on initial load and when filter params change
+    fetchProducts();
   }, [fetchProducts]);
 
+  // Infinite scroll setup
   useEffect(() => {
+    if (!hasMore) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading) {
+        if (entries[0].isIntersecting && !loadingMore) {
           fetchMoreProducts();
         }
       },
       { threshold: 0.1 }
     );
 
-    if (loaderRef.current) observer.observe(loaderRef.current);
+    const currentLoader = loaderRef.current;
+    if (currentLoader) observer.observe(currentLoader);
 
     return () => {
-      if (loaderRef.current) observer.unobserve(loaderRef.current);
+      if (currentLoader) observer.unobserve(currentLoader);
     };
-  }, [fetchMoreProducts, hasMore, loading]);
+  }, [fetchMoreProducts, hasMore, loadingMore]);
 
-  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newSort = e.target.value;
-    setSortBy(newSort);
-    fetchProducts(); // Re-fetch products on sort change
-  };
+  const handleSortChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const newSort = e.target.value;
+      setSortBy(newSort);
+    },
+    []
+  );
+
+  const clearSingleFilter = useCallback(
+    (key: string) => {
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete(key);
+      router.push(`?${newParams.toString()}`);
+    },
+    [searchParams, router]
+  );
+
+  const clearAllFilters = useCallback(() => {
+    router.push(window.location.pathname);
+  }, [router]);
+
+  const getColorNamesFromHex = useCallback((hexColor: string) => {
+    const result = namer(hexColor);
+    return result.ntc[0].name;
+  }, []);
+
+  // Memoize product list rendering
+  const productList = useMemo(() => {
+    if (isGridView) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+          {products.map((product) => (
+            <ProductGridItem key={product.id} product={product} />
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-6">
+        {products.map((product) => (
+          <ProductListItem
+            key={product.id}
+            product={product}
+            categoryName={categoryName}
+          />
+        ))}
+      </div>
+    );
+  }, [isGridView, products, categoryName]);
 
   return (
-    <div className="flex-1">
-      <Image
-        src="https://dressupfashion.in/wp-content/uploads/2024/11/web3.jpg.webp"
-        alt="image"
-        width={1000}
-        height={1000}
-        className="w-full"
-      />
-      <div className="flex justify-between items-center my-8">
-        <div className="flex gap-4">
+    <div className="flex-1 w-full overflow-hidden px-2 md:px-0">
+      {/* Banner Image */}
+      <div className="w-full relative aspect-[3/1] mb-4">
+        <Image
+          src="https://dressupfashion.in/wp-content/uploads/2024/11/web3.jpg.webp"
+          alt="Category Banner"
+          fill
+          className="object-cover rounded"
+          priority
+        />
+      </div>
+
+      {/* Controls Bar */}
+      <div className="flex justify-between items-center my-4">
+        <div className="md:flex gap-4 hidden">
           <LayoutGrid
-            onClick={() => setGrid(true)}
-            className={`cursor-pointer w-5 h-5 ${grid && "text-gray-400"}`}
+            onClick={() => setIsGridView(true)}
+            className={`cursor-pointer w-5 h-5 ${
+              isGridView ? "text-blue-500" : "text-gray-400"
+            }`}
           />
           <List
-            onClick={() => setGrid(false)}
-            className={`cursor-pointer w-5 h-5 ${!grid && "text-gray-400"}`}
+            onClick={() => setIsGridView(false)}
+            className={`cursor-pointer w-5 h-5 ${
+              !isGridView ? "text-blue-500" : "text-gray-400"
+            }`}
           />
-          <p>
+          <p className="text-sm">
             Showing 1–{products.length} of {totalProducts} results
           </p>
         </div>
+
+        <button
+          onClick={toggleFilter}
+          className="flex items-center gap-2 md:hidden bg-gray-100 px-3 py-1.5 rounded"
+        >
+          <ListFilter className="w-4 h-4" />
+          <span className="text-sm">Filter</span>
+        </button>
+
         <div className="flex items-center space-x-2">
-          <label htmlFor="sort">Sort By:</label>
+          <label className="text-sm" htmlFor="sort">
+            Sort By:
+          </label>
           <select
             id="sort"
             value={sortBy}
             onChange={handleSortChange}
-            className="border rounded py-1 px-2"
+            className="py-1 px-2 text-sm"
+            disabled={loading}
           >
             <option value="latest">Latest</option>
             <option value="price-low">Price: Low to High</option>
@@ -179,90 +248,82 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
           </select>
         </div>
       </div>
-      <div className={`grid gap-4 ${grid ? "grid-cols-4" : "grid-cols-1"}`}>
-        {products.map((product) =>
-          grid ? (
-            <div key={product.id} className="flex flex-col gap-2">
-              <Image
-                src={product.images[0]}
-                alt={product.productName}
-                width={250}
-                height={250}
-                className="w-[250px]"
-              />
-              <p className="text-center">{product.productName}</p>
-              <div className="flex gap-4">
-                <p className="line-through text-sm text-gray-400">
-                  ₹ {product.productPrice.toFixed(2)}
-                </p>
-                <p className="text-sm font-semibold">
-                  ₹ {product.productDiscountedPrice.toFixed(2)}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div key={product.id}>
-              <div className="flex gap-8">
-                <Image
-                  src={product.images[0]}
-                  alt={product.productName}
-                  width={250}
-                  height={250}
-                />
-                <div className="flex flex-col gap-8">
-                  <div className="flex flex-col gap-2">
-                    <p className="text-2xl">{product.productName}</p>
-                    <div className="flex gap-4 text-xl">
-                      <p className="line-through text-gray-400">
-                        ₹ {product.productPrice.toFixed(2)}
-                      </p>
-                      <p className="font-semibold">
-                        ₹ {product.productDiscountedPrice.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-gray-500">
-                    Beautiful Ajrakh Printed 3 Pcs Cotton Side slit kurtis with
-                    bottom and Dupatta with elegant Mirror works – With Lining
-                  </p>
-                  <hr className="text-gray-300" />
-                  <button className="text-white font-[500] bg-amber-600 px-8 py-2 w-fit cursor-pointer transition-transform hover:scale-105 duration-200 ease-in-out">
-                    Select options
-                  </button>
-                  <div>
-                    <p>
-                      SKU <span>N/A</span>
-                    </p>
-                    <p>
-                      Category <span>{categoryName}</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <hr className="text-gray-300 mt-8 mb-4" />
-            </div>
-          )
-        )}
-      </div>
-      <div
-        ref={loaderRef}
-        className="mt-8 flex justify-center items-center space-x-2"
-      >
-        {loading ? (
-          <span className="ml-2">Loading...</span>
+
+      {/* Active Filters */}
+      {searchParams.size > 0 && (
+        <div className="flex gap-4 mb-4 flex-wrap">
+          <button
+            onClick={clearAllFilters}
+            className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+          >
+            <X className="font-bold text-bold w-4 h-4" />
+            Clear All
+          </button>
+
+          {colorParam && (
+            <button
+              onClick={() => clearSingleFilter("color")}
+              className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+            >
+              <X className="font-bold text-bold w-4 h-4" />
+              {getColorNamesFromHex(colorParam)}
+            </button>
+          )}
+
+          {minPriceParam && (
+            <button
+              onClick={() => clearSingleFilter("minPrice")}
+              className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+            >
+              <X className="font-bold text-bold w-4 h-4" />
+              Min: ₹{minPriceParam}
+            </button>
+          )}
+
+          {maxPriceParam && (
+            <button
+              onClick={() => clearSingleFilter("maxPrice")}
+              className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+            >
+              <X className="font-bold text-bold w-4 h-4" />
+              Max: ₹{maxPriceParam}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Loading state for initial load */}
+      {loading && (
+        <div className="flex justify-center items-center h-64">
+          <div className="w-8 h-8 border-4 border-t-amber-500 border-gray-200 rounded-full animate-spin"></div>
+        </div>
+      )}
+
+      {/* Products Grid/List */}
+      {!loading && productList}
+
+      {/* Load More */}
+      <div ref={loaderRef} className="mt-8 flex justify-center items-center">
+        {loadingMore ? (
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 border-2 border-t-amber-500 border-gray-200 rounded-full animate-spin"></div>
+            <span className="text-gray-600">Loading more...</span>
+          </div>
         ) : hasMore ? (
           <button
             onClick={fetchMoreProducts}
-            className="px-4 py-2 border rounded"
+            className="px-4 py-2 border rounded bg-gray-50 hover:bg-gray-100 transition-colors"
+            disabled={loadingMore}
           >
             Load More
           </button>
         ) : (
-          <p className="text-gray-500">No more products to show</p>
+          products.length > 0 && (
+            <p className="text-gray-500 text-sm">No more products to show</p>
+          )
         )}
       </div>
     </div>
   );
 };
-
 export default ProductsSection;
