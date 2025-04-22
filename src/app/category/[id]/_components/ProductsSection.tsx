@@ -37,14 +37,16 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   const router = useRouter();
 
   // Memoize params to avoid unnecessary recalculations
-  const { minPriceParam, maxPriceParam, colorParam } = useMemo(() => {
+  const { minPriceParam, maxPriceParam, colorParam, sizesParam } = useMemo(() => {
     const minPrice = searchParams.get("minPrice");
     const maxPrice = searchParams.get("maxPrice");
     const color = searchParams.get("color");
+    const sizes = searchParams.get("sizes");
     return {
       minPriceParam: minPrice ? parseInt(minPrice) : undefined,
       maxPriceParam: maxPrice ? parseInt(maxPrice) : undefined,
-      colorParam: color ? `#${color}` : "",
+      colorParam: color ? `${color}` : "",
+      sizesParam: sizes ? sizes.split(',') : [],
     };
   }, [searchParams]);
 
@@ -55,6 +57,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   }, [searchParams, router]);
 
   const fetchProducts = useCallback(async () => {
+    console.log(sizesParam,"dsc")
     setLoading(true);
     try {
       const { products: initialFetchProducts, lastVisible } =
@@ -64,7 +67,9 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
           null,
           sortBy,
           minPriceParam,
-          maxPriceParam
+          maxPriceParam,
+          colorParam,
+          sizesParam // Pass sizes as string
         );
 
       setProducts(initialFetchProducts);
@@ -73,7 +78,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [categoryName, itemsPerPage, sortBy, minPriceParam, maxPriceParam]);
+  }, [categoryName, itemsPerPage, sortBy, minPriceParam, maxPriceParam, colorParam, sizesParam]);
 
   const fetchMoreProducts = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -87,7 +92,9 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
           lastDoc,
           sortBy,
           minPriceParam,
-          maxPriceParam
+          maxPriceParam,
+          colorParam,
+          sizesParam.join(',')
         );
 
       setProducts((prev) => {
@@ -112,6 +119,8 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
     hasMore,
     minPriceParam,
     maxPriceParam,
+    colorParam,
+    sizesParam
   ]);
 
   // Initial load and filter changes
@@ -150,12 +159,21 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
 
   const clearSingleFilter = useCallback(
     (key: string) => {
+   
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete(key);
-      router.push(`?${newParams.toString()}`);
+  
+      if(searchParams.size===2){
+            router.push(window.location.pathname);
+      }else{
+   router.push(`?${newParams.toString()}`);
+      }
+   
     },
     [searchParams, router]
   );
+
+  console.log(searchParams.size,"adsa")
 
   const clearAllFilters = useCallback(() => {
     router.push(window.location.pathname);
@@ -266,7 +284,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
               className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
             >
               <X className="font-bold text-bold w-4 h-4" />
-              {getColorNamesFromHex(colorParam)}
+              {colorParam}
             </button>
           )}
 
@@ -289,6 +307,31 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
               Max: ₹{maxPriceParam}
             </button>
           )}
+
+          {sizesParam.length > 0 && sizesParam.map((size) => (
+            <button
+              key={size}
+              onClick={() => {
+                const newSizes = sizesParam.filter(s => s !== size);
+                const newParams = new URLSearchParams(searchParams.toString());
+                if (newSizes.length > 0) {
+                  newParams.set("sizes", newSizes.join(','));
+                } else {
+                  newParams.delete("sizes");
+                }
+                  if(searchParams.size===2){
+            router.push(window.location.pathname);
+      }else{
+   router.push(`?${newParams.toString()}`);
+      }
+      
+              }}
+              className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+            >
+              <X className="font-bold text-bold w-4 h-4" />
+              Size: {size}
+            </button>
+          ))}
         </div>
       )}
 
@@ -326,4 +369,5 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
     </div>
   );
 };
+
 export default ProductsSection;

@@ -7,7 +7,7 @@ const ProductGridItem = ({ product }: { product: Product }) => (
   <div className="flex flex-col gap-2">
     <Link
       href={"/product/" + product.id}
-      className="w-full h-56 md:h-auto aspect-square relative bg-gray-50 overflow-hidden"
+      className="w-full h-75  aspect-square relative bg-gray-50 overflow-hidden"
     >
       <Image
         src={product.images[0]}

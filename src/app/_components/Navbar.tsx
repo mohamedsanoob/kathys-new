@@ -51,14 +51,14 @@ const Navbar = () => {
         </div>
 
         {/* Centered Logo for Mobile */}
-        <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 md:static md:transform-none">
-          <Link href="/" className="flex items-center">
+        <div className="absolute left-1/2 top-1/2  md:static md:transform-none h-full w-50px">
+          <Link href="/" className="flex items-center h-full w-full">
             <Image
-              src="/logo.png"
+              src="https://dukaan.b-cdn.net/200x200/webp/7270358/bb32b6b5-733b-420a-a72f-405fcc4fcd48/1661604665901-9d9159aa-3202-4f7e-b40f-0d1a6af8b1ba.jpeg/f7aae514-866e-46e4-a56d-26cdd93dacf9.jpeg"
               alt="logo"
               width={30}
               height={30}
-              className="md:w-[50px] md:h-[50px] drop-shadow-sm"
+              className="h-full  w-full object-contain"
             />
           </Link>
         </div>
@@ -66,23 +66,30 @@ const Navbar = () => {
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center">
           <ul className="flex items-center gap-6 font-medium tracking-wide ml-4">
-            <li className="cursor-pointer hover:text-indigo-600 transition-colors">
-              HOME
+            <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50">
+              <Link href="/" className="block" onClick={toggleMobileMenu}>
+                HOME
+              </Link>
             </li>
-            <li className="cursor-pointer hover:text-indigo-600 transition-colors">
-              SHOP ALL
+            <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50">
+              <Link href="/categories" className="block" onClick={toggleMobileMenu}>
+                CATEGORIES
+              </Link>
             </li>
-            <li className="cursor-pointer hover:text-indigo-600 transition-colors">
-              ETHNIC
+          
+            <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50">
+              <Link href="/login" className="block" onClick={toggleMobileMenu}>
+                LOGIN/REGISTER
+              </Link>
             </li>
-            <li className="cursor-pointer hover:text-indigo-600 transition-colors">
-              WESTERN
-            </li>
-            <li className="cursor-pointer hover:text-indigo-600 transition-colors">
-              <Link href="/login">LOGIN/REGISTER</Link>
-            </li>
-            <li className="cursor-pointer hover:text-indigo-600 transition-colors">
-              CONTACT
+            <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2">
+              <Link
+                href="/contact"
+                className="block"
+                onClick={toggleMobileMenu}
+              >
+                CONTACT
+              </Link>
             </li>
           </ul>
         </div>
@@ -171,24 +178,11 @@ const Navbar = () => {
               </Link>
             </li>
             <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50">
-              <Link href="/shop" className="block" onClick={toggleMobileMenu}>
-                SHOP ALL
+              <Link href="/categories" className="block" onClick={toggleMobileMenu}>
+                     CATEGORIES
               </Link>
             </li>
-            <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50">
-              <Link href="/ethnic" className="block" onClick={toggleMobileMenu}>
-                ETHNIC
-              </Link>
-            </li>
-            <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50">
-              <Link
-                href="/western"
-                className="block"
-                onClick={toggleMobileMenu}
-              >
-                WESTERN
-              </Link>
-            </li>
+          
             <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50">
               <Link href="/login" className="block" onClick={toggleMobileMenu}>
                 LOGIN/REGISTER

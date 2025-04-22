@@ -57,7 +57,7 @@ const Collections = async () => {
           <div className="flex items-center justify-center">
             {category.products?.length > 3 && (
               <Link
-                href={`category/${category?.categoryName}`}
+                href={`category/${category?.id}`}
                 className="border border-gray-400 py-2 px-4 sm:py-3 sm:px-6 flex gap-2 items-center text-sm sm:text-base hover:bg-gray-400 hover:text-white transition rounded-md"
               >
                 <p>View more {category.categoryName} collections</p>

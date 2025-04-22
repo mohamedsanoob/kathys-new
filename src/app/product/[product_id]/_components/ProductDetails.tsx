@@ -107,7 +107,12 @@ const ProductDetails = ({ product }: { product: Product }) => {
         ...selectedOptions,
         [optionName]: optionValue,
       };
+
+      console.log(optionName,optionValue)
       setSelectedOptions(newSelectedOptions);
+
+
+      console.log(product.variantDetails)
 
       const matchingVariantDetail = product.variantDetails.find((detail) =>
         detail.combination.every(
@@ -229,22 +234,22 @@ const ProductDetails = ({ product }: { product: Product }) => {
                   <div key={value} className="flex flex-col items-center">
                     <button
                       onClick={() =>
-                        handleOptionClick(variant.optionName, value)
+                        handleOptionClick(variant.optionName, value?.name)
                       }
                       className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
-                        selectedOptions[variant.optionName] === value
+                        selectedOptions[variant.optionName] === value?.name
                           ? "border-amber-600 ring-2 ring-amber-200"
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                       aria-label={`Select color ${value}`}
                     >
                       <div
-                        style={{ backgroundColor: value }}
+                        style={{ backgroundColor: value?.hex }}
                         className="w-7 h-7 rounded-full"
                       />
                     </button>
                     <span className="text-xs text-gray-500 mt-1">
-                      {getColorNamesFromHex(value)}
+                      {value?.name}
                     </span>
                   </div>
                 ) : (

@@ -15,6 +15,7 @@ import {
   where,
   DocumentSnapshot,
 } from "firebase/firestore";
+import { allowedNodeEnvironmentFlags } from "process";
 
 interface DocumentInterface extends DocumentData {
   id: string;
@@ -294,6 +295,49 @@ export const getCategoryByName = async (
   }
 };
 
+
+export const getAllCategories = async (): Promise<Category[]> => {
+  try {
+    const categoriesQuery = query(
+      collection(db, "categories"),
+      orderBy("categoryName", "asc") // Optional: sort by name
+    );
+    
+    const querySnapshot = await getDocs(categoriesQuery);
+    
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Category[];
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    return [];
+  }
+};
+
+export const getCategoryById = async (
+  id: string
+): Promise<Category | null> => {
+  try {
+    const querySnapshot = await getDocs(
+      query(
+        collection(db, "categories"),
+        where("id", "==", id)
+      )
+    );
+
+    if (querySnapshot.empty) return null; // Category not found
+
+    const doc = querySnapshot.docs[0];
+    const categoryData = doc.data() as Category; // Type assertion
+
+    return { ...categoryData, id: doc.id }; // Return the category with the document ID
+  } catch (error) {
+    console.error("Error fetching category:", error);
+    return null; // Handle the error gracefully
+  }
+};
+
 // export const getProductsByCategory = async (
 //   productIds: string[]
 // ): Promise<Product[]> => {
@@ -313,23 +357,27 @@ export const getCategoryByName = async (
 // };
 
 // Updated getProductsByCategory function
-
 export const getProductsByCategory = async (
-  categoryName: string,
+  categoryId: string,
   limitNumber: number,
   lastVisibleDoc: DocumentSnapshot | null = null,
   sortBy: string = "latest",
   minPrice?: number,
   maxPrice?: number,
+  colorFilter?: string, // Hex color code like "#8baf3a"
+  sizeFilter?: [] // Size value like "42"
+  
 ): Promise<{
   products: Product[];
+  categories : {};
   totalCount: number;
   lastVisible: DocumentSnapshot | null;
 }> => {
   try {
+    // First, get the category document
     const categoryQuery = query(
       collection(db, "categories"),
-      where("categoryName", "==", categoryName)
+      where("id", "==", categoryId)
     );
     const categorySnapshot = await getDocs(categoryQuery);
 
@@ -337,92 +385,152 @@ export const getProductsByCategory = async (
       return { products: [], totalCount: 0, lastVisible: null };
     }
 
-    const productIds = categorySnapshot.docs[0].data()?.products || [];
-    if (!productIds.length) {
-      return { products: [], totalCount: 0, lastVisible: null };
+    const categoryData = categorySnapshot.docs[0].data();
+    const subCategories = categoryData?.subCategories || [];
+    
+    // Create an array of all relevant category IDs (main category + subcategories)
+    const allCategoryIds = [categoryId, ...subCategories];
+
+    // Since Firestore doesn't support array-contains-any with more than 10 items,
+    // we need to split into chunks if there are more than 10 subcategories
+    const chunkSize = 10;
+    const queryPromises = [];
+
+    for (let i = 0; i < allCategoryIds.length; i += chunkSize) {
+      const chunk = allCategoryIds.slice(i, i + chunkSize);
+      let chunkQuery = query(
+        collection(db, "products"),
+        where("categories", "array-contains-any", chunk)
+      );
+
+      // Apply price filters if provided
+      if (minPrice !== undefined && maxPrice !== undefined) {
+        chunkQuery = query(
+          chunkQuery,
+          where("productDiscountedPrice", ">=", minPrice),
+          where("productDiscountedPrice", "<=", maxPrice)
+        );
+      }
+
+      // Apply sorting
+      switch (sortBy) {
+        case "latest":
+          chunkQuery = query(chunkQuery, orderBy("createdDate", "desc"));
+          break;
+        case "price-low":
+          chunkQuery = query(chunkQuery, orderBy("productDiscountedPrice", "asc"));
+          break;
+        case "price-high":
+          chunkQuery = query(chunkQuery, orderBy("productDiscountedPrice", "desc"));
+          break;
+        default:
+          chunkQuery = query(chunkQuery, orderBy("createdDate", "desc"));
+      }
+
+      // Apply pagination
+      chunkQuery = query(
+        chunkQuery,
+        limit(limitNumber),
+        ...(lastVisibleDoc ? [startAfter(lastVisibleDoc)] : [])
+      );
+
+      queryPromises.push(getDocs(chunkQuery));
     }
 
-    let productsQuery = query(
-      collection(db, "products"),
-     where("categories", "array-contains", categorySnapshot.docs[0].data()?.id )
+    // Execute all queries in parallel
+    const productsSnapshots = await Promise.all(queryPromises);
+    
+    // Combine and deduplicate results
+    let allProducts = productsSnapshots.flatMap(snapshot => 
+      snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
     );
     
+    // Remove duplicates (in case a product belongs to multiple subcategories)
+    let uniqueProducts = [...new Map(allProducts.map(item => [item.id, item])).values()];
 
-    // Apply price filter if minPrice and maxPrice are provided
-    if (minPrice !== undefined && maxPrice !== undefined) {
-      productsQuery = query(
-        productsQuery,
-        where("productDiscountedPrice", ">=", minPrice),
-        where("productDiscountedPrice", "<=", maxPrice)
-      );
-    } 
+    // Apply filters if provided (client-side filtering)
+    uniqueProducts = uniqueProducts.filter(product => {
+      let colorMatch = true;
+      let sizeMatch = true;
 
+      // Check color filter
+      if (colorFilter) {
+        colorMatch = product.variantDetails?.some(variant => 
+          variant.combination?.some(combo => 
+            combo.name === "color" && combo.value === colorFilter
+          )
+        ) || false;
+      }
+
+      // Check size filter
+      if (sizeFilter?.length>0) {
+        sizeMatch = product.variantDetails?.some(variant => 
+          variant.combination?.some(combo => 
+            combo.name?.toLowerCase() === "size" && sizeFilter.includes( combo.value)
+          )
+        ) || false;
+      }
+
+      return colorMatch && sizeMatch;
+    });
+    
+    // Sort the final combined results
     switch (sortBy) {
       case "latest":
-        productsQuery = query(productsQuery, orderBy("createdDate", "desc"));
+        uniqueProducts.sort((a, b) => (b.createdDate?.seconds || 0) - (a.createdDate?.seconds || 0));
         break;
       case "price-low":
-        productsQuery = query(
-          productsQuery,
-          orderBy("productDiscountedPrice", "asc")
-        );
+        uniqueProducts.sort((a, b) => (a.productDiscountedPrice || 0) - (b.productDiscountedPrice || 0));
         break;
       case "price-high":
-        productsQuery = query(
-          productsQuery,
-          orderBy("productDiscountedPrice", "desc")
-        );
+        uniqueProducts.sort((a, b) => (b.productDiscountedPrice || 0) - (a.productDiscountedPrice || 0));
         break;
-      default:
-        productsQuery = query(productsQuery, orderBy("createdDate", "desc"));
     }
 
-    productsQuery = query(
-      productsQuery,
-      limit(limitNumber),
-      ...(lastVisibleDoc ? [startAfter(lastVisibleDoc)] : [])
-    );
+    // Apply limit after combining
+    const products = uniqueProducts.slice(0, limitNumber);
 
-    const productsSnapshot = await getDocs(productsQuery);
-    const products = productsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Product[];
+    // Get total count considering filters
+    let totalCount = 0;
+    if (colorFilter || sizeFilter) {
+      // For filtered results, we need to count the filtered unique products
+      totalCount = uniqueProducts.length;
+    } else {
+      // For unfiltered results, use the original count query
+      const countPromises = [];
+      
+      for (let i = 0; i < allCategoryIds.length; i += chunkSize) {
+        const chunk = allCategoryIds.slice(i, i + chunkSize);
+        let countQuery = query(
+          collection(db, "products"),
+          where("categories", "array-contains-any", chunk)
+        );
 
-    // Recalculate total count based on filters
-    let countQuery = query(
-      collection(db, "products"),
-  where("categories", "array-contains", categorySnapshot.docs[0].data()?.id )
-    );
-    if (minPrice !== undefined && maxPrice !== undefined) {
-      countQuery = query(
-        countQuery,
-        where("productDiscountedPrice", ">=", minPrice),
-        where("productDiscountedPrice", "<=", maxPrice)
-      );
-    } else if (minPrice !== undefined) {
-      countQuery = query(
-        countQuery,
-        where("productDiscountedPrice", ">=", minPrice)
-      );
-    } else if (maxPrice !== undefined) {
-      countQuery = query(
-        countQuery,
-        where("productDiscountedPrice", "<=", maxPrice)
-      );
+        if (minPrice !== undefined && maxPrice !== undefined) {
+          countQuery = query(
+            countQuery,
+            where("productDiscountedPrice", ">=", minPrice),
+            where("productDiscountedPrice", "<=", maxPrice)
+          );
+        }
+
+        countPromises.push(getCountFromServer(countQuery));
+      }
+
+      const countResults = await Promise.all(countPromises);
+      totalCount = countResults.reduce((sum, result) => sum + result.data().count, 0);
     }
-    const countSnapshot = await getCountFromServer(countQuery);
-    const totalCount = countSnapshot.data().count;
 
     return {
       products,
+      categories:categoryData,
       totalCount,
-      lastVisible:
-        productsSnapshot.docs[productsSnapshot.docs.length - 1] || null,
+      lastVisible: products.length > 0 ? 
+        productsSnapshots[0].docs[productsSnapshots[0].docs.length - 1] : null,
     };
   } catch (error) {
     console.error("Error fetching products:", error);
-    return { products: [], totalCount: 0, lastVisible: null };
+    return { products: [], totalCount: 0, lastVisible: null ,categories:{}};
   }
 };
 
@@ -712,147 +820,290 @@ export const updateCartItem = async (
 };
 
 export const getColorsByCategory = async (
-  categoryName: string
-): Promise<string[]> => {
+  categoryId: string
+): Promise<{ color: string; count: number }[]> => {
   try {
-    const categoryDocSnapshot = await getDocs(
-      query(
-        collection(db, "categories"),
-        where("categoryName", "==", categoryName)
-      )
+    // First, get the category document
+    const categoryQuery = query(
+      collection(db, "categories"),
+      where("id", "==", categoryId)
     );
+    const categorySnapshot = await getDocs(categoryQuery);
 
-    if (categoryDocSnapshot.empty) {
+    if (categorySnapshot.empty) {
       console.log("Category not found.");
       return [];
     }
 
-    const categoryData = categoryDocSnapshot.docs[0].data();
-    const productIds = (categoryData?.products as string[]) || [];
+    const categoryData = categorySnapshot.docs[0].data();
+    const subCategories = categoryData?.subCategories || [];
+    
+    // Create an array of all relevant category IDs (main category + subcategories)
+    const allCategoryIds = [categoryId, ...subCategories];
 
-    if (!productIds.length) {
-      console.log("No product IDs in category.");
-      return [];
-    }
-
-    const productsRef = collection(db, "products");
-    const productsSnapshot = await getDocs(
-      query(productsRef, where("__name__", "in", productIds))
+    // Create a query for each category ID using array-contains
+    const queryPromises = allCategoryIds.map(categoryId => 
+      getDocs(query(
+        collection(db, "products"),
+        where("categories", "array-contains", categoryId)
+      ))
     );
 
-    const products = productsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Product[];
+    // Execute all queries in parallel
+    const productsSnapshots = await Promise.all(queryPromises);
+    
+    // Combine all products
+    const allProducts = productsSnapshots.flatMap(snapshot => 
+      snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
+    );
+    
+    // Remove duplicates (in case a product belongs to multiple subcategories)
+    const uniqueProducts = [...new Map(allProducts.map(item => [item.id, item])).values()];
 
-    const colors = new Set<string>();
+    // Create a map to count occurrences of each color
+    const colorCounts = new Map<string, number>();
 
-    products.forEach((product) => {
+    uniqueProducts.forEach((product) => {
+      // Track colors we've already counted for this product to avoid double-counting
+      const productColors = new Set<string>();
+
+      // Check variants for colors
       product.variants?.forEach((variant) => {
         if (
           variant.optionName?.toLowerCase() === "color" &&
           Array.isArray(variant.optionValue)
         ) {
           variant.optionValue.forEach((colorValue) => {
-            if (typeof colorValue === "string" && colorValue.startsWith("#")) {
-              colors.add(colorValue);
+            if(
+            colorValue?.name){
+   productColors.add(colorValue);
             }
+           
+            
           });
         }
       });
+
+      // Check variantDetails for colors
       product.variantDetails?.forEach((detail) => {
         detail.combination?.forEach((combo) => {
           if (
-            combo.name?.toLowerCase() === "color" &&
-            typeof combo.value === "string" &&
-            combo.value.startsWith("#")
+            combo.name?.toLowerCase() === "color"  &&
+            combo?.value?.name
           ) {
-            colors.add(combo.value);
+            productColors.add(combo.value);
           }
         });
       });
+
+      // Update counts for each unique color in this product
+      productColors.forEach(color => {
+        colorCounts.set(color, (colorCounts.get(color) || 0) + 1);
+      });
     });
 
-    return Array.from(colors);
+    // Convert the map to an array of objects
+    return Array.from(colorCounts.entries()).map(([color, count]) => ({
+      color,
+      count
+    }));
   } catch (error) {
     console.error("Error fetching colors by category:", error);
     return [];
   }
 };
 
+
+export const getSizesByCategory = async (
+  categoryId: string
+): Promise<{ size: string; count: number }[]> => {
+
+  console.log(categoryId)
+  try {
+    // First, get the category document
+    const categoryQuery = query(
+      collection(db, "categories"),
+      where("id", "==", categoryId)
+    );
+    const categorySnapshot = await getDocs(categoryQuery);
+
+    if (categorySnapshot.empty) {
+      console.log("Category not found.");
+      return [];
+    }
+
+    const categoryData = categorySnapshot.docs[0].data();
+    const subCategories = categoryData?.subCategories || [];
+    
+    // Create an array of all relevant category IDs (main category + subcategories)
+    const allCategoryIds = [categoryId, ...subCategories];
+
+    // Create a query for each category ID using array-contains
+    const queryPromises = allCategoryIds.map(categoryId => 
+      getDocs(query(
+        collection(db, "products"),
+        where("categories", "array-contains", categoryId),
+      ))
+    );
+
+    // Execute all queries in parallel
+    const productsSnapshots = await Promise.all(queryPromises);
+    
+    // Combine all products
+    const allProducts = productsSnapshots.flatMap(snapshot => 
+      snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
+    );
+
+    console.log(allProducts)
+
+ 
+    
+    // Remove duplicates (in case a product belongs to multiple subcategories)
+    const uniqueProducts = [...new Map(allProducts.map(item => [item.id, item])).values()];
+
+    // Create a map to count occurrences of each size
+    const sizeCounts = new Map<string, number>();
+
+    uniqueProducts.forEach((product) => {
+      // Track sizes we've already counted for this product to avoid double-counting
+      const productSizes = new Set<string>();
+
+         console.log(product,"------->Variant")
+      // Check variants for sizes
+      product.variants?.forEach((variant) => {
+        console.log(variant,"------->Variant")
+        if (
+          variant.optionName?.toLowerCase() === "size" &&
+          Array.isArray(variant.optionValue)
+        ) {
+          variant.optionValue.forEach((sizeValue) => {
+       
+              productSizes.add(sizeValue);
+            
+          });
+        }
+      });
+
+      // Check variantDetails for sizes
+      product.variantDetails?.forEach((detail) => {
+        detail.combination?.forEach((combo) => {
+          if (
+            combo.name?.toLowerCase() === "size" 
+          ) {
+            productSizes.add(combo.value);
+          }
+        });
+      });
+
+      // Check the sizes array directly (if it exists)
+      if (Array.isArray(product.sizes)) {
+        product.sizes.forEach(size => {
+          if (size) productSizes.add(size);
+        });
+      }
+
+      // Update counts for each unique size in this product
+      productSizes.forEach(size => {
+        sizeCounts.set(size, (sizeCounts.get(size) || 0) + 1);
+      });
+    });
+
+    // Convert the map to an array of objects and sort by size
+    const sizesArray = Array.from(sizeCounts.entries())
+      .map(([size, count]) => ({ size, count }))
+      .sort((a, b) => {
+        // Try to sort numerically if possible
+        const aNum = parseFloat(a.size);
+        const bNum = parseFloat(b.size);
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          return aNum - bNum;
+        }
+        
+        // Fallback to alphabetical sorting
+        return a.size.localeCompare(b.size);
+      });
+
+    return sizesArray;
+  } catch (error) {
+    console.error("Error fetching sizes by category:", error);
+    return [];
+  }
+};
 export const getMinMaxPriceByCategory = async (
-  categoryName: string
+  categoryId: string
 ): Promise<{ minPrice: number | null; maxPrice: number | null }> => {
   let minPrice: number | null = null;
   let maxPrice: number | null = null;
 
   try {
-    const categoryDocSnapshot = await getDocs(
-      query(
-        collection(db, "categories"),
-        where("categoryName", "==", categoryName)
-      )
+    // First, get the category document
+    const categoryQuery = query(
+      collection(db, "categories"),
+      where("id", "==", categoryId)
     );
+    const categorySnapshot = await getDocs(categoryQuery);
 
-    if (categoryDocSnapshot.empty) {
+    if (categorySnapshot.empty) {
       console.log("Category not found.");
       return { minPrice, maxPrice };
     }
 
-    const categoryData = categoryDocSnapshot.docs[0].data();
-    const productIds = (categoryData?.products as string[]) || [];
+    const categoryData = categorySnapshot.docs[0].data();
+    const subCategories = categoryData?.subCategories || [];
+    
+    // Create an array of all relevant category IDs (main category + subcategories)
+    const allCategoryIds = [categoryId, ...subCategories];
 
-    if (!productIds.length) {
-      console.log("No product IDs in category.");
-      return { minPrice, maxPrice };
-    }
-
-    const productsRef = collection(db, "products");
-    const productsSnapshot = await getDocs(
-      query(productsRef, where("__name__", "in", productIds))
+    // Create a query for each category ID using array-contains
+    const queryPromises = allCategoryIds.map(categoryId => 
+      getDocs(query(
+        collection(db, "products"),
+        where("categories", "array-contains", categoryId)
+      ))
     );
 
-    const products = productsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Product[];
+    // Execute all queries in parallel
+    const productsSnapshots = await Promise.all(queryPromises);
+    
+    // Combine all products
+    const allProducts = productsSnapshots.flatMap(snapshot => 
+      snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
+    );
+    
+    // Remove duplicates (in case a product belongs to multiple subcategories)
+    const uniqueProducts = [...new Map(allProducts.map(item => [item.id, item])).values()];
 
-    products.forEach((product) => {
+    // Calculate min and max prices
+    uniqueProducts.forEach((product) => {
       // Consider both original price and discounted price
       const pricesToConsider = [
-        product.productPrice,
         product.productDiscountedPrice,
-      ];
+      ].filter(price => typeof price === "number") as number[];
 
       pricesToConsider.forEach((price) => {
-        if (typeof price === "number") {
+        if (minPrice === null || price < minPrice) {
+          minPrice = price;
+        }
+        if (maxPrice === null || price > maxPrice) {
+          maxPrice = price;
+        }
+      });
+
+      // Also consider prices in variantDetails
+      product.variantDetails?.forEach((detail) => {
+        const variantPrices = [
+          detail.discountedPrice
+        ].filter(price => typeof price === "number") as number[];
+
+        variantPrices.forEach((price) => {
           if (minPrice === null || price < minPrice) {
             minPrice = price;
           }
           if (maxPrice === null || price > maxPrice) {
             maxPrice = price;
           }
-        }
-      });
-
-      // Also consider prices in variantDetails
-      product.variantDetails?.forEach((detail) => {
-        if (typeof detail.price === "number") {
-          if (minPrice === null || detail.price < minPrice) {
-            minPrice = detail.price;
-          }
-          if (maxPrice === null || detail.price > maxPrice) {
-            maxPrice = detail.price;
-          }
-        }
-        if (typeof detail.discountedPrice === "number") {
-          if (minPrice === null || detail.discountedPrice < minPrice) {
-            minPrice = detail.discountedPrice;
-          }
-          if (maxPrice === null || detail.discountedPrice > maxPrice) {
-            maxPrice = detail.discountedPrice;
-          }
-        }
+        });
       });
     });
 

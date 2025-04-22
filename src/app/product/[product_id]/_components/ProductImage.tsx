@@ -50,7 +50,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
           <SwiperSlide key={index}>
             <div
               ref={imageRef}
-              className="relative overflow-hidden cursor-zoom-in h-140"
+              className="relative overflow-hidden cursor-zoom-in h-auto"
               onMouseEnter={() => setZoom(true)}
               onMouseLeave={() => setZoom(false)}
               onMouseMove={handleMouseMove}
@@ -60,9 +60,9 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
                 alt="product-image"
                 width={1000}
                 height={1000}
-                className="transition-transform duration-200 md:object-contain"
+                className="transition-transform duration-200 object-cover lg:object-contain"
                 style={{
-                  objectFit: "contain",
+                  
                   transform: zoom ? `scale(2.4)` : "scale(1)",
                   transformOrigin: `${position.x}% ${position.y}%`,
                 }}
