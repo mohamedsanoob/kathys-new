@@ -6,6 +6,8 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Navbar from "./_components/Navbar";
 import FooterNav from "./_components/FooterNav";
+import { Suspense } from 'react'
+import { Spinner } from '@/components/Spinner'
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -26,7 +28,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${jost.className} antialiased`}>
-        <AuthProvider>
+           <Suspense fallback={
+          <div className="flex justify-center items-center h-[100vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+      </div>
+        }>
+           <AuthProvider>
           <div className="flex flex-col h-screen">
             <Navbar />
             <div className="md:pb-0 overflow-y-scroll h-full flex-1">
@@ -43,6 +50,9 @@ export default function RootLayout({
             draggable
           />
         </AuthProvider>
+
+        </Suspense>
+       
       </body>
     </html>
   );

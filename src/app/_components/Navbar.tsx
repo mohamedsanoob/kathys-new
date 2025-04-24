@@ -3,10 +3,16 @@ import { Heart, Search, ShoppingBag, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import PhoneAuthModal from "./PhoneAuthModal";
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showPhoneAuth, setShowPhoneAuth] = useState(false);
 
+  const handlePhoneVerified = (phoneNumber: string) => {
+    console.log("Verified phone number:", phoneNumber);
+    // Do something with the verified phone number
+  };
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
@@ -77,10 +83,10 @@ const Navbar = () => {
               </Link>
             </li>
           
-            <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50">
-              <Link href="/login" className="block" onClick={toggleMobileMenu}>
+               <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50"         onClick={() => setShowPhoneAuth(true)}>
+          
                 LOGIN/REGISTER
-              </Link>
+            
             </li>
             <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2">
               <Link
@@ -183,10 +189,10 @@ const Navbar = () => {
               </Link>
             </li>
           
-            <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50">
-              <Link href="/login" className="block" onClick={toggleMobileMenu}>
+            <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50"         onClick={() => setShowPhoneAuth(true)}>
+          
                 LOGIN/REGISTER
-              </Link>
+            
             </li>
             <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2">
               <Link
@@ -202,6 +208,11 @@ const Navbar = () => {
           {/* Add margin to prevent overlap with footer nav */}
         </div>
       </div>
+        <PhoneAuthModal
+        isOpen={showPhoneAuth}
+        onClose={() => setShowPhoneAuth(false)}
+        onSuccess={handlePhoneVerified}
+      />
     </nav>
   );
 };
