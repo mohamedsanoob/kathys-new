@@ -7,7 +7,6 @@ import "react-toastify/dist/ReactToastify.css";
 import Navbar from "./_components/Navbar";
 import FooterNav from "./_components/FooterNav";
 import { Suspense } from 'react'
-import { Spinner } from '@/components/Spinner'
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -36,7 +35,7 @@ export default function RootLayout({
            <AuthProvider>
           <div className="flex flex-col h-screen">
             <Navbar />
-            <div className="md:pb-0 overflow-y-scroll h-full flex-1">
+            <div className="md:pb-0 overflow-y-auto flex-1">
               {children}
             </div>
             <FooterNav />

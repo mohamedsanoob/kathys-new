@@ -57,13 +57,13 @@ const Navbar = () => {
         </div>
 
         {/* Centered Logo for Mobile */}
-        <div className="absolute left-1/2 top-1/2  md:static md:transform-none h-full w-50px">
+        <div className="absolute transform left-1/2 -translate-x-1/2 md:static md:transform-none h-full w-50px">
           <Link href="/" className="flex items-center h-full w-full">
             <Image
               src="https://dukaan.b-cdn.net/200x200/webp/7270358/bb32b6b5-733b-420a-a72f-405fcc4fcd48/1661604665901-9d9159aa-3202-4f7e-b40f-0d1a6af8b1ba.jpeg/f7aae514-866e-46e4-a56d-26cdd93dacf9.jpeg"
               alt="logo"
-              width={30}
-              height={30}
+              width={1000}
+              height={1000}
               className="h-full  w-full object-contain"
             />
           </Link>
@@ -78,15 +78,20 @@ const Navbar = () => {
               </Link>
             </li>
             <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50">
-              <Link href="/categories" className="block" onClick={toggleMobileMenu}>
+              <Link
+                href="/categories"
+                className="block"
+                onClick={toggleMobileMenu}
+              >
                 CATEGORIES
               </Link>
             </li>
-          
-               <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50"         onClick={() => setShowPhoneAuth(true)}>
-          
-                LOGIN/REGISTER
-            
+
+            <li
+              className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50"
+              onClick={() => setShowPhoneAuth(true)}
+            >
+              LOGIN/REGISTER
             </li>
             <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2">
               <Link
@@ -184,15 +189,20 @@ const Navbar = () => {
               </Link>
             </li>
             <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50">
-              <Link href="/categories" className="block" onClick={toggleMobileMenu}>
-                     CATEGORIES
+              <Link
+                href="/categories"
+                className="block"
+                onClick={toggleMobileMenu}
+              >
+                CATEGORIES
               </Link>
             </li>
-          
-            <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50"         onClick={() => setShowPhoneAuth(true)}>
-          
-                LOGIN/REGISTER
-            
+
+            <li
+              className="cursor-pointer hover:text-indigo-600 transition-colors py-2 border-b border-gray-50"
+              onClick={() => setShowPhoneAuth(true)}
+            >
+              LOGIN/REGISTER
             </li>
             <li className="cursor-pointer hover:text-indigo-600 transition-colors py-2">
               <Link
@@ -208,7 +218,7 @@ const Navbar = () => {
           {/* Add margin to prevent overlap with footer nav */}
         </div>
       </div>
-        <PhoneAuthModal
+      <PhoneAuthModal
         isOpen={showPhoneAuth}
         onClose={() => setShowPhoneAuth(false)}
         onSuccess={handlePhoneVerified}

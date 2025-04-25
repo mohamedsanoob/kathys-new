@@ -15,7 +15,6 @@ import {
   where,
   DocumentSnapshot,
 } from "firebase/firestore";
-import { allowedNodeEnvironmentFlags } from "process";
 
 interface DocumentInterface extends DocumentData {
   id: string;
