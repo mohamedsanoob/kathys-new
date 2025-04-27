@@ -7,7 +7,7 @@ import Rating from "./_components/Rating";
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden">
+    <div className="relative w-full overflow-x-hidden">
       <ImageSwiper />
       <Community />
       <Collections />
