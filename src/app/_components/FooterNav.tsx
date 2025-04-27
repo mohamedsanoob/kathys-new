@@ -22,8 +22,8 @@ const FooterNav = () => {
   return (
     <div
       className={cn(
-        "w-full bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] md:hidden z-50",
-        "absolute bottom-0",
+        "w-full bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] md:hidden",
+        "",
         product_id !== undefined && "hidden"
       )}
     >
