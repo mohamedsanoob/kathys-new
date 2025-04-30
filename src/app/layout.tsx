@@ -33,7 +33,7 @@ export default function RootLayout({
       </div>
         }>
            <AuthProvider>
-          <div className="flex flex-col h-[100vh]">
+          <div className="flex flex-col h-[93vh]">
             <Navbar />
             <div className="md:pb-0 overflow-y-auto flex-1">
               {children}
