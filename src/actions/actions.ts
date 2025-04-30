@@ -717,7 +717,7 @@ export const addProductToCart = async ({
     if (!cartSnapshot.exists()) {
       await setDoc(cartRef, {
         userId: isLoggedIn ? cartId : null,
-        products: [{ productId, quantity, variantDetails }],
+        products: [variantDetails !==undefined ? { productId, quantity, variantDetails }:{ productId, quantity }],
         createdAt: new Date(),
         updatedAt: new Date(),
       });

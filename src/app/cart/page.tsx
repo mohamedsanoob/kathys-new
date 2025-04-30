@@ -42,7 +42,7 @@ interface CartProduct {
 const CartPage = () => {
   const [cartProducts, setCartProducts] = useState<CartProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { refreshCart} = useCart()
+  const { refreshCart } = useCart();
 
   const fetchCartProducts = useCallback(async () => {
     setIsLoading(true);
@@ -63,8 +63,7 @@ const CartPage = () => {
   const handleRemoveProduct = async (productId: string, sku?: string) => {
     try {
       await removeCartItem(productId, sku);
-        
-               window.dispatchEvent(new Event("cart-updated"));
+      window.dispatchEvent(new Event("cart-updated"));
       await fetchCartProducts();
     } catch (error) {
       console.error("Failed to remove product:", error);
@@ -80,8 +79,7 @@ const CartPage = () => {
 
     try {
       await updateCartItem([{ productId, variantSku: sku, quantity: newQuantity }]);
-         
-               window.dispatchEvent(new Event("cart-updated"));
+      window.dispatchEvent(new Event("cart-updated"));
       
       setCartProducts(prev => prev.map(product => {
         if (product.id === productId && 
@@ -109,9 +107,6 @@ const CartPage = () => {
     product => product.outOfStock
   );
 
-
-
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -125,7 +120,7 @@ const CartPage = () => {
       <div className="flex flex-col items-center justify-center h-[70vh] gap-6 p-4">
         <p className="text-2xl font-semibold text-gray-700">Your cart is empty!</p>
         <Link href="/" passHref>
-          <button className="bg-[#ee403d] hover:bg-[#d93835] text-white font-semibold px-6 py-3 rounded-md transition duration-200">
+          <button className="bg-[#1e6553] hover:bg-[#1e6553]/90 text-white font-semibold px-6 py-3 rounded transition duration-200">
             Go to Home
           </button>
         </Link>
@@ -133,39 +128,39 @@ const CartPage = () => {
     );
   }
 
-
-  console.log(cartProducts,"=============>Cart-Products")
-
   return (
     <div className="flex flex-col lg:pt-10 h-[100%]">
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:px-[6%] flex-1 overflow-y-scroll">
-        
         {/* Mobile View */}
         <div className="lg:hidden w-full">
           {cartProducts.map((product, index) => (
             <div key={index} className="py-4 flex flex-col border-b border-gray-300">
               <div className="flex items-start gap-4">
-                {product.images?.[0] && (
-                  <Image
-                    src={product.images[0]}
-                    alt={product.productName}
-                    width={80}
-                    height={80}
-                    className="w-16 h-20 object-cover rounded"
-                  />
-                )}
+                <Link href={`/product/${product.id}`} passHref>
+                  {product.images?.[0] && (
+                    <Image
+                      src={product.images[0]}
+                      alt={product.productName}
+                      width={80}
+                      height={80}
+                      className="w-16 h-20 object-cover rounded cursor-pointer"
+                    />
+                  )}
+                </Link>
                 <div className="flex-1">
-                  <p className="font-semibold text-sm">
-                    {product.productName}
-                    {product.variantDetails?.combination && (
-                      <>
-                        {" - "}
-                        {product.variantDetails.combination
-                          .map(attr => attr.value)
-                          .join(", ")}
-                      </>
-                    )}
-                  </p>
+                  <Link href={`/product/${product.id}`} passHref>
+                    <p className="font-semibold text-sm hover:text-[#1e6553] cursor-pointer">
+                      {product.productName}
+                      {product.variantDetails?.combination && (
+                        <>
+                          {" - "}
+                          {product.variantDetails.combination
+                            .map(attr => attr.value)
+                            .join(", ")}
+                        </>
+                      )}
+                    </p>
+                  </Link>
                   {product.outOfStock && (
                     <p className="text-red-500 text-xs mt-1">
                       Out of Stock (Available: {product.currentInventory})
@@ -195,7 +190,7 @@ const CartPage = () => {
                   <button
                     onClick={() => handleQuantityChange(
                       product.id, 
-                        product.variants?.length>0?  product.variantDetails?.sku : undefined, 
+                      product.variants?.length>0 ? product.variantDetails?.sku : undefined, 
                       product.quantity - 1
                     )}
                     disabled={product.quantity <= 1}
@@ -209,7 +204,7 @@ const CartPage = () => {
                   <button
                     onClick={() => handleQuantityChange(
                       product.id, 
-               product.variants?.length>0?  product.variantDetails?.sku : undefined, 
+                      product.variants?.length>0 ? product.variantDetails?.sku : undefined, 
                       product.quantity + 1
                     )}
                     disabled={
@@ -253,27 +248,31 @@ const CartPage = () => {
                 <tr key={index} className="h-[100px] border-b border-gray-300">
                   <td>
                     <div className="flex items-center gap-4 h-[100%]">
-                      {product.images?.[0] && (
-                        <Image
-                          src={product.images[0]}
-                          alt={product.productName}
-                          width={80}
-                          height={80}
-                          className="w-10 h-20 object-cover rounded"
-                        />
-                      )}
+                      <Link href={`/products/${product.id}`} passHref>
+                        {product.images?.[0] && (
+                          <Image
+                            src={product.images[0]}
+                            alt={product.productName}
+                            width={80}
+                            height={80}
+                            className="w-10 h-20 object-cover rounded cursor-pointer"
+                          />
+                        )}
+                      </Link>
                       <div>
-                        <p className="font-semibold text-[1rem]">
-                          {product.productName}
-                          {product.variantDetails?.combination && (
-                            <>
-                              {" - "}
-                              {product.variantDetails.combination
-                                .map(attr => attr.value)
-                                .join(", ")}
-                            </>
-                          )}
-                        </p>
+                        <Link href={`/product/${product.id}`} passHref>
+                          <p className="font-semibold text-[1rem] hover:text-[#1e6553] cursor-pointer">
+                            {product.productName}
+                            {product.variantDetails?.combination && (
+                              <>
+                                {" - "}
+                                {product.variantDetails.combination
+                                  .map(attr => attr.value)
+                                  .join(", ")}
+                              </>
+                            )}
+                          </p>
+                        </Link>
                         {product.outOfStock && (
                           <p className="text-red-500 text-sm">
                             Out of Stock (Available: {product.currentInventory})
@@ -294,7 +293,7 @@ const CartPage = () => {
                       <button
                         onClick={() => handleQuantityChange(
                           product.id, 
-                           product.variants?.length>0?  product.variantDetails?.sku : undefined, 
+                          product.variants?.length>0 ? product.variantDetails?.sku : undefined, 
                           product.quantity - 1
                         )}
                         disabled={product.quantity <= 1}
@@ -308,7 +307,7 @@ const CartPage = () => {
                       <button
                         onClick={() => handleQuantityChange(
                           product.id, 
-                        product.variants?.length>0?  product.variantDetails?.sku : undefined, 
+                          product.variants?.length>0 ? product.variantDetails?.sku : undefined, 
                           product.quantity + 1
                         )}
                         disabled={
@@ -367,7 +366,7 @@ const CartPage = () => {
               className={`h-12 w-full ${
                 hasOutOfStockItems || cartProducts.length === 0 
                   ? "bg-gray-400 cursor-not-allowed" 
-                  : "bg-[#1e6553] hover:bg-[#1e6553]"
+                  : "bg-[#1e6553] hover:bg-[#1e6553]/90"
               } text-white font-semibold rounded-md transition-colors duration-200`}
               disabled={hasOutOfStockItems || cartProducts.length === 0}
             >

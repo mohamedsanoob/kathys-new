@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { getCartProducts } from "@/actions/actions";
 import axios from "axios";
-import {  RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { auth, db } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
 import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
@@ -14,8 +14,9 @@ import BillingDetails from "./_components/BillingDetails";
 import PhoneAuthModal from "./_components/PhoneAuthModel";
 import { toast } from "react-toastify";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react"; // Import ArrowLeft from lucide-react
-
+import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
+import { PaymentSuccess } from "../_components/PaymentSuccess";
+import { PaymentRejected } from "../_components/PaymentRejected";
 
 declare global {
   interface Window {
@@ -25,6 +26,16 @@ declare global {
     recaptchaVerifier: any;
   }
 }
+
+const PaymentLoader = () => (
+  <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm">
+    <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center w-[90%]">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-[#1e6553] mx-auto mb-4"></div>
+      <h2 className="text-xl font-semibold text-gray-800 mb-2">Processing Payment</h2>
+      <p className="text-gray-600">Please wait while we process your payment...</p>
+    </div>
+  </div>
+);
 
 const CheckoutPage = () => {
   const { currentUser } = useAuth();
@@ -43,8 +54,16 @@ const CheckoutPage = () => {
   const [termsError, setTermsError] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(true);
   const [paymentMode, setPaymentMode] = useState<'online' | 'cod' | ''>('');
-    const [showPaymentMode, setShowPaymentMode] = useState(false);
-      const [paymentModeError, setPaymentModeError] = useState(false);
+  const [showPaymentMode, setShowPaymentMode] = useState(false);
+  const [paymentModeError, setPaymentModeError] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'failed'>('pending');
+  const [orderDetails, setOrderDetails] = useState<{
+    id: string;
+    amount: number;
+    paymentMethod: string;
+  } | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const {
     register,
@@ -61,7 +80,6 @@ const CheckoutPage = () => {
       setIsLoading(true);
       try {
         const cartItems = await getCartProducts();
-     
         setCartProductsWithDetails(cartItems.filter(Boolean));
       } catch (err) {
         console.error("Failed to fetch checkout cart details", err);
@@ -79,8 +97,6 @@ const CheckoutPage = () => {
     }
   }, [currentUser]);
 
-
-
   const fetchUserAddresses = async () => {
     try {
       if (!currentUser?.uid) return;
@@ -93,7 +109,7 @@ const CheckoutPage = () => {
       })) as FormData[];
 
       setSavedAddresses(addresses);
-      const defaultAddress  = addresses.find(addr => addr.is_default);
+      const defaultAddress = addresses.find(addr => addr.is_default);
       setSelectedAddress(defaultAddress ? defaultAddress.id : addresses[0]?.id || null);
     } catch (error) {
       console.error("Error fetching addresses:", error);
@@ -234,13 +250,13 @@ const CheckoutPage = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if(paymentMode==='') {
-        setShowPaymentMode(true)
-        setPaymentModeError(true)
-    }else{
-        setPaymentModeError(false)
-
-    
+    if (paymentMode === '') {
+      setShowPaymentMode(true);
+      setPaymentModeError(true);
+      return;
+    } else {
+      setPaymentModeError(false);
+    }
 
     if (!validateCheckout()) return;
 
@@ -258,15 +274,17 @@ const CheckoutPage = () => {
       await onSubmit(orderData);
     } catch (error) {
       console.error("Checkout error:", error);
-      toast.error( "Checkout failed. Please try again.");
-    }}
+      toast.error("Checkout failed. Please try again.");
+    }
   };
 
   const onSubmit = async (data: FormData) => {
+    setIsProcessingPayment(true);
+    
     try {
       const orderObject = {
         cartId: localStorage.getItem("guestCartId") || `cart_${Date.now()}`,
-        payment_mode: "Razorpay",
+        payment_mode: paymentMode === 'cod' ? 'COD' : 'Razorpay',
         items_total: total,
         additional_info: data.notes || "",
         channel: "Web",
@@ -279,11 +297,11 @@ const CheckoutPage = () => {
           product_price: product.productPrice,
           discounted_price: product.productDiscountedPrice || product.productPrice,
           quantity: product.quantity,
-          product_sku: product.variantDetails.sku,
-          variant_details: product.variantDetails.combination.reduce((acc, curr) => {
+          product_sku: product.variantDetails?.sku,
+          variant_details: product.variantDetails?.combination?.reduce((acc, curr) => {
             acc[curr.name] = curr.value;
             return acc;
-          }, {} as Record<string, string>),
+          }, {} as Record<string, string>) || {},
           product_description: ""
         })),
         customer_details: {
@@ -308,8 +326,34 @@ const CheckoutPage = () => {
         }
       };
 
+      if (paymentMode === 'cod') {
+        try {
+          const response = await axios.post("http://localhost:4000/payment/cod", {
+            orderData: orderObject
+          });
+          
+          setOrderDetails({
+            id: response.data.orderId,
+            amount: total,
+            paymentMethod: 'cash on delivery'
+          });
+          setPaymentStatus('success');
+          localStorage.removeItem("guestCartId");
+          setIsProcessingPayment(false);
+          return;
+        } catch (error: any) {
+          console.error("COD order error:", error);
+          setPaymentStatus('failed');
+          setPaymentError(error.response?.data?.error || "Failed to place COD order. Please try again.");
+          setIsProcessingPayment(false);
+          return;
+        }
+      }
+
       const razorpayLoaded = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
-      if (!razorpayLoaded) throw new Error("Razorpay SDK failed to load");
+      if (!razorpayLoaded) {
+        throw new Error("Razorpay SDK failed to load");
+      }
 
       const orderResponse = await axios.post<OrderResponse>("http://localhost:4000/payment/orders", {
         amount: total,
@@ -317,20 +361,29 @@ const CheckoutPage = () => {
         orderData: orderObject
       });
 
-      if (!orderResponse.data?.order) throw new Error("Failed to create payment order");
+      if (!orderResponse.data?.order) {
+        throw new Error("Failed to create payment order");
+      }
 
       const { id: order_id, currency } = orderResponse.data.order;
+
+      setOrderDetails({
+        id: order_id,
+        amount: total,
+        paymentMethod: 'razorpay'
+      });
 
       const paymentOptions: RazorpayOptions = {
         key: process.env.RAZORPAY_KEY_ID || "rzp_test_N6VzhsIMdUpe3s",
         amount: (total * 100).toString(),
         currency,
-        name: "Your Store Name",
+        name: "Kathy's Clothing Store",
         description: "Order Payment",
-        image: "/logo.png",
+        // image: "/logo.png",
         order_id,
         handler: async (response: RazorpayResponse) => {
           try {
+            setIsProcessingPayment(true);
             const verificationResponse = await axios.post<PaymentSuccessResponse>(
               "http://localhost:4000/payment/success",
               {
@@ -341,11 +394,20 @@ const CheckoutPage = () => {
                 orderData: orderObject
               }
             );
-            toast.success(verificationResponse.data.msg || "Payment successful!");
+            
+            setOrderDetails({
+              id: verificationResponse.data.orderId,
+              amount: total,
+              paymentMethod: 'razorpay'
+            });
+            setPaymentStatus('success');
             localStorage.removeItem("guestCartId");
           } catch (error) {
             console.error("Payment verification failed:", error);
-            toast.error("Payment verification failed. Please contact support.");
+            setPaymentStatus('failed');
+            setPaymentError("Payment verification failed. Please contact support.");
+          } finally {
+            setIsProcessingPayment(false);
           }
         },
         prefill: {
@@ -358,19 +420,23 @@ const CheckoutPage = () => {
           orderId: order_id
         },
         theme: {
-          color: "#3399cc",
+          color: "#1e6b5d",
         },
         modal: {
           ondismiss: async () => {
             try {
+                  setIsProcessingPayment(true);
               await axios.post("http://localhost:4000/payment/cancel", {
                 orderId: order_id,
                 reason: "User closed payment window"
               });
-              toast.warn("Payment cancelled. Your order has been marked as cancelled.");
+              setPaymentStatus('failed');
+              setPaymentError("Payment was cancelled. Please try again.");
+                   setIsProcessingPayment(false);
             } catch (cancelError) {
-              console.error("Order cancellation error:", cancelError);
-              toast.error("Payment was cancelled but there was an error updating your order.");
+                     setIsProcessingPayment(false);
+              setPaymentStatus('failed');
+              setPaymentError("Payment was cancelled but there was an error updating your order.");
             }
           }
         }
@@ -378,16 +444,18 @@ const CheckoutPage = () => {
 
       const paymentObject = new window.Razorpay(paymentOptions);
       paymentObject.open();
+      setIsProcessingPayment(false);
 
     } catch (error: any) {
       console.error("Checkout error:", error);
-      toast.error(error.response?.data?.error || error.message || "Checkout failed. Please try again.");
+      setPaymentStatus('failed');
+      setPaymentError(error.response?.data?.error || error.message || "Checkout failed. Please try again.");
+      setIsProcessingPayment(false);
     }
   };
 
-   const handleOrderButtonClick = () => {
-    console.log("hello")
-    if (showPaymentMode && paymentMode=='') {
+  const handleOrderButtonClick = () => {
+    if (showPaymentMode && paymentMode === '') {
       setPaymentModeError(true);
       return;
     }
@@ -398,25 +466,48 @@ const CheckoutPage = () => {
     handlePlaceOrder();
   };
 
+  if (paymentStatus === 'success' && orderDetails) {
+    return (
+      <PaymentSuccess
+        orderId={orderDetails.id}
+        amount={orderDetails.amount}
+        paymentMethod={orderDetails.paymentMethod}
+        onContinueShopping={() => window.location.href = '/'}
+      />
+    );
+  }
+
+  if (paymentStatus === 'failed') {
+    return (
+      <PaymentRejected
+        errorMessage={paymentError || undefined}
+        orderId={orderDetails?.id}
+        onRetry={() => {
+          setPaymentStatus('pending');
+          setPaymentError(null);
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="flex flex-col bg-gray-50 " style={{height:"100%"}}>
+    <div className="flex flex-col bg-gray-50" style={{height:"100%"}}>
+      {isProcessingPayment && <PaymentLoader />}
       
       <div className="bg-white border-b border-gray-200 py-4 px-4 flex items-center">
         <Link href={`${showPaymentMode?'#':'/cart'}`}>
-           <button 
-        style={{cursor:"pointer"}}
-          onClick={() =>{setShowPaymentMode(false);setPaymentMode('')}}
-          className="mr-4 flex items-center gap-1"
-        >
-          <ArrowLeft className="h-5 w-5 text-gray-600" />
-          <span className="ml-2 text-lg font-semibold">{showPaymentMode?"Choose Payment method":currentUser  ?"Choose address":"Add address"}</span>
-        </button>
+          <button 
+            style={{cursor:"pointer"}}
+            onClick={() =>{setShowPaymentMode(false);setPaymentMode('')}}
+            className="mr-4 flex items-center gap-1"
+          >
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
+            <span className="ml-2 text-lg font-semibold">{showPaymentMode?"Choose Payment method":currentUser  ?"Choose address":"Add address"}</span>
+          </button>
         </Link>
-     
       </div>
     
-
-      <div className="flex flex-col lg:flex-row lg:gap-8 gap-6 w-full px-4 md:px-8 lg:px-[6%]  lg:pb-0 pb-6 pt-6" style={{overflowY:"scroll"}}>
+      <div className="flex flex-col lg:flex-row lg:gap-8 gap-6 w-full px-4 md:px-8 lg:px-[6%] lg:pb-0 pb-6 pt-6" style={{overflowY:"scroll"}}>
         <BillingDetails
           currentUser={currentUser}
           showLogin={showLogin}
@@ -432,12 +523,10 @@ const CheckoutPage = () => {
           saveNewAddress={saveNewAddress}
           handleSubmit={handleSubmit}
           getValues={getValues}
-          setPaymentMode={setPaymentMode} paymentMode={paymentMode}
-
+          setPaymentMode={setPaymentMode} 
+          paymentMode={paymentMode}
           showPaymentMode={showPaymentMode}
         />
-
-
 
         <OrderSummary
           cartProducts={cartProductsWithDetails}
@@ -446,14 +535,14 @@ const CheckoutPage = () => {
           setTermsAgreed={setTermsAgreed}
           termsError={termsError}
           setTermsError={setTermsError}
-          handlePlaceOrder={handleOrderButtonClick }
+          handlePlaceOrder={handleOrderButtonClick}
           isValid={isValid}
           currentUser={currentUser}
           selectedAddress={selectedAddress}
           paymentMode={paymentMode}
           showPaymentMode={showPaymentMode}
-            setPaymentModeError={setPaymentModeError}
-  paymentModeError={paymentModeError}
+          setPaymentModeError={setPaymentModeError}
+          paymentModeError={paymentModeError}
         />
       </div>
 
@@ -473,18 +562,18 @@ const CheckoutPage = () => {
       />
 
       <div id="recaptcha-container" className="hidden"></div>
-  <div className=" left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 md:hidden">
-        <div className="container mx-auto flex  md:flex-row items-center justify-between gap-4">
-          <div className="text-center md:text-left w-50 ">
+      <div className="left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 md:hidden">
+        <div className="container mx-auto flex md:flex-row items-center justify-between gap-4">
+          <div className="text-center md:text-left w-50">
             <p className="font-semibold">Total: ₹{total.toFixed(2)}</p>
           </div>
 
-                 <button
+          <button
             onClick={handleOrderButtonClick}
             disabled={
-              currentUser 
+              (currentUser 
                 ? !selectedAddress || !termsAgreed 
-                : !isValid || !termsAgreed 
+                : !isValid || !termsAgreed) || isProcessingPayment
             }
             className={`w-full py-3 rounded-md text-white font-semibold ${
               (currentUser ? selectedAddress && termsAgreed && (!showPaymentMode || paymentMode) 
@@ -493,14 +582,16 @@ const CheckoutPage = () => {
                 : "bg-gray-400 cursor-not-allowed"
             } transition-colors`}
           >
-            {showPaymentMode 
-              ? paymentMode 
-                ? `Pay ₹${total.toFixed(2)}` 
-                : "Select Payment Method"
-              : "Continue"}
+            {isProcessingPayment ? (
+              "Processing..."
+            ) : (
+              showPaymentMode 
+                ? paymentMode 
+                  ? `Pay ₹${total.toFixed(2)}` 
+                  : "Select Payment Method"
+                : "Continue"
+            )}
           </button>
-        
-      
         </div>
       </div>
     </div>
