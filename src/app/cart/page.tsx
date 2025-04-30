@@ -129,7 +129,7 @@ const CartPage = () => {
   }
 
   return (
-    <div className="flex flex-col lg:pt-10 h-[100%]">
+    <div className="flex flex-col lg:pt-10 h-[90%]">
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:px-[6%] flex-1 overflow-y-scroll">
         {/* Mobile View */}
         <div className="lg:hidden w-full">
