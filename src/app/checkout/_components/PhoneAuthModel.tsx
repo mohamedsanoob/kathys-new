@@ -127,7 +127,7 @@ const handleResendOTP = () => {
                   className={`w-full ${
                     isSendingOTP || phoneNumber.length !== 10 
                       ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-red-600 hover:bg-red-700'
+                      : 'bg-[#1e6553] hover:bg-[#1e6553]'
                   } text-white py-2 rounded transition-all duration-200`}
                 >
                   {isSendingOTP ? 'Sending...' : 'Send OTP'}
@@ -169,7 +169,7 @@ const handleResendOTP = () => {
                     style={{cursor:"pointer"}}
                       onClick={handleResendOTP}
                       disabled={isSendingOTP}
-                      className={`text-red-600 hover:text-red-800 text-sm font-medium ${
+                      className={`text-[#1e6553] hover:text-[#1e6553] text-sm font-medium ${
                         isSendingOTP ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     >
@@ -189,7 +189,7 @@ const handleResendOTP = () => {
                   className={`w-full ${
                     isVerifying || otp.length !== 6
                       ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-red-600 hover:bg-red-700'
+                      : 'bg-[#1e6553] hover:bg-[#1e6553['
                   } text-white py-2 rounded transition-all duration-200`}
                 >
                   {isVerifying ? 'Verifying...' : 'Verify OTP'}

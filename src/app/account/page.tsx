@@ -1,11 +1,19 @@
+import { useAuth } from "@/context/AuthContext";
 import Navbar from "../_components/Navbar";
 import Addresses from "./_components/Addresses";
+import Account from "./_components/Account";
 import AllOrders from "./_components/AllOrders";
 import HomeItems from "./_components/HomeItems";
 import Signout from "./_components/Signout";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+
+
 
 const page = ({ searchParams }: { searchParams: { category?: string } }) => {
-  const activeComponent = searchParams?.category || "orders"; // Improved default
+  
+  const activeComponent = searchParams?.category;
+  const showContentOnMobile = !!activeComponent;
 
   const renderComponent = () => {
     switch (activeComponent) {
@@ -14,25 +22,38 @@ const page = ({ searchParams }: { searchParams: { category?: string } }) => {
       case "addresses":
         return <Addresses />;
       case "signout":
-        return <Signout />; // Signout component should handle the logic
+        return <Signout />;
       default:
-        return <AllOrders />; // Default with error logging
+        return <AllOrders />;
     }
   };
 
+
+
   return (
     <div>
-   
       <div>
-        <div className="container mx-auto flex w-[90%] justify-between py-4">
-          <p className="text-xl font-medium">Account</p>
-          <p className="text-lg">+91 7994914856</p>
-        </div>
-        <div className="flex border border-gray-200 rounded-md shadow-md w-[90%] h-[80dvh] mx-auto">
-          <div className="w-[25%] border-r border-gray-200">
+    <Account/>
+        <div className="flex flex-col md:flex-row border border-gray-200 rounded-md md:shadow-md w-[90%]  mx-auto">
+          {/* Mobile back button - shown only when content is visible on mobile */}
+          {showContentOnMobile && (
+            <div className="md:hidden flex items-center p-4 border-b border-gray-200">
+              <Link href="/account" className="flex items-center gap-2">
+                <ArrowLeft className="w-5 h-5" />
+                <span>Back to menu</span>
+              </Link>
+            </div>
+          )}
+
+          {/* Sidebar - hidden on mobile when content is shown */}
+          <div className={`w-full md:w-[25%] ${showContentOnMobile ? 'hidden md:block' : 'block'} border-b md:border-b-0 md:border-r border-gray-200`}>
             <HomeItems activeCategory={activeComponent} />
           </div>
-          <div className="w-[75%] p-4">{renderComponent()}</div>
+          
+          {/* Content area - shown on mobile when category selected, always on desktop */}
+          <div className={`${showContentOnMobile ? 'block' : 'hidden md:block'} w-full md:w-[75%] p-4`}>
+            {renderComponent()}
+          </div>
         </div>
       </div>
     </div>

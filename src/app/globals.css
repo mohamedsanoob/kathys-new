@@ -20,6 +20,22 @@
 }
 /* h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] */
 
+/* global.css or your component CSS file */
+.swiper-button-next,
+.swiper-button-prev {
+  color: white !important;
+  /* Force white arrow */
+  width: 30px !important;
+  /* Make it smaller */
+  height: 30px !important;
+}
+
+.swiper-button-next::after,
+.swiper-button-prev::after {
+  font-size: 18px !important;
+  /* Smaller arrow icon */
+}
+
 .swiper-button-next::after,
 .swiper-button-prev::after {
   color: white;
@@ -28,7 +44,33 @@
   width: 100%;
   height: 100%;
 }
+.swiper-button-next:hover{
+    height: 50px !important;
+      background-color: gray;
+      /* your background color */
+      background-blend-mode: color-dodge;
+      /* try any value possible until it suits you */
+}
+.swiper-pagination-bullet {
+  opacity: 0.5;
+  background-color: #ffffff !important;
+}
 
+:root {
+  --swiper-navigation-color: white !important;
+  --swiper-theme-color: white !important;
+}
+
+.swiper-pagination-bullet-active {
+  opacity: 1;
+}
+ .swiper-button-prev:hover {
+  height: 50px !important;
+  background-color: gray;
+  /* your background color */
+  background-blend-mode: color-dodge;
+  /* try any value possible until it suits you */
+}
 .swiper-slide {
   display: flex;
   justify-content: center;

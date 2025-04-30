@@ -61,7 +61,7 @@ const BillingDetails = ({
           <button 
             style={{ cursor: "pointer" }}
             onClick={() => setShowLogin(true)} 
-            className="text-red-600 hover:text-red-800 text-sm font-medium"
+            className="text-[#1e6553] hover:text-[#1e6553] text-sm font-medium"
           >
             Already a user? Sign In
           </button>

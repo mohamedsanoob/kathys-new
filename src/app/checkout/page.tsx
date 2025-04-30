@@ -489,7 +489,7 @@ const CheckoutPage = () => {
             className={`w-full py-3 rounded-md text-white font-semibold ${
               (currentUser ? selectedAddress && termsAgreed && (!showPaymentMode || paymentMode) 
                 : isValid && termsAgreed && (!showPaymentMode || paymentMode))
-                ? "bg-red-600 hover:bg-red-700" 
+                ? "bg-[#1e6553] hover:bg-[#1e6553]" 
                 : "bg-gray-400 cursor-not-allowed"
             } transition-colors`}
           >

@@ -1,17 +1,13 @@
 "use client";
 import Image from "next/image";
 import { X } from "lucide-react";
-// import {
-//   updateCartItemQuantity,
-//   removeProductFromCart,
-// } from "@/actions/actions"; // Assuming you have these actions
 
 interface VariantDetail {
-  combination: { name: string; value: string }[];
-  inventory: number;
-  sku: string;
+  combination?: { name: string; value: string }[];
+  inventory?: number;
+  sku?: string;
   discountedPrice?: number;
-  price: number;
+  price?: number;
 }
 
 interface CartProduct {
@@ -21,7 +17,7 @@ interface CartProduct {
   productPrice: number;
   productDiscountedPrice?: number;
   quantity: number;
-  variantDetails: VariantDetail;
+  variantDetails?: VariantDetail;
   currentInventory?: number;
   outOfStock?: boolean;
 }
@@ -31,28 +27,39 @@ interface CartItemsProps {
     currentInventory?: number;
     outOfStock?: boolean;
   })[];
-  onQuantityChange: () => void; // Function to refresh cart data
+  onQuantityChange: (productId: string, variantSku: string | undefined, newQuantity: number) => Promise<void>;
+  onRemoveItem: (productId: string, variantSku: string | undefined) => Promise<void>;
+  loadingStates: Record<string, boolean>; // { 'productId-sku': boolean }
 }
 
-const CartItems: React.FC<CartItemsProps> = ({
-  products,
-  //   onQuantityChange,
+const CartItems: React.FC<CartItemsProps> = ({ 
+  products, 
+  onQuantityChange, 
+  onRemoveItem,
+  loadingStates 
 }) => {
-  //   const handleQuantityChange = async (
-  //     productId: string,
-  //     variantSku: string,
-  //     newQuantity: number
-  //   ) => {
-  //     if (newQuantity > 0) {
-  //       await updateCartItemQuantity(productId, variantSku, newQuantity);
-  //       onQuantityChange(); // Refresh cart data after update
-  //     }
-  //   };
+  const getStockStatus = (product: CartProduct) => {
+    const inventory = product.variantDetails?.inventory ?? product.currentInventory;
+    const isOutOfStock = product.outOfStock || (inventory !== undefined && product.quantity > inventory);
+    
+    return {
+      isOutOfStock,
+      inventory
+    };
+  };
 
-  //   const handleRemoveItem = async (productId: string, variantSku: string) => {
-  //     await removeProductFromCart(productId, variantSku);
-  //     onQuantityChange(); // Refresh cart data after removal
-  //   };
+  const handleQuantityChange = async (product: CartProduct, newQuantity: number) => {
+    await onQuantityChange(product.id, product.variantDetails?.sku, newQuantity);
+  };
+
+  const handleRemove = async (product: CartProduct) => {
+    await onRemoveItem(product.id, product.variantDetails?.sku);
+  };
+
+  const getLoadingState = (product: CartProduct, action: 'decrement' | 'increment' | 'remove') => {
+    const key = `${product.id}-${product.variantDetails?.sku || 'no-variant'}-${action}`;
+    return loadingStates[key] || false;
+  };
 
   return (
     <table className="w-full">
@@ -66,108 +73,119 @@ const CartItems: React.FC<CartItemsProps> = ({
         </tr>
       </thead>
       <tbody>
-        {products?.map((product, index) => (
-          <tr key={index} className="py-4 border-b border-gray-200">
-            <td className="flex items-center gap-4 py-2">
-              {product.images[0] && (
-                <Image
-                  src={product.images[0]}
-                  alt={product.productName}
-                  width={80}
-                  height={80}
-                  className="w-20 h-20 object-cover rounded"
-                />
-              )}
-              <div>
-                <p className="font-semibold text-md">
-                  {product.productName}
-                  {" - "}
-                  {product.variantDetails.combination
-                    .map((attr) => `${attr.value}`)
-                    .join(", ")}
-                </p>
-                {product.outOfStock && (
-                  <p className="text-red-500 text-sm">
-                    Out of Stock (Available: {product.currentInventory})
-                  </p>
+        {products?.map((product) => {
+          const { isOutOfStock, inventory } = getStockStatus(product);
+          const variantCombination = product.variantDetails?.combination || [];
+          const itemKey = `${product.id}-${product.variantDetails?.sku || 'no-variant'}`;
+          
+          return (
+            <tr 
+              key={itemKey} 
+              className={`py-4 border-b border-gray-200 ${isOutOfStock ? 'bg-red-50' : ''}`}
+            >
+              <td className="flex items-center gap-4 py-2">
+                {product.images?.[0] && (
+                  <Image
+                    src={product.images[0]}
+                    alt={product.productName}
+                    width={80}
+                    height={80}
+                    className="w-20 h-20 object-cover rounded"
+                  />
                 )}
-              </div>
-            </td>
-            <td className="py-2 text-center">
-              <p className="text-lg">
+                <div>
+                  <p className="font-semibold text-md">
+                    {product.productName}
+                    {variantCombination.length > 0 && (
+                      <>
+                        {" - "}
+                        {variantCombination
+                          .map((attr) => attr.value)
+                          .join(", ")}
+                      </>
+                    )}
+                  </p>
+                  {isOutOfStock && (
+                    <p className="text-red-500 text-sm">
+                      {inventory !== undefined 
+                        ? `Out of Stock (Available: ${inventory})`
+                        : 'Out of Stock'}
+                    </p>
+                  )}
+                </div>
+              </td>
+              <td className="py-2 text-center">
+                <p className="text-lg">
+                  ₹{" "}
+                  {(
+                    product.productDiscountedPrice || product.productPrice
+                  ).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              </td>
+              <td className="py-2 text-center">
+                <div className="border border-gray-200 text-lg flex items-center justify-center gap-4 w-fit rounded-md mx-auto">
+                  <button
+                    onClick={() => handleQuantityChange(product, product.quantity - 1)}
+                    disabled={
+                      product.quantity <= 1 || 
+                      isOutOfStock ||
+                      getLoadingState(product, 'decrement')
+                    }
+                    className={`w-10 h-10 flex items-center justify-center font-bold ${
+                      getLoadingState(product, 'decrement') 
+                        ? 'text-gray-400 cursor-wait' 
+                        : 'text-gray-600 hover:bg-gray-50'
+                    } disabled:opacity-50`}
+                  >
+                    {getLoadingState(product, 'decrement') ? '...' : '−'}
+                  </button>
+                  <span className={`text-lg w-max font-medium ${isOutOfStock ? 'text-red-500' : 'text-gray-800'}`}>
+                    {product.quantity}
+                  </span>
+                  <button
+                    onClick={() => handleQuantityChange(product, product.quantity + 1)}
+                    disabled={
+                      isOutOfStock || 
+                      (inventory !== undefined && product.quantity >= inventory) ||
+                      getLoadingState(product, 'increment')
+                    }
+                    className={`w-10 h-10 flex items-center justify-center font-bold ${
+                      getLoadingState(product, 'increment') 
+                        ? 'text-gray-400 cursor-wait' 
+                        : 'text-gray-600 hover:bg-gray-50'
+                    } disabled:opacity-50`}
+                  >
+                    {getLoadingState(product, 'increment') ? '...' : '+'}
+                  </button>
+                </div>
+              </td>
+              <td className={`py-2 text-lg text-center ${isOutOfStock ? 'text-red-500' : ''}`}>
                 ₹{" "}
                 {(
-                  product.productDiscountedPrice || product?.productPrice
+                  (product.productDiscountedPrice || product.productPrice) *
+                  product.quantity
                 ).toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
-              </p>
-            </td>
-            <td className="py-2 text-center">
-              {/* <input
-                type="number"
-                min="1"
-                max={product.currentInventory || product.quantity} // Limit to current inventory
-                value={product.quantity}
-                // onChange={(e) => {
-                //   const newQty = parseInt(e.target.value);
-                //   if (!isNaN(newQty) && newQty > 0) {
-                //     handleQuantityChange(
-                //       product.id,
-                //       product.variantDetails.sku,
-                //       newQty
-                //     );
-                //   }
-                // }}
-                className="w-20 text-center border border-gray-300 rounded"
-                disabled={product.outOfStock}
-              /> */}
-              <div className=" border border-gray-200 text-lg flex items-center gap-4 w-fit rounded-md">
-                {/* <button
-                  onClick={decrease}
-                  disabled={productCount <= 1}
-                  className="w-10 h-10 cursor-pointer flex items-center justify-center font-bold text-gray-600"
-                >
-                  −
-                </button>
-                <span className="text-lg w-max font-medium text-gray-800">
-                  {product?.quantity}
-                </span>
+              </td>
+              <td className="py-2 text-center">
                 <button
-                  onClick={increase}
-                  disabled={
-                    !selectedVariant ||
-                    productCount + existingCartQty >= selectedVariant.inventory
-                  }
-                  className="w-10 h-10 cursor-pointer flex items-center justify-center  font-bold text-gray-600"
+                  onClick={() => handleRemove(product)}
+                  disabled={getLoadingState(product, 'remove')}
+                  className={`text-gray-500 hover:text-red-500 ${
+                    getLoadingState(product, 'remove') ? 'cursor-wait' : ''
+                  }`}
                 >
-                  +
-                </button> */}
-              </div>
-            </td>
-            <td className="py-2 text-lg text-center">
-              ₹{" "}
-              {(
-                (product.productDiscountedPrice || product.productPrice) *
-                product.quantity
-              ).toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </td>
-            <td className="py-2 text-center">
-              <button
-                // onClick={() =>
-                //   handleRemoveItem(product.id, product.variantDetails.sku)
-                // }
-                className="text-gray-500 hover:text-red-500"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </td>
-          </tr>
-        ))}
+                  {getLoadingState(product, 'remove') ? '...' : <X className="w-5 h-5" />}
+                </button>
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

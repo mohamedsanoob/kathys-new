@@ -1,14 +1,12 @@
 "use client";
+
 import { useCallback, useEffect, useState } from "react";
 import Checkout from "./_components/Checkout";
-import {
-  getCartProducts,
-  updateCartItem,
-  removeCartItem,
-} from "@/actions/actions";
+import { getCartProducts, updateCartItem, removeCartItem } from "@/actions/actions";
 import Image from "next/image";
 import { X } from "lucide-react";
 import Link from "next/link";
+import { useCart } from "@/hooks/useCart";
 
 interface CartProduct {
   id: string;
@@ -17,150 +15,102 @@ interface CartProduct {
   productPrice: number;
   productDiscountedPrice?: number;
   quantity: number;
-  variantDetails: VariantDetail;
+  variantDetails?: {
+    price: number;
+    discountedPrice?: number;
+    inventory?: number;
+    combination?: {
+      name: string;
+      value: string;
+    }[];
+    sku?: string;
+  };
   currentInventory?: number;
   outOfStock?: boolean;
-
   unitQuantity: number;
   productCategory: string;
-  variants: { optionValue: string[]; optionName: string }[];
-
+  variants?: { optionValue: string[]; optionName: string }[];
   description: string;
-
   active: boolean;
-
   productUnit: string;
- 
   taxRate: number;
   categories: string[];
   shippingCost: number;
-  
   skuId: string;
-  createdDate?: { seconds: number; nanoseconds: number };
-  updatedDate?: { seconds: number; nanoseconds: number };
-}
-
-interface VariantDetail {
-  price: number;
-  discountedPrice: number;
-  inventory: number;
-  combination: {
-    name: string;
-    value: string;
-  }[];
-  sku: string;
 }
 
 const CartPage = () => {
-  const [cartProductsWithDetails, setCartProductsWithDetails] = useState<
-    (CartProduct & { currentInventory?: number; outOfStock?: boolean })[]
-  >([]);
+  const [cartProducts, setCartProducts] = useState<CartProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { refreshCart} = useCart()
 
-  const fetchCartAndProductDetails = useCallback(async () => {
+  const fetchCartProducts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const cartItems = await getCartProducts();
-      setCartProductsWithDetails(cartItems.filter(Boolean));
-   
+      const products = await getCartProducts();
+      setCartProducts(products.filter(Boolean));
     } catch (error) {
-      console.error("Failed to fetch cart and product details:", error);
+      console.error("Failed to fetch cart products:", error);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchCartAndProductDetails();
-  }, [fetchCartAndProductDetails]);
+    fetchCartProducts();
+  }, [fetchCartProducts]);
 
-  const handleRemoveProduct = async (productId: string, variantSku: string) => {
+  const handleRemoveProduct = async (productId: string, sku?: string) => {
     try {
-      await removeCartItem(productId, variantSku);
-      await fetchCartAndProductDetails();
+      await removeCartItem(productId, sku);
+        
+               window.dispatchEvent(new Event("cart-updated"));
+      await fetchCartProducts();
     } catch (error) {
       console.error("Failed to remove product:", error);
     }
   };
 
-  const handleLocalQuantityChange = (
+  const handleQuantityChange = async (
     productId: string,
-    variantSku: string,
-    newQuantity: number,
-  
+    sku: string | undefined,
+    newQuantity: number
   ) => {
     if (newQuantity < 1) return;
 
-    setCartProductsWithDetails((prevProducts) =>
-      prevProducts.map((product) => {
-        if (
-          product.id === productId &&
-          product.variantDetails.sku === variantSku
-        ) {
-          const updatedProduct = { ...product, quantity: newQuantity };
-          updatedProduct.outOfStock =
-            updatedProduct.currentInventory !== undefined &&
-            newQuantity > updatedProduct.currentInventory;
-            console.log(updatedProduct.id,product.variantDetails,newQuantity)
-       
-              updateCartItem([{productId:updatedProduct.id,variantSku:variantSku,quantity:newQuantity}])
-          
-        
-          return updatedProduct;
-   
+    try {
+      await updateCartItem([{ productId, variantSku: sku, quantity: newQuantity }]);
+         
+               window.dispatchEvent(new Event("cart-updated"));
+      
+      setCartProducts(prev => prev.map(product => {
+        if (product.id === productId && 
+            (!sku || product.variantDetails?.sku === sku)) {
+          return {
+            ...product,
+            quantity: newQuantity,
+            outOfStock: product.currentInventory !== undefined && 
+                       newQuantity > product.currentInventory
+          };
         }
         return product;
-      })
-    );
-
- 
-  };
-
-  const handleIncrement = (product: CartProduct) => {
-    if (
-      product.currentInventory !== undefined &&
-      product.quantity < product.currentInventory
-    ) {
-      handleLocalQuantityChange(
-        product.id,
-        product.variantDetails.sku,
-        product.quantity + 1
-      );
-    } else if (
-      product.currentInventory !== undefined &&
-      product.quantity >= product.currentInventory
-    ) {
-      console.log("Maximum quantity reached");
-    } else {
-      handleLocalQuantityChange(
-        product.id,
-        product.variantDetails.sku,
-        product.quantity + 1
-      );
+      }));
+    } catch (error) {
+      console.error("Failed to update quantity:", error);
     }
   };
 
-  const handleDecrement = (product: CartProduct) => {
-    if (product.quantity > 1) {
-      handleLocalQuantityChange(
-        product.id,
-        product.variantDetails.sku,
-        product.quantity - 1
-      );
-    }
-  };
-
-  const total = cartProductsWithDetails.reduce((sum, product) => {
-    return (
-      sum +
-      (product.productDiscountedPrice || product.productPrice) *
-        product.quantity
-    );
+  const total = cartProducts.reduce((sum, product) => {
+    const price = product.productDiscountedPrice || product.productPrice;
+    return sum + (price * product.quantity);
   }, 0);
 
-  const hasOutOfStockItems = cartProductsWithDetails.some(
-    (product) => product.outOfStock
+  const hasOutOfStockItems = cartProducts.some(
+    product => product.outOfStock
   );
+
+
+
 
   if (isLoading) {
     return (
@@ -170,20 +120,32 @@ const CartPage = () => {
     );
   }
 
+  if (cartProducts.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh] gap-6 p-4">
+        <p className="text-2xl font-semibold text-gray-700">Your cart is empty!</p>
+        <Link href="/" passHref>
+          <button className="bg-[#ee403d] hover:bg-[#d93835] text-white font-semibold px-6 py-3 rounded-md transition duration-200">
+            Go to Home
+          </button>
+        </Link>
+      </div>
+    );
+  }
+
+
+  console.log(cartProducts,"=============>Cart-Products")
+
   return (
-    <div className="flex flex-col  lg:pt-30 h-[100%]" >
-  
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:px-[6%] flex-1" >
-        {/* Cart Items - Mobile View */}
+    <div className="flex flex-col lg:pt-10 h-[100%]">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:px-[6%] flex-1 overflow-y-scroll">
+        
+        {/* Mobile View */}
         <div className="lg:hidden w-full">
-          {cartProductsWithDetails?.map((product, index) => (
-            <div
-              key={index}
-              className={`py-4 flex flex-col border-b border-gray-300`}
-  
-            >
+          {cartProducts.map((product, index) => (
+            <div key={index} className="py-4 flex flex-col border-b border-gray-300">
               <div className="flex items-start gap-4">
-                {product.images[0] && (
+                {product.images?.[0] && (
                   <Image
                     src={product.images[0]}
                     alt={product.productName}
@@ -195,10 +157,14 @@ const CartPage = () => {
                 <div className="flex-1">
                   <p className="font-semibold text-sm">
                     {product.productName}
-                    {" - "}
-                    {product.variantDetails.combination
-                      .map((attr) => `${attr.value}`)
-                      .join(", ")}
+                    {product.variantDetails?.combination && (
+                      <>
+                        {" - "}
+                        {product.variantDetails.combination
+                          .map(attr => attr.value)
+                          .join(", ")}
+                      </>
+                    )}
                   </p>
                   {product.outOfStock && (
                     <p className="text-red-500 text-xs mt-1">
@@ -208,41 +174,49 @@ const CartPage = () => {
                   <div className="flex justify-between items-center mt-2">
                     <p className="text-sm font-medium">
                       ₹{" "}
-                      {(
-                        product.productDiscountedPrice || product?.productPrice
-                      ).toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      {(product.productDiscountedPrice || product.productPrice)
+                        .toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                     </p>
-                    <button 
+                    <button
                       className="text-gray-500 hover:text-red-500"
-                      onClick={() => handleRemoveProduct(product.id, product.variantDetails.sku)}
+                      onClick={() => handleRemoveProduct(product.id, product.variantDetails?.sku)}
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
               </div>
+
               <div className="flex justify-between items-center mt-4">
                 <div className="border border-gray-200 text-sm flex items-center gap-2 w-fit rounded-md">
                   <button
-                    onClick={() => handleDecrement(product)}
+                    onClick={() => handleQuantityChange(
+                      product.id, 
+                        product.variants?.length>0?  product.variantDetails?.sku : undefined, 
+                      product.quantity - 1
+                    )}
                     disabled={product.quantity <= 1}
-                    className="w-8 h-8 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
+                    className="w-8 h-8 flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
                   >
                     −
                   </button>
                   <span className="text-sm w-max font-medium text-gray-800">
-                    {product?.quantity}
+                    {product.quantity}
                   </span>
                   <button
-                    onClick={() => handleIncrement(product)}
+                    onClick={() => handleQuantityChange(
+                      product.id, 
+               product.variants?.length>0?  product.variantDetails?.sku : undefined, 
+                      product.quantity + 1
+                    )}
                     disabled={
                       product.currentInventory !== undefined &&
                       product.quantity >= product.currentInventory
                     }
-                    className="w-8 h-8 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
+                    className="w-8 h-8 flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
                   >
                     +
                   </button>
@@ -262,34 +236,24 @@ const CartPage = () => {
           ))}
         </div>
 
-        {/* Cart Items - Desktop View */}
+        {/* Desktop View */}
         <div className="hidden lg:block w-full lg:w-[70%]">
           <table className="w-full">
             <thead>
               <tr className="text-center text-gray-400 font-medium border-b border-gray-300">
                 <th className="py-2 w-120 text-[0.875rem] opacity-60">Product</th>
-                <th className="py-2 text-[0.875rem] text-left opacity-60">
-                  Price
-                </th>
-                <th className="py-2 text-[0.875rem] text-left opacity-60">
-                  Quantity
-                </th>
-                <th className="py-2 text-[0.875rem] text-left opacity-60">
-                  Subtotal
-                </th>
+                <th className="py-2 text-[0.875rem] text-left opacity-60">Price</th>
+                <th className="py-2 text-[0.875rem] text-left opacity-60">Quantity</th>
+                <th className="py-2 text-[0.875rem] text-left opacity-60">Subtotal</th>
                 <th className="py-2 text-[0.875rem] text-left opacity-60"></th>
               </tr>
             </thead>
             <tbody>
-              {cartProductsWithDetails?.map((product, index) => (
-                <tr 
-                  key={index} 
-                  className={`h-[100px] border-b border-gray-300`}
-                        
-                >
+              {cartProducts.map((product, index) => (
+                <tr key={index} className="h-[100px] border-b border-gray-300">
                   <td>
                     <div className="flex items-center gap-4 h-[100%]">
-                      {product.images[0] && (
+                      {product.images?.[0] && (
                         <Image
                           src={product.images[0]}
                           alt={product.productName}
@@ -301,10 +265,14 @@ const CartPage = () => {
                       <div>
                         <p className="font-semibold text-[1rem]">
                           {product.productName}
-                          {" - "}
-                          {product.variantDetails.combination
-                            .map((attr) => `${attr.value}`)
-                            .join(", ")}
+                          {product.variantDetails?.combination && (
+                            <>
+                              {" - "}
+                              {product.variantDetails.combination
+                                .map(attr => attr.value)
+                                .join(", ")}
+                            </>
+                          )}
                         </p>
                         {product.outOfStock && (
                           <p className="text-red-500 text-sm">
@@ -314,45 +282,48 @@ const CartPage = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="text-left">
-                    <p className="text-[1rem]">
-                      ₹{" "}
-                      {(
-                        product.productDiscountedPrice || product?.productPrice
-                      ).toLocaleString("en-IN", {
+                  <td className="text-left text-[1rem]">
+                    ₹ {(product.productDiscountedPrice || product.productPrice)
+                      .toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
-                    </p>
                   </td>
                   <td className="text-left">
                     <div className="border border-gray-200 text-lg flex items-center gap-2 w-fit rounded-md">
                       <button
-                        onClick={() => handleDecrement(product)}
+                        onClick={() => handleQuantityChange(
+                          product.id, 
+                           product.variants?.length>0?  product.variantDetails?.sku : undefined, 
+                          product.quantity - 1
+                        )}
                         disabled={product.quantity <= 1}
-                        className="w-10 h-10 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
+                        className="w-10 h-10 flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
                       >
                         −
                       </button>
-                      <span className="text-[1rem] w-max font-medium text-gray-800">
-                        {product?.quantity}
+                      <span className="text-[1rem] font-medium text-gray-800">
+                        {product.quantity}
                       </span>
                       <button
-                        onClick={() => handleIncrement(product)}
+                        onClick={() => handleQuantityChange(
+                          product.id, 
+                        product.variants?.length>0?  product.variantDetails?.sku : undefined, 
+                          product.quantity + 1
+                        )}
                         disabled={
                           product.currentInventory !== undefined &&
                           product.quantity >= product.currentInventory
                         }
-                        className="w-10 h-10 cursor-pointer flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
+                        className="w-10 h-10 flex items-center justify-center font-bold text-gray-600 disabled:text-gray-400"
                       >
                         +
                       </button>
                     </div>
                   </td>
-                  <td className="ext-[1rem] text-left">
-                    ₹{" "}
-                    {(
-                      (product.productDiscountedPrice || product.productPrice) *
+                  <td className="text-left text-[1rem]">
+                    ₹ {(
+                      (product.productDiscountedPrice || product.productPrice) * 
                       product.quantity
                     ).toLocaleString("en-IN", {
                       minimumFractionDigits: 2,
@@ -362,7 +333,7 @@ const CartPage = () => {
                   <td className="text-center">
                     <button
                       className="text-gray-500 hover:text-red-500"
-                      onClick={() => handleRemoveProduct(product.id, product.variantDetails.sku)}
+                      onClick={() => handleRemoveProduct(product.id, product.variantDetails?.sku)}
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -375,28 +346,34 @@ const CartPage = () => {
 
         {/* Checkout Section */}
         <div className="w-full lg:w-[30%]">
-          <Checkout total={total} disabled={hasOutOfStockItems || cartProductsWithDetails.length === 0} />
+          <Checkout 
+            total={total} 
+            disabled={hasOutOfStockItems || cartProducts.length === 0} 
+          />
         </div>
-
-      
       </div>
-        <div className="bg-white border-t border-gray-200 py-3 px-4  md:hidden">
-        <div className="container mx-auto flex  md:flex-row items-center justify-between gap-4">
-          <div className="text-center md:text-left w-50 ">
+
+      {/* Mobile Checkout Bar */}
+      <div className="bg-white border-t border-gray-200 py-3 px-4 md:hidden">
+        <div className="flex items-center justify-between gap-4">
+          <div className="text-center w-1/2">
             <p className="font-semibold">Total: ₹{total.toFixed(2)}</p>
           </div>
-               <Link href={(hasOutOfStockItems || cartProductsWithDetails.length===0)? "#" : "/checkout"} style={{width:"100%"}}>
-                   <button 
-            className={`h-12 w-full md:w-50 ${
-              hasOutOfStockItems || cartProductsWithDetails.length === 0 
-                ? "bg-gray-400 cursor-not-allowed" 
-                : "bg-[#ee403d] hover:bg-[#d93835]"
-            } text-white font-semibold rounded-md transition-colors duration-200`}
-            disabled={hasOutOfStockItems || cartProductsWithDetails.length === 0}
+          <Link 
+            href={(hasOutOfStockItems || cartProducts.length === 0) ? "#" : "/checkout"} 
+            style={{ width: "100%" }}
           >
-            Continue
-          </button></Link>
-      
+            <button
+              className={`h-12 w-full ${
+                hasOutOfStockItems || cartProducts.length === 0 
+                  ? "bg-gray-400 cursor-not-allowed" 
+                  : "bg-[#1e6553] hover:bg-[#1e6553]"
+              } text-white font-semibold rounded-md transition-colors duration-200`}
+              disabled={hasOutOfStockItems || cartProducts.length === 0}
+            >
+              Continue
+            </button>
+          </Link>
         </div>
       </div>
     </div>

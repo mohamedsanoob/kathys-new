@@ -10,7 +10,7 @@ const PaymentModeSelector = ({ onPaymentModeChange, currentMode }: PaymentModePr
       
       <div 
         className={`flex items-center p-4 cursor-pointer border-l-4 ${
-          currentMode === 'online' ? 'border-red-600 bg-gray-50' : 'border-transparent'
+          currentMode === 'online' ? 'border-[#1e6553] bg-gray-50' : 'border-transparent'
         }`}
         onClick={() => onPaymentModeChange('online')}
       >
@@ -24,15 +24,15 @@ const PaymentModeSelector = ({ onPaymentModeChange, currentMode }: PaymentModePr
           <p className="text-sm text-gray-500">Use credit/debit card, net-banking, UPI, wallets to complete the payment.</p>
         </div>
         <div className="ml-2">
-          <div className={`w-5 h-5 rounded-full border ${currentMode === 'online' ? 'border-red-600' : 'border-gray-300'} flex items-center justify-center`}>
-            {currentMode === 'online' && <div className="w-3 h-3 rounded-full bg-red-600"></div>}
+          <div className={`w-5 h-5 rounded-full border ${currentMode === 'online' ? 'border-[#1e6553' : 'border-gray-300'} flex items-center justify-center`}>
+            {currentMode === 'online' && <div className="w-3 h-3 rounded-full bg-[#1e6553]"></div>}
           </div>
         </div>
       </div>
       
       <div 
         className={`flex items-center p-4 cursor-pointer border-l-4 ${
-          currentMode === 'cod' ? 'border-red-600 bg-gray-50' : 'border-transparent'
+          currentMode === 'cod' ? 'border-[#1e6553] bg-gray-50' : 'border-transparent'
         }`}
         onClick={() => onPaymentModeChange('cod')}
       >
@@ -46,8 +46,8 @@ const PaymentModeSelector = ({ onPaymentModeChange, currentMode }: PaymentModePr
           <p className="text-sm text-gray-500">Pay when your order is delivered.</p>
         </div>
         <div className="ml-2">
-          <div className={`w-5 h-5 rounded-full border ${currentMode === 'cod' ? 'border-red-600' : 'border-gray-300'} flex items-center justify-center`}>
-            {currentMode === 'cod' && <div className="w-3 h-3 rounded-full bg-red-600"></div>}
+          <div className={`w-5 h-5 rounded-full border ${currentMode === 'cod' ? 'border-[#1e6553]' : 'border-gray-300'} flex items-center justify-center`}>
+            {currentMode === 'cod' && <div className="w-3 h-3 rounded-full bg-[#1e6553]"></div>}
           </div>
         </div>
       </div>

@@ -66,7 +66,7 @@ const Page = async ({ params }: { params: Promise<{ id: string }> }) => {
               <div className="absolute inset-0  bg-opacity-25 group-hover:bg-opacity-15 transition-all duration-150" />
             </div>
           )}
-          <div className="relative z-10 h-full flex items-end p-2">
+          <div className="relative  h-full flex items-end p-2">
             <span className="text-white font-medium text-sm drop-shadow-sm line-clamp-2">
               {subCategory.categoryName}
             </span>

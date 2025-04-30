@@ -21,10 +21,12 @@ const ImageSwiper = () => {
       }}
       loop={true}
       modules={[Pagination, Navigation]}
-      className="image-swiper"
+  
+    className="image-swiper" // This line adds white arrow style
+      
     >
       {images.map((item, index) => (
-        <SwiperSlide key={index}>
+        <SwiperSlide key={index}  >
           <Image
             src={item}
             width={1000}
@@ -34,6 +36,7 @@ const ImageSwiper = () => {
           />
         </SwiperSlide>
       ))}
+
     </Swiper>
   );
 };

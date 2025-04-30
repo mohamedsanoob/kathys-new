@@ -44,7 +44,7 @@ const Checkout = ({ total, disabled }: CheckoutProps) => {
       <Link href={disabled ? "#" : "/checkout"} style={{width:"100%"}}>
       <button 
   className={`hidden md:block h-12 w-full ${
-    disabled ? "bg-gray-400 cursor-not-allowed" : "bg-[#ee403d] hover:bg-[#d93835]"
+    disabled ? "bg-gray-400 cursor-not-allowed" : "bg-[#1e6553] hover:bg-[#1e6553]"
   } text-white font-semibold rounded-md mt-4 transition-colors duration-200`}
   disabled={disabled}
   style={{ cursor: "pointer" }}

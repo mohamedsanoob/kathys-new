@@ -14,6 +14,7 @@ import {
   updateDoc,
   where,
   DocumentSnapshot,
+  serverTimestamp,
 } from "firebase/firestore";
 
 interface DocumentInterface extends DocumentData {
@@ -111,6 +112,59 @@ interface CartData {
   createdAt: Date;
   updatedAt: Date;
 }
+
+
+interface Address {
+  id: string;
+  name: string;
+  mobile: string;
+  email: string;
+  address: string;
+  city: string;
+  pincode: string;
+  state: string;
+  country?: string;
+  notes?: string;
+  companyName?: string;
+  streetAddress1?: string;
+  streetAddress2?: string;
+  is_default?: boolean;
+  created_at?: {
+    seconds: number;
+    nanoseconds: number;
+  };
+}
+
+interface Order {
+  id: string;
+  // define the rest of your order fields
+  orderNumber: string;
+  items: any[];
+  totalAmount: number;
+  status: string;
+  createdAt: any; // or Timestamp if you're using Firebase Timestamps
+  // ...etc
+}
+
+export const updateUserAddress = async (
+  userId: string,
+  addressId: string,
+  updatedData: Partial<Omit<Address, "id" | "created_at">> // You can update any field except id/created_at
+): Promise<boolean> => {
+  try {
+    // Reference to the specific address document
+    const addressRef = doc(db, "users", userId, "addresses", addressId);
+
+    // Update the document with the new data
+    await updateDoc(addressRef, updatedData);
+
+    console.log("Address updated successfully");
+    return true;
+  } catch (error) {
+    console.error("Error updating address:", error);
+    return false;
+  }
+};
 
 export const getAllCollections = async (): Promise<DocumentInterface[]> => {
   try {
@@ -336,6 +390,61 @@ export const getCategoryById = async (
     return null; // Handle the error gracefully
   }
 };
+
+
+export const getUserAddresses = async (
+  userId: string
+): Promise<Address[]> => {
+  try {
+    // Reference to the addresses subcollection under the user document
+    const addressesRef = collection(db, "users", userId, "addresses");
+    
+    // Get all documents in the addresses subcollection
+    const querySnapshot = await getDocs(addressesRef);
+
+    // If no addresses found, return empty array
+    if (querySnapshot.empty) return [];
+
+    // Map through documents and format the data
+    const addresses = querySnapshot.docs.map(doc => ({
+      id: doc.id, // Include the document ID
+      ...doc.data() as Omit<Address, 'id'> // Spread the rest of the address data
+    }));
+
+    return addresses;
+  } catch (error) {
+    console.error("Error fetching user addresses:", error);
+    return []; // Return empty array in case of error
+  }
+};
+
+export const getUserOrders = async (
+  userId: string
+): Promise<Order[]> => {
+  try {
+    // Reference to the orders subcollection under the user document
+    const ordersRef = collection(db, "users", userId, "orders");
+
+    // Get all documents in the orders subcollection
+    const querySnapshot = await getDocs(ordersRef);
+
+    // If no orders found, return empty array
+    if (querySnapshot.empty) return [];
+
+    // Map through documents and format the data
+    const orders = querySnapshot.docs.map(doc => ({
+      id: doc.id, // Include the document ID
+      ...doc.data() as Omit<Order, 'id'> // Spread the rest of the order data
+    }));
+
+    return orders;
+  } catch (error) {
+    console.error("Error fetching user orders:", error);
+    return []; // Return empty array in case of error
+  }
+};
+
+
 
 // export const getProductsByCategory = async (
 //   productIds: string[]
@@ -590,7 +699,7 @@ export const addProductToCart = async ({
   quantity: number;
 }): Promise<void> => {
   try {
-    console.log("coming inside");
+    console.log("coming inside",variantDetails,productId,quantity);
     const user = auth.currentUser;
     const isLoggedIn = user && !user.isAnonymous;
 
@@ -619,14 +728,16 @@ export const addProductToCart = async ({
 
 
     const { products } = cartSnapshot.data() as CartData;
-        console.log(products,variantDetails,"adwsdc")
+        console.log(products,variantDetails,"adwsdc",productId)
     const existingProductIndex = products.findIndex(
-      (p) =>
-       
-        p.productId === productId &&
-        JSON.stringify(p.variantDetails?.combination || []) ===
-          JSON.stringify(variantDetails?.combination || [])
+      (p) => 
+       variantDetails !==undefined ? p.productId === productId &&  p.variantDetails?.sku===variantDetails?.sku :
+        p.productId === productId 
     );
+
+
+
+
 
 
     console.log(existingProductIndex, "existingProductIndex");
@@ -645,7 +756,7 @@ export const addProductToCart = async ({
               ? { ...product, quantity: newQuantity }
               : product
           )
-        : [...products, { productId, quantity, variantDetails }];
+        : [...products,   variantDetails !==undefined ? { productId, quantity, variantDetails }:{ productId, quantity }];
 
     console.log(updatedProducts, "updatedProducts");
 
@@ -685,37 +796,53 @@ export async function getCartProducts() {
     const productsData = productsSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    })) as Product[]; // Assuming you have a Product type
+    })) as Product[];
 
     // Merge cart items with product data
-    const cartProductsWithDetails = cartItems.reduce((acc, cartItem) => {
+    const cartProductsWithDetails = cartItems.map(cartItem => {
       const matchingProduct = productsData.find(p => p.id === cartItem.productId);
       
-      if (!matchingProduct) return acc;
+      if (!matchingProduct) return null;
 
-      console.log(matchingProduct,cartItem,"------->matching")
+      // Handle products without variants
+      if (!matchingProduct.variantDetails || matchingProduct.variantDetails.length === 0) {
+        const currentInventory = matchingProduct.quantity ?? 0;
+        const outOfStock = currentInventory < cartItem.quantity;
+        
+        return {
+          ...matchingProduct,
+          quantity: cartItem.quantity,
+          currentInventory,
+          outOfStock,
+          variantDetails: {
+            price: matchingProduct.productPrice,
+            discountedPrice: matchingProduct.productDiscountedPrice,
+            inventory: matchingProduct.quantity,
+            sku: matchingProduct.skuId,
+            combination: []
+          }
+        };
+      }
 
-      const variant = matchingProduct.variantDetails?.find(v => 
-        v.sku === cartItem.variantDetails?.sku &&
-        v.combination?.every((comb, index) => 
-          comb.value === cartItem.variantDetails?.combination[index]?.value
-        )
+      // Handle products with variants
+      const variant = matchingProduct.variantDetails.find(v => 
+        v.sku === cartItem.variantDetails?.sku
       );
 
       const currentInventory = variant?.inventory ?? 0;
       const outOfStock = currentInventory < cartItem.quantity;
 
-      acc.push({
+      return {
         ...matchingProduct,
-        variantDetails:cartItem.variantDetails,
-
         quantity: cartItem.quantity,
+        variantDetails: {
+          ...(variant || cartItem.variantDetails),
+          combination: variant?.combination || cartItem.variantDetails?.combination || []
+        },
         currentInventory,
         outOfStock
-      });
-
-      return acc;
-    }, [] as CartReturn[]);
+      };
+    }).filter(Boolean) as CartReturn[];
 
     return cartProductsWithDetails;
 
@@ -725,55 +852,76 @@ export async function getCartProducts() {
   }
 }
 
-export const removeCartItem = async (productId: string, variantSku: string) => {
+export const removeCartItem = async (productId: string, variantSku?: string | null) => {
   try {
     const user = auth.currentUser;
     const cartId = user?.uid || localStorage.getItem("guestCartId");
 
-    if (!cartId) return;
+    if (!cartId) {
+      console.error("No cart ID found - user not logged in and no guest cart");
+      throw new Error("Cart not found");
+    }
 
     const isGuest = !user || user.isAnonymous;
     const cartRef = doc(db, `${isGuest ? "guest-" : ""}carts`, cartId);
     const cartSnapshot = await getDoc(cartRef);
 
     if (!cartSnapshot.exists()) {
-      return;
+      console.error(`Cart document ${cartId} doesn't exist`);
+      throw new Error("Cart not found");
     }
 
-    const { products } = cartSnapshot.data() as CartData;
-    const existingProductIndex = products.findIndex(
-      (p) => p.productId === productId && p.variantDetails?.sku === variantSku
-    );
+    const { products = [] } = cartSnapshot.data() as CartData;
 
-    if (existingProductIndex < 0) {
-      return;
+    // Filter out the item to remove
+    const updatedProducts = products.filter(product => {
+
+      console.log(product,productId,variantSku,"=======>jj")
+      // For non-variant products, only match productId
+      if (!product.variantDetails?.sku) {
+        return product.productId !== productId;
+      }
+      // For variant products, match both productId and variantSku
+      return !(
+        product.productId === productId && 
+        product.variantDetails?.sku === variantSku
+      );
+    });
+
+    if (products.length === updatedProducts.length) {
+      console.warn(
+        `Product not found in cart - ID: ${productId}, SKU: ${variantSku || 'none'}`
+      );
+      return false; // Indicate no item was removed
     }
-
-    const updatedProducts = products.filter(
-      (product, index) => index !== existingProductIndex
-    );
 
     await updateDoc(cartRef, {
       products: updatedProducts,
-      updatedAt: new Date(),
+      updatedAt: serverTimestamp(), // Use server timestamp for consistency
     });
+
+    console.log(`Successfully removed product ${productId}${variantSku ? ` (variant: ${variantSku})` : ''}`);
+    return true; // Indicate successful removal
   } catch (error) {
-    console.error("Error removing cart item:", error);
+    console.error("Failed to remove cart item:", error);
     throw error;
   }
 };
 
 export const updateCartItem = async (
-  updates: { productId: string; variantSku: string; quantity: number }[]
+  updates: {
+    productId: string;
+    variantSku?: string | null; // Made optional for non-variant products
+    quantity: number;
+  }[]
 ) => {
   try {
-    console.log("coming here to update multiple items");
     const user = auth.currentUser;
     const cartId = user?.uid || localStorage.getItem("guestCartId");
 
     if (!cartId) {
-      console.log("No cart ID found.");
-      return;
+      console.error("No cart ID found - user not logged in and no guest cart");
+      throw new Error("Cart not found");
     }
 
     const isGuest = !user || user.isAnonymous;
@@ -781,40 +929,50 @@ export const updateCartItem = async (
     const cartSnapshot = await getDoc(cartRef);
 
     if (!cartSnapshot.exists()) {
-      console.log(`Cart with ID ${cartId} not found.`);
-      return;
+      console.error(`Cart document ${cartId} doesn't exist`);
+      throw new Error("Cart not found");
     }
 
-    const { products: existingProducts } = cartSnapshot.data() as CartData;
+    const { products: existingProducts = [] } = cartSnapshot.data() as CartData;
     const updatedProducts = [...existingProducts];
 
-    updates.forEach(({ productId, variantSku, quantity }) => {
-      const existingProductIndex = updatedProducts.findIndex(
-        (p) => p.productId === productId && p.variantDetails?.sku === variantSku
-      );
+    // Create a map for faster lookups
+    const productMap = new Map(
+      existingProducts.map(p => [
+        `${p.productId}-${p.variantDetails?.sku || 'no-variant'}`,
+        p
+      ])
+    );
+     console.log(updates,existingProducts,"-------->VARIANT")
+    updates.forEach(({ productId, variantSku , quantity }) => {
+     
+      const lookupKey = `${productId}-${variantSku   || 'no-variant'}`;
+      console.log(lookupKey,"=======>lookupKey")
+      const existingProduct = productMap.get(lookupKey);
 
-      if (existingProductIndex >= 0) {
-        updatedProducts[existingProductIndex] = {
-          ...updatedProducts[existingProductIndex],
-          quantity: quantity,
-        };
+      if (existingProduct) {
+        // Update quantity if product exists
+        existingProduct.quantity = quantity;
       } else {
         console.warn(
-          `Product with ID ${productId} and SKU ${variantSku} not found in cart for update.`
+          `Product not found in cart - ID: ${productId}, SKU: ${variantSku || 'none'}`
         );
       }
     });
 
-    console.log(updatedProducts, "updatedProducts after applying batch");
+    // Filter out any products with quantity <= 0
+    const filteredProducts = updatedProducts.filter(p => p.quantity > 0);
 
     await updateDoc(cartRef, {
-      products: updatedProducts,
-      updatedAt: new Date(),
+      products: filteredProducts,
+      updatedAt: serverTimestamp(), // Better to use server timestamp
     });
-    console.log("Cart items updated successfully in batch.");
+
+    console.log(`Successfully updated ${updates.length} cart items`);
+    return filteredProducts; // Return the updated cart items
   } catch (error) {
-    console.error("Error updating cart items in batch:", error);
-    throw error;
+    console.error("Failed to update cart items:", error);
+    throw error; // Re-throw for error handling upstream
   }
 };
 
