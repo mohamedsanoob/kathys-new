@@ -3,6 +3,7 @@ import ProductImage from "./_components/ProductImage";
 import ProductDetails from "./_components/ProductDetails";
 import ProductDescription from "./_components/ProductDescription";
 import RelatedProducts from "./_components/RelatedProducts";
+import { Suspense } from "react";
 
 interface Product {
   skuId: string;
@@ -111,6 +112,11 @@ const page = async ({
     };
 
     return (
+              <Suspense fallback={
+                    <div className="flex justify-center items-center h-[100vh]">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+                </div>
+                  }>
       <div className="flex flex-col gap-8 md:gap-16 max-w-[1290px] m-auto">
         <p className="w-[90%] md:w-full m-auto mt-4 md:mt-6 mb-[-1rem] md:mb-[-2.4rem]">{product.productName}</p>
         <div className="flex flex-col md:flex-row gap-10">
@@ -123,6 +129,7 @@ const page = async ({
         />
         <RelatedProducts categories={product.categories} />
       </div>
+      </Suspense>
     );
   } catch (error) {
     console.error("Error fetching product:", error);

@@ -1,11 +1,17 @@
 import { getAllCategories } from "@/actions/actions";
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 
 export default async function CategoriesList() {
   const categories = await getAllCategories();
   
   return (
+     <Suspense fallback={
+                        <div className="flex justify-center items-center h-[100vh]">
+                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+                    </div>
+                      }>
     <div className="p-4 md:w-[92%] md:m-auto">
     
         <h1 className="text-1xl  mb-3">All Category</h1>
@@ -45,5 +51,6 @@ export default async function CategoriesList() {
         ))}
       </div>
     </div>
+    </Suspense>
   );
 }

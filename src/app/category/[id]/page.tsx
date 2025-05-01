@@ -5,6 +5,7 @@ import ProductsSection from "./_components/ProductsSection";
 import { Timestamp } from "firebase/firestore";
 import Link from "next/link";
 import Image from "next/image";
+import { Suspense } from "react";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -41,6 +42,11 @@ const Page = async ({ params }: { params: Promise<{ id: string }> }) => {
   }));
 
   return (
+             <Suspense fallback={
+              <div className="flex justify-center items-center h-[100vh]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+          </div>
+            }>
     <div className="flex flex-col max-w-[1290px] mx-auto md:mt-[1rem] p-1">
       {/* Subcategories row with images */}
     {subCategoriesDetails.length > 0 && (
@@ -89,6 +95,7 @@ const Page = async ({ params }: { params: Promise<{ id: string }> }) => {
         />
       </div>
     </div>
+    </Suspense>
   );
 };
 
