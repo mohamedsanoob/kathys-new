@@ -1,3 +1,4 @@
+
 import { getProductsByCategory, getCategoryById } from "@/actions/actions";
 import FilterSection from "./_components/FilterSection";
 import ProductsSection from "./_components/ProductsSection";

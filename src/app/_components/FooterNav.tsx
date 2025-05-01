@@ -37,7 +37,7 @@ const FooterNav = () => {
         className={cn(
           "w-full bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] md:hidden  shadow-lg md:shadow-none fixed md:static  bottom-0 left-0 right-0 z-10",
           "",
-          product_id !== undefined && "hidden"
+          (product_id !== undefined || pathname=== "/cart" || pathname=== "/checkout")&& "hidden"
         )}
       >
         <div className="flex justify-between items-center px-4 py-3">

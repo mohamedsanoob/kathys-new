@@ -491,7 +491,7 @@ const CheckoutPage = () => {
   }
 
   return (
-    <div className="flex flex-col bg-gray-50" style={{height:"90%"}}>
+    <div className="flex flex-col bg-gray-50" style={{height:"100%"}}>
       {isProcessingPayment && <PaymentLoader />}
       
       <div className="bg-white border-b border-gray-200 py-4 px-4 flex items-center">
@@ -562,7 +562,7 @@ const CheckoutPage = () => {
       />
 
       <div id="recaptcha-container" className="hidden"></div>
-      <div className="left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 md:hidden">
+      <div className="left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 md:hidden fixed md:static  bottom-0 left-0 right-0 z-10">
         <div className="container mx-auto flex md:flex-row items-center justify-between gap-4">
           <div className="text-center md:text-left w-50">
             <p className="font-semibold">Total: ₹{total.toFixed(2)}</p>
