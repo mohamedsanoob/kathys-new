@@ -248,7 +248,11 @@ const ProductDetails = ({ product }: { product: Product }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [product, selectedVariant, productCount, hasVariants, refreshCart]);
+  }, [product, selectedVariant, productCount]);
+  
+const handleAddToWishlist=()=>{
+  console.log("add to wishlist")
+}
 
   return (
     <div className="w-full lg:w-[55%] px-4 lg:px-8">
@@ -430,7 +434,7 @@ const ProductDetails = ({ product }: { product: Product }) => {
 
       <div className="flex gap-6 mb-6 mt-6">
         <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
-          <Heart className="w-5 h-5" />
+          <Heart className="w-5 h-5" onClick={handleAddToWishlist} />
           <span className="text-sm">Add to Wishlist</span>
         </button>
         <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">

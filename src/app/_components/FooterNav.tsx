@@ -32,142 +32,131 @@ const FooterNav = () => {
   const themeColor = "#1e6553";
 
   return (
-    <>
-      <div
-        className={cn(
-          "w-full bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] md:hidden  shadow-lg md:shadow-none fixed md:static  bottom-0 left-0 right-0 z-10",
-          "",
-          (product_id !== undefined || pathname=== "/cart" || pathname=== "/checkout")&& "hidden"
-        )}
-      >
-        <div className="flex justify-between items-center px-4 py-3">
-          <Link href="/" className="flex flex-col items-center">
-            <Home
-              size={20}
-              className={cn(
-                "transition-colors",
-                isActive("/") ? "text-[#1e6553]" : "text-gray-600"
-              )}
-            />
-            <span
-              className={cn(
-                "text-xs mt-1 transition-colors",
-                isActive("/") ? "text-[#1e6553] font-medium" : "text-gray-600"
-              )}
-            >
-              HOME
-            </span>
-          </Link>
-
-          <Link href="/search" className="flex flex-col items-center">
-            <Search
-              size={20}
-              className={cn(
-                "transition-colors",
-                isActive("/search") ? "text-[#1e6553]" : "text-gray-600"
-              )}
-            />
-            <span
-              className={cn(
-                "text-xs mt-1 transition-colors",
-                isActive("/search")
-                  ? "text-[#1e6553] font-medium"
-                  : "text-gray-600"
-              )}
-            >
-              SEARCH
-            </span>
-          </Link>
-
-          <Link href="/wishlist" className="flex flex-col items-center">
-            <div className="relative">
-              <Heart
-                size={20}
-                className={cn(
-                  "transition-colors",
-                  isActive("/wishlist") ? "text-[#1e6553]" : "text-gray-600"
-                )}
-              />
-              <span
-                className={cn(
-                  "absolute -top-1 -right-1 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center",
-                  isActive("/wishlist") ? "bg-[#1e6553]" : "bg-red-600"
-                )}
-              >
-                0
-              </span>
-            </div>
-            <span
-              className={cn(
-                "text-xs mt-1 transition-colors",
-                isActive("/wishlist")
-                  ? "text-[#1e6553] font-medium"
-                  : "text-gray-600"
-              )}
-            >
-              WISHLIST
-            </span>
-          </Link>
-
-          <div 
-            className="flex flex-col items-center cursor-pointer"
-            onClick={() => {
-              if (currentUser) {
-                // Navigate to account if user is logged in
-                window.location.href = '/account';
-              } else {
-                // Show phone auth modal if not logged in
-                setShowPhoneAuth(true);
-              }
-            }}
+    <div
+      className={cn(
+        "w-full bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] md:hidden z-50",
+        "absolute bottom-0",
+        product_id !== undefined && "hidden"
+      )}
+    >
+      <div className="flex justify-between items-center px-4 py-3">
+        <Link href="/" className="flex flex-col items-center">
+          <Home
+            size={20}
+            className={cn(
+              "transition-colors",
+              isActive("/") ? "text-green-800" : "text-gray-600"
+            )}
+          />
+          <span
+            className={cn(
+              "text-xs mt-1 transition-colors",
+              isActive("/") ? "text-green-800 font-medium" : "text-gray-600"
+            )}
           >
-            <User
+            Home
+          </span>
+        </Link>
+
+        <Link href="/categories" className="flex flex-col items-center">
+          <Menu
+            size={20}
+            className={cn(
+              "transition-colors",
+              isActive("/categories") ? "text-green-800" : "text-gray-600"
+            )}
+          />
+          <span
+            className={cn(
+              "text-xs mt-1 transition-colors",
+              isActive("/categories")
+                ? "text-green-800 font-medium"
+                : "text-gray-600"
+            )}
+          >
+            Categories
+          </span>
+        </Link>
+
+        <Link href="/search" className="flex flex-col items-center">
+          <Search
+            size={20}
+            className={cn(
+              "transition-colors",
+              isActive("/search") ? "text-green-800" : "text-gray-600"
+            )}
+          />
+          <span
+            className={cn(
+              "text-xs mt-1 transition-colors",
+              isActive("/search")
+                ? "text-green-800 font-medium"
+                : "text-gray-600"
+            )}
+          >
+            Search
+          </span>
+        </Link>
+
+        <Link href="/wishlist" className="flex flex-col items-center">
+          <div className="relative">
+            <Heart
               size={20}
               className={cn(
                 "transition-colors",
-                isActive("/account") ? "text-[#1e6553]" : "text-gray-600"
+                isActive("/wishlist") ? "text-green-800" : "text-gray-600"
               )}
             />
             <span
               className={cn(
-                "text-xs mt-1 transition-colors",
-                isActive("/account")
-                  ? "text-[#1e6553] font-medium"
-                  : "text-gray-600"
+                "absolute -top-1 -right-1 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center",
+                isActive("/wishlist") ? "bg-green-800" : "bg-green-600"
               )}
             >
-              {currentUser ? "ACCOUNT" : "LOGIN"}
+              0
             </span>
           </div>
+          <span
+            className={cn(
+              "text-xs mt-1 transition-colors",
+              isActive("/wishlist")
+                ? "text-green-800 font-medium"
+                : "text-gray-600"
+            )}
+          >
+            Wishlist
+          </span>
+        </Link>
 
-          <Link href="/categories" className="flex flex-col items-center">
-            <Menu
+        <Link href="/cart" className="flex flex-col items-center">
+          <div className="relative">
+            <ShoppingBag
               size={20}
               className={cn(
                 "transition-colors",
-                isActive("/categories") ? "text-[#1e6553]" : "text-gray-600"
+                isActive("/cart") ? "text-green-800" : "text-gray-600"
               )}
             />
             <span
               className={cn(
-                "text-xs mt-1 transition-colors",
-                isActive("/categories")
-                  ? "text-[#1e6553] font-medium"
-                  : "text-gray-600"
+                "absolute -top-1 -right-1 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center",
+                isActive("/cart") ? "bg-green-800" : "bg-green-600"
               )}
             >
-              CATEGORIES
+              0
             </span>
-          </Link>
-        </div>
+          </div>
+          <span
+            className={cn(
+              "text-xs mt-1 transition-colors",
+              isActive("/cart") ? "text-green-800 font-medium" : "text-gray-600"
+            )}
+          >
+            Cart
+          </span>
+        </Link>
       </div>
-
-      <PhoneAuthModal
-        isOpen={showPhoneAuth}
-        onClose={() => setShowPhoneAuth(false)}
-        onSuccess={handlePhoneVerified}
-      />
-    </>
+    </div>
   );
 };
 

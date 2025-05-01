@@ -14,9 +14,10 @@ export const metadata: Metadata = {
 };
 
 const jost = Jost({
-  variable: "--font-poppins",
   subsets: ["latin"],
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  weight: ["400", "500", "600", "700"], // Only include weights you actually use
+  display: "swap", // Optional but recommended for better loading behavior
+  variable: "--font-jost", // Optional CSS variable name
 });
 
 export default function RootLayout({
