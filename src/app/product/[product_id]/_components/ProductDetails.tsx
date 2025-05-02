@@ -1,9 +1,8 @@
 "use client";
 import { Heart, Share, X, Loader2 } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
-import namer from "color-namer";
 import { addProductToCart, getCartProducts } from "@/actions/actions";
-import { useCart } from "@/hooks/useCart"; // Import the useCart hook
+import { useCart } from "@/hooks/useCart";
 
 interface Product {
   skuId: string;
@@ -15,7 +14,7 @@ interface Product {
   quantity: number;
   categories: string[];
   variants: {
-    optionValue: string[];
+    optionValue: Array<{ name: string; hex?: string } | string>;
     optionName: string;
   }[];
   productCategory: string;
@@ -23,7 +22,7 @@ interface Product {
   active: boolean;
   productName: string;
   description: string;
-  variantDetails: VariantDetail[];
+  variantDetails?: VariantDetail[];
   taxRate: number;
   productUnit: string;
 }
@@ -55,7 +54,7 @@ interface CartProduct {
     optionName: string;
   }[];
   productCategory: string;
-  productDiscountedPrice: number;
+  productDiscountedPrice?: number; // Make this optional
   active: boolean;
   productName: string;
   description: string;
@@ -63,10 +62,7 @@ interface CartProduct {
     price: number;
     discountedPrice: number;
     inventory: number;
-    combination: {
-      name: string;
-      value: string;
-    }[];
+    combination: Combination[];
     sku: string;
   };
   taxRate: number;
@@ -74,10 +70,13 @@ interface CartProduct {
 }
 
 const ProductDetails = ({ product }: { product: Product }) => {
-  const { refreshCart } = useCart(); // Get refreshCart from useCart hook
-  
-  const [selectedVariant, setSelectedVariant] = useState<VariantDetail | null>(null);
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const { refreshCart } = useCart();
+  const [selectedVariant, setSelectedVariant] = useState<VariantDetail | null>(
+    null
+  );
+  const [selectedOptions, setSelectedOptions] = useState<
+    Record<string, string>
+  >({});
   const [productCount, setProductCount] = useState(1);
   const [existingCartQty, setExistingCartQty] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,57 +85,51 @@ const ProductDetails = ({ product }: { product: Product }) => {
   const areCombinationsEqual = useCallback(
     (comb1: Combination[], comb2: Combination[]): boolean => {
       if (!comb1 || !comb2 || comb1.length !== comb2.length) return false;
-      return comb1.every(c1 => 
-        comb2.some(c2 => c1.name === c2.name && c1.value === c2.value)
+      return comb1.every((c1) =>
+        comb2.some((c2) => c1.name === c2.name && c1.value === c2.value)
       );
     },
     []
   );
 
-  // Initialize product details based on whether it has variants
   useEffect(() => {
-    const hasVariants = product.variantDetails && product.variantDetails.length > 0;
+    const hasVariants =
+      !!product.variantDetails && product.variantDetails.length > 0;
     setHasVariants(hasVariants);
 
     if (!hasVariants) {
-      // For products without variants, create a default variant using main product details
       setSelectedVariant({
         combination: [],
         discountedPrice: product.productDiscountedPrice,
         price: product.productPrice,
         inventory: product.quantity,
-        sku: product.skuId
+        sku: product.skuId,
       });
-    } else {
-      // For products with variants, select the first variant
+    } else if (product.variantDetails && product.variantDetails.length > 0) {
       const firstVariant = product.variantDetails[0];
       const initialOptions: Record<string, string> = {};
-      
-      firstVariant.combination.forEach(comb => {
+
+      firstVariant.combination.forEach((comb) => {
         initialOptions[comb.name] = comb.value;
       });
 
       setSelectedOptions(initialOptions);
       setSelectedVariant(firstVariant);
     }
-
-
-  
   }, [product]);
 
-
-  useEffect(()=>{
-      setIsLoading(true);
+  useEffect(() => {
+    setIsLoading(true);
     getCartProducts()
-      .then((res) => {
-      
-        const cartMatch = res.find((cartItem: CartProduct) => {
-       
+      .then((res: CartProduct[]) => {
+        const cartMatch = res.find((cartItem) => {
           if (!hasVariants) {
-            // Match products without variants
-            return cartItem.id === product.id && cartItem.variantDetails?.combination?.length===0;
+            return (
+              cartItem.id === product.id &&
+              (!cartItem.variantDetails ||
+                cartItem.variantDetails.combination.length === 0)
+            );
           } else {
-            // Match products with variants
             return (
               cartItem.id === product.id &&
               cartItem.variantDetails &&
@@ -148,14 +141,10 @@ const ProductDetails = ({ product }: { product: Product }) => {
             );
           }
         });
-        console.log(cartMatch,"====>cartmatch")
         setExistingCartQty(cartMatch?.quantity || 0);
       })
       .finally(() => setIsLoading(false));
-  },[selectedVariant,product])
-
-
-  console.log(existingCartQty,product,"---------->exit")
+  }, [selectedVariant, product, hasVariants, areCombinationsEqual]);
 
   const handleOptionClick = useCallback(
     (optionName: string, optionValue: string) => {
@@ -167,7 +156,7 @@ const ProductDetails = ({ product }: { product: Product }) => {
       };
       setSelectedOptions(newSelectedOptions);
 
-      const matchingVariantDetail = product.variantDetails.find((detail) =>
+      const matchingVariantDetail = product.variantDetails?.find((detail) =>
         detail.combination.every(
           (comb) => newSelectedOptions[comb.name] === comb.value
         )
@@ -177,8 +166,8 @@ const ProductDetails = ({ product }: { product: Product }) => {
       if (matchingVariantDetail) {
         setIsLoading(true);
         getCartProducts()
-          .then((res) => {
-            const cartMatch = res.find((cartItem: CartProduct) => {
+          .then((res: CartProduct[]) => {
+            const cartMatch = res.find((cartItem) => {
               return (
                 cartItem.id === product.id &&
                 cartItem.variantDetails &&
@@ -193,9 +182,7 @@ const ProductDetails = ({ product }: { product: Product }) => {
 
             const maxQtyLeft = matchingVariantDetail.inventory - qty;
             if (productCount > maxQtyLeft) {
-              setProductCount(maxQtyLeft);
-            }else{
-  setProductCount(1);
+              setProductCount(Math.max(1, maxQtyLeft));
             }
           })
           .finally(() => setIsLoading(false));
@@ -204,7 +191,7 @@ const ProductDetails = ({ product }: { product: Product }) => {
         setProductCount(1);
       }
     },
-    [selectedOptions, productCount, product, hasVariants]
+    [selectedOptions, productCount, product, hasVariants, areCombinationsEqual]
   );
 
   const handleClearOptions = useCallback(() => {
@@ -227,34 +214,33 @@ const ProductDetails = ({ product }: { product: Product }) => {
     setProductCount((prev) => Math.max(1, prev - 1));
   }, []);
 
-  const handleAddToCart = useCallback(async () => {
-    if (hasVariants && !selectedVariant) return;
-    
-    setIsLoading(true);
-    try {
-      await addProductToCart({
-        productId: product.id,
-        variantDetails: hasVariants ? selectedVariant : undefined,
-        quantity: productCount,
-      });
-      
-      // Refresh the cart after successful addition
-      window.dispatchEvent(new Event("cart-updated"));
+const handleAddToCart = useCallback(async () => {
+  if (hasVariants && !selectedVariant) return;
 
-      await refreshCart();
-      
-      setExistingCartQty((prev) => prev + productCount);
-      setProductCount(1);
-    } catch (error) {
-      console.error("Failed to add to cart:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [product, selectedVariant, productCount]);
-  
-const handleAddToWishlist=()=>{
-  console.log("add to wishlist")
-}
+  setIsLoading(true);
+  try {
+    await addProductToCart({
+      productId: product.id,
+      variantDetails:
+        hasVariants && selectedVariant ? selectedVariant : undefined,
+      quantity: productCount,
+    });
+
+    window.dispatchEvent(new Event("cart-updated"));
+    await refreshCart();
+
+    setExistingCartQty((prev) => prev + productCount);
+    setProductCount(1);
+  } catch (error) {
+    console.error("Failed to add to cart:", error);
+  } finally {
+    setIsLoading(false);
+  }
+}, [product, selectedVariant, productCount, hasVariants, refreshCart]);
+
+  const handleAddToWishlist = useCallback(() => {
+    console.log("add to wishlist");
+  }, []);
 
 
 console.log(  selectedVariant ,
@@ -270,19 +256,23 @@ console.log(  selectedVariant ,
 
       <div className="flex items-center gap-4 mb-4">
         <p className="text-xl font-bold text-gray-900">
-          ₹{(selectedVariant?.discountedPrice || product.productDiscountedPrice).toFixed(2)}
+          ₹
+          {(
+            selectedVariant?.discountedPrice || product.productDiscountedPrice
+          ).toFixed(2)}
         </p>
-        {(selectedVariant?.price || product.productPrice) > 
-         (selectedVariant?.discountedPrice || product.productDiscountedPrice) && (
+        {(selectedVariant?.price || product.productPrice) >
+          (selectedVariant?.discountedPrice ||
+            product.productDiscountedPrice) && (
           <p className="text-lg line-through text-gray-500">
             ₹{(selectedVariant?.price || product.productPrice).toFixed(2)}
           </p>
         )}
       </div>
 
-      {hasVariants && (
+      {hasVariants && product.variants && (
         <div className="space-y-6 mb-6">
-          {product.variants?.map((variant) => (
+          {product.variants.map((variant) => (
             <div key={variant.optionName} className="space-y-2">
               <h3 className="font-medium text-gray-900 capitalize">
                 {variant.optionName}:{" "}
@@ -291,41 +281,50 @@ console.log(  selectedVariant ,
                 </span>
               </h3>
               <div className="flex flex-wrap gap-2">
-                {variant.optionValue.map((value) =>
-                  variant?.optionName === "color" ? (
-                    <div key={value} className="flex flex-col items-center">
+                {variant.optionValue.map((value) => {
+                  const valueObj =
+                    typeof value === "string" ? { name: value } : value;
+                  return variant.optionName === "color" ? (
+                    <div
+                      key={valueObj.name}
+                      className="flex flex-col items-center"
+                    >
                       <button
-                        onClick={() => handleOptionClick(variant.optionName, value?.name)}
+                        onClick={() =>
+                          handleOptionClick(variant.optionName, valueObj.name)
+                        }
                         className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
-                          selectedOptions[variant.optionName] === value?.name
+                          selectedOptions[variant.optionName] === valueObj.name
                             ? "border-[#1e6553] ring-1 ring-[#1e6553]"
                             : "border-gray-200 hover:border-gray-300"
                         }`}
-                        aria-label={`Select color ${value}`}
+                        aria-label={`Select color ${valueObj.name}`}
                       >
                         <div
-                          style={{ backgroundColor: value?.hex }}
+                          style={{ backgroundColor: valueObj.hex || "#ccc" }}
                           className="w-7 h-7 rounded-full"
                         />
                       </button>
                       <span className="text-xs text-gray-500 mt-1">
-                        {value?.name}
+                        {valueObj.name}
                       </span>
                     </div>
                   ) : (
                     <button
-                      key={value}
-                      onClick={() => handleOptionClick(variant.optionName, value)}
+                      key={valueObj.name}
+                      onClick={() =>
+                        handleOptionClick(variant.optionName, valueObj.name)
+                      }
                       className={`px-4 py-2 rounded-md border text-sm font-medium transition-all ${
-                        selectedOptions[variant.optionName] === value
+                        selectedOptions[variant.optionName] === valueObj.name
                           ? "bg-[#1e6553] text-white border-[#1e6553]"
                           : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                       }`}
                     >
-                      {value}
+                      {valueObj.name}
                     </button>
-                  )
-                )}
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -342,11 +341,13 @@ console.log(  selectedVariant ,
       )}
 
       {selectedVariant && (
-        <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mb-6 ${
-          selectedVariant.inventory > 0
-            ? "bg-green-100 text-green-800"
-            : "bg-red-100 text-red-800"
-        }`}>
+        <div
+          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mb-6 ${
+            selectedVariant.inventory > 0
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }`}
+        >
           {selectedVariant.inventory > 0 ? "In Stock" : "Out of Stock"}
           {selectedVariant.inventory > 0 && (
             <span className="ml-1">
@@ -356,93 +357,75 @@ console.log(  selectedVariant ,
         </div>
       )}
 
-<div
-  className={`
-    w-full 
-    bg-white 
-    md:bg-transparent 
-    p-4 
-    md:p-0 
-    shadow-lg 
-    md:shadow-none 
-    fixed 
-    md:static 
-    bottom-0 
-    left-0 
-    right-0 
-    z-10 
-    md:border-none
-  `}
->
-  <div className="flex flex-col md:flex-row gap-4 max-w-4xl mx-auto">
-    <div className="flex flex-row items-center w-full gap-4">
-      {/* Quantity Selector */}
-      <div className="flex-1 md:flex-none md:w-40">
-        <div className="flex items-center border border-gray-300  overflow-hidden h-12 justify-center">
-          <button
-            onClick={decrease}
-            disabled={productCount <= 1}
-            className="w-12 h-full flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            −
-          </button>
-          <span className="w-12 text-center font-medium text-gray-900 flex items-center justify-center">
-            {productCount}
-          </span>
-          <button
-            onClick={increase}
-            disabled={
-              !selectedVariant ||
-              productCount + existingCartQty >= selectedVariant.inventory
-            }
-            className="w-12 h-full flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            +
-          </button>
+      <div className="w-full bg-white md:bg-transparent p-4 md:p-0 shadow-lg md:shadow-none fixed md:static bottom-0 left-0 right-0 z-10 md:border-none">
+        <div className="flex flex-col md:flex-row gap-4 max-w-4xl mx-auto">
+          <div className="flex flex-row items-center w-full gap-4">
+            <div className="flex-1 md:flex-none md:w-40">
+              <div className="flex items-center border border-gray-300 overflow-hidden h-12 justify-center">
+                <button
+                  onClick={decrease}
+                  disabled={productCount <= 1}
+                  className="w-12 h-full flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  −
+                </button>
+                <span className="w-12 text-center font-medium text-gray-900 flex items-center justify-center">
+                  {productCount}
+                </span>
+                <button
+                  onClick={increase}
+                  disabled={
+                    !selectedVariant ||
+                    productCount + existingCartQty >= selectedVariant.inventory
+                  }
+                  className="w-12 h-full flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={handleAddToCart}
+              disabled={
+                !selectedVariant ||
+                productCount + existingCartQty > selectedVariant.inventory ||
+                isLoading ||
+                productCount === 0
+              }
+              className={`w-full md:w-full h-12 rounded-none font-medium flex items-center justify-center gap-2 transition-colors ${
+                !selectedVariant ||
+                productCount + existingCartQty > selectedVariant.inventory ||
+                isLoading ||
+                productCount === 0
+                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-black text-white hover:bg-gray-800"
+              }`}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="animate-spin w-5 h-5" />
+                  <span>Adding...</span>
+                </>
+              ) : (
+                <span>Add to Cart</span>
+              )}
+              {existingCartQty > 0 && (
+                <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                  {existingCartQty} in cart
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Add to Cart Button */}
-  <button
-  onClick={handleAddToCart}
-  disabled={
-    !selectedVariant ||
-    productCount + existingCartQty > selectedVariant.inventory ||
-    isLoading ||
-    productCount === 0
-  }
-  className={`w-full md:w-full h-12 rounded-none font-medium flex items-center justify-center gap-2 transition-colors ${
-    !selectedVariant ||
-    productCount + existingCartQty > selectedVariant.inventory ||
-    isLoading ||
-    productCount === 0
-      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-      : "bg-black text-white hover:bg-gray-800"
-  }`}
->
-  {isLoading ? (
-    <>
-      <Loader2 className="animate-spin w-5 h-5" />
-      <span>Adding...</span>
-    </>
-  ) : (
-    <span>Add to Cart</span>
-  )}
-  {existingCartQty > 0 && (
-    <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
-      {existingCartQty} in cart
-    </span>
-  )}
-</button>
-
-    </div>
-  </div>
-</div>
-
-
       <div className="flex gap-6 mb-6 mt-6">
-        <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
-          <Heart className="w-5 h-5" onClick={handleAddToWishlist} />
+        <button
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          onClick={handleAddToWishlist}
+        >
+          <Heart className="w-5 h-5" />
           <span className="text-sm">Add to Wishlist</span>
         </button>
         <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
