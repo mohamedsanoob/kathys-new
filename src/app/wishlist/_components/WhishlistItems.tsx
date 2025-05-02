@@ -42,27 +42,24 @@ const WhishlistItems = () => {
     },
   ]);
 
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  // const toggleAllItems = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   if (e.target.checked) {
+  //     setSelectedItems(items.map((item) => item.id));
+  //   } else {
+  //     setSelectedItems([]);
+  //   }
+  // };
 
-  const toggleAllItems = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedItems(items.map((item) => item.id));
-    } else {
-      setSelectedItems([]);
-    }
-  };
-
-  const toggleItem = (itemId: string) => {
-    setSelectedItems((prev) =>
-      prev.includes(itemId)
-        ? prev.filter((id) => id !== itemId)
-        : [...prev, itemId]
-    );
-  };
+  // const toggleItem = (itemId: string) => {
+  //   setSelectedItems((prev) =>
+  //     prev.includes(itemId)
+  //       ? prev.filter((id) => id !== itemId)
+  //       : [...prev, itemId]
+  //   );
+  // };
 
   const removeItem = (itemId: string) => {
     setItems((prev) => prev.filter((item) => item.id !== itemId));
-    setSelectedItems((prev) => prev.filter((id) => id !== itemId));
   };
 
   const getStockStatusClass = (status: CartItem["stockStatus"]) => {
@@ -85,19 +82,6 @@ const WhishlistItems = () => {
       <table className="hidden md:table min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th
-              scope="col"
-              className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              <input
-                type="checkbox"
-                checked={
-                  selectedItems.length === items.length && items.length > 0
-                }
-                onChange={toggleAllItems}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-            </th>
             <th
               scope="col"
               className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -139,14 +123,6 @@ const WhishlistItems = () => {
         <tbody className="bg-white divide-y divide-gray-200">
           {items.map((item) => (
             <tr key={item.id}>
-              <td className="px-4 py-4 whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={selectedItems.includes(item.id)}
-                  onChange={() => toggleItem(item.id)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-              </td>
               <td className="px-4 py-4 whitespace-nowrap">
                 <button
                   onClick={() => removeItem(item.id)}
@@ -192,34 +168,10 @@ const WhishlistItems = () => {
 
       {/* Mobile Cards (visible on sm screens and down) */}
       <div className="md:hidden space-y-4">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <input
-              type="checkbox"
-              checked={
-                selectedItems.length === items.length && items.length > 0
-              }
-              onChange={toggleAllItems}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
-            />
-            <span className="text-sm text-gray-500">Select all items</span>
-          </div>
-          <div className="flex gap-2 text-xs font-medium">
-            <button className="bg-red-500 text-white p-2 rounded-xs">Add all to cart</button>
-            <button className="bg-red-500 text-white p-2 rounded-xs">Add selected to cart</button>
-          </div>
-        </div>
-
         {items.map((item) => (
           <div key={item.id} className="bg-white p-4 shadow">
             <div className="flex justify-between items-start">
               <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={selectedItems.includes(item.id)}
-                  onChange={() => toggleItem(item.id)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-3"
-                />
                 <div className="flex-shrink-0 h-16 w-16">
                   <Image
                     className="h-16 w-16 object-contain"
