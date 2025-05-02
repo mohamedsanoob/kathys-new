@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { Home, Search, Heart, ShoppingBag, Menu, User } from "lucide-react";
+import { Home, Search, Heart, Menu, User } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useState } from "react";
@@ -28,16 +28,20 @@ const FooterNav = () => {
     );
   };
 
-  // Theme color
-  const themeColor = "#1e6553";
-
   return (
     <>
       <div
         className={cn(
           "w-full bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.1)] md:hidden  shadow-lg md:shadow-none fixed md:static  bottom-0 left-0 right-0 z-10",
           "",
+<<<<<<< HEAD
           (product_id !== undefined || pathname=== "/cart" || pathname=== "/checkout")&& "hidden"
+=======
+          (product_id !== undefined ||
+            pathname === "/cart" ||
+            pathname === "/checkout") &&
+            "hidden"
+>>>>>>> 281393e (footer reverted)
         )}
       >
         <div className="flex justify-between items-center px-4 py-3">
@@ -109,12 +113,20 @@ const FooterNav = () => {
             </span>
           </Link>
 
+<<<<<<< HEAD
           <div 
+=======
+          <div
+>>>>>>> 281393e (footer reverted)
             className="flex flex-col items-center cursor-pointer"
             onClick={() => {
               if (currentUser) {
                 // Navigate to account if user is logged in
+<<<<<<< HEAD
                 window.location.href = '/account';
+=======
+                window.location.href = "/account";
+>>>>>>> 281393e (footer reverted)
               } else {
                 // Show phone auth modal if not logged in
                 setShowPhoneAuth(true);
