@@ -194,6 +194,8 @@ const ProductDetails = ({ product }: { product: Product }) => {
             const maxQtyLeft = matchingVariantDetail.inventory - qty;
             if (productCount > maxQtyLeft) {
               setProductCount(maxQtyLeft);
+            }else{
+  setProductCount(1);
             }
           })
           .finally(() => setIsLoading(false));
@@ -253,6 +255,12 @@ const ProductDetails = ({ product }: { product: Product }) => {
 const handleAddToWishlist=()=>{
   console.log("add to wishlist")
 }
+
+
+console.log(  selectedVariant ,
+    productCount ,existingCartQty ,selectedVariant?.inventory ,
+    isLoading ,
+    productCount ,"myre")
 
   return (
     <div className="w-full lg:w-[55%] px-4 lg:px-8">
