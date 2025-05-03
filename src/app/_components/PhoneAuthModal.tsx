@@ -70,11 +70,13 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
 
       setupRecaptcha();
 
+      // Check if recaptchaVerifier is correctly initialized
       const appVerifier = window.recaptchaVerifier;
+      if (!appVerifier) {
+        throw new Error("reCAPTCHA verification failed. Please try again.");
+      }
 
       const result = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-
-     
       setConfirmationResult(result);
       setIsOTPSent(true);
       setTimer(60);
