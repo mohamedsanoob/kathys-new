@@ -52,18 +52,20 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && !isOTPSent) {
+    if (isOpen && !isOTPSent ) {
       setupRecaptcha();
     }
   }, [isOpen]);
 
   const setupRecaptcha = () => {
+    console.log(auth,"-jbkjb")
     if (!recaptchaContainerRef.current) {
       toast.error("reCAPTCHA container not found. Please try again.");
       return;
     }
     if (!window.recaptchaVerifier) {
       window.recaptchaVerifier = new RecaptchaVerifier(
+          auth,
         recaptchaContainerRef.current,
         {
           size: "invisible",
@@ -72,7 +74,7 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
             toast.warn("reCAPTCHA expired. Please try again.");
           },
         },
-        auth
+      
       );
     }
   };
