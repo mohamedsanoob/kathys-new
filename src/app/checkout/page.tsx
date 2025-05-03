@@ -11,12 +11,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { FormData, CartProduct, RazorpayResponse, OrderResponse, PaymentSuccessResponse, RazorpayOptions } from "@/types/checkout";
 import OrderSummary from "./_components/orderSummary";
 import BillingDetails from "./_components/BillingDetails";
-import PhoneAuthModal from "./_components/PhoneAuthModel";
+
 import { toast } from "react-toastify";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { PaymentSuccess } from "../_components/PaymentSuccess";
 import { PaymentRejected } from "../_components/PaymentRejected";
+import PhoneAuthModal from "../_components/PhoneAuthModal";
 
 declare global {
   interface Window {
@@ -42,12 +43,6 @@ const CheckoutPage = () => {
   const [cartProductsWithDetails, setCartProductsWithDetails] = useState<CartProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [otp, setOtp] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState<any>(null);
-  const [isOTPSent, setIsOTPSent] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isSendingOTP, setIsSendingOTP] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<FormData[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string | null | undefined>(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -64,6 +59,7 @@ const CheckoutPage = () => {
   } | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+   
 
   const {
     register,
@@ -160,80 +156,9 @@ const CheckoutPage = () => {
     });
   };
 
-  const handlePhoneAuth = async () => {
-    try {
-      setIsSendingOTP(true);
-      const formattedPhone = `+91${phoneNumber.replace(/\D/g, '')}`;
 
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-      }
 
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        'recaptcha-container',
-        { size: 'invisible', callback: () => {} },
-      );
-
-      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, window.recaptchaVerifier);
-      setConfirmationResult(confirmation);
-      setIsOTPSent(true);
-      toast.success("OTP sent successfully!");
-    } catch (error) {
-      console.error("OTP Error:", error);
-      toast.error(`Failed to send OTP: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        window.recaptchaVerifier = null;
-      }
-    } finally {
-      setIsSendingOTP(false);
-    }
-  };
-
-  const verifyOTP = async () => {
-    try {
-      setIsVerifying(true);
-      const result = await confirmationResult.confirm(otp);
-      const user = result.user;
-
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        const generateUserId = () => {
-          const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-          return Array.from({ length: 5 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
-        };
-
-        const user_id = generateUserId();
-
-        await setDoc(userDocRef, {
-          id: user.uid,
-          user_id,
-          phone: user.phoneNumber || `+91${phoneNumber}`,
-          preferences: {
-            language: "en",
-            marketingOptIn: true,
-            currency: "INR"
-          },
-          account_status: "active",
-          email: "",
-          created_at: serverTimestamp()
-        });
-      }
-
-      toast.success("Phone number verified successfully!");
-      setShowLogin(false);
-      setValue("mobileNumber", phoneNumber);
-    } catch (error) {
-      console.error("Error verifying OTP:", error);
-      toast.error("Invalid OTP. Please try again.");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
+ 
   const validateCheckout = () => {
     if (!termsAgreed) {
       setTermsError(true);
@@ -496,6 +421,11 @@ const CheckoutPage = () => {
     );
   }
 
+   const handlePhoneVerified = (phoneNumber: string) => {
+        console.log("Verified phone number:", phoneNumber);
+    };
+
+
   return (
     <div className="flex flex-col bg-gray-50" style={{height:"100%"}}>
       {isProcessingPayment && <PaymentLoader />}
@@ -552,20 +482,12 @@ const CheckoutPage = () => {
         />
       </div>
 
-      <PhoneAuthModal
-        showLogin={showLogin}
-        setShowLogin={setShowLogin}
-        isOTPSent={isOTPSent}
-        setIsOTPSent={setIsOTPSent}
-        phoneNumber={phoneNumber}
-        setPhoneNumber={setPhoneNumber}
-        otp={otp}
-        setOtp={setOtp}
-        handlePhoneAuth={handlePhoneAuth}
-        verifyOTP={verifyOTP}
-        isSendingOTP={isSendingOTP}
-        isVerifying={isVerifying}
-      />
+         <PhoneAuthModal
+                isOpen={showLogin}
+                onClose={() => setShowLogin(false)}
+                onSuccess={handlePhoneVerified}
+            />
+
 
       <div id="recaptcha-container" className="hidden"></div>
       <div className="left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 md:hidden fixed md:static  bottom-0 left-0 right-0 z-10">
