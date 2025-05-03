@@ -16,6 +16,8 @@ interface OrderSummaryProps {
   paymentMode: string;
   setPaymentModeError: (value: boolean) => void;
   paymentModeError: boolean;
+   showAddressForm :  boolean;
+  
 }
 
 const OrderSummary = ({
@@ -26,6 +28,7 @@ const OrderSummary = ({
   handlePlaceOrder,
   isValid,
   currentUser,
+  showAddressForm,
   paymentMode,
   selectedAddress,
   showPaymentMode,
@@ -116,11 +119,11 @@ const OrderSummary = ({
   onClick={handlePlaceOrder}
   disabled={
     currentUser 
-      ? !selectedAddress || !termsAgreed 
+      ? !selectedAddress || !termsAgreed || showAddressForm
       : !isValid || !termsAgreed 
   }
   className={`hidden md:block w-full py-3 rounded-md text-white font-semibold ${
-    (currentUser ? selectedAddress && termsAgreed && (!showPaymentMode || paymentMode) 
+    (currentUser ? selectedAddress && termsAgreed && !showAddressForm && (!showPaymentMode || paymentMode) 
       : isValid && termsAgreed && (!showPaymentMode || paymentMode))
       ? "bg-[#1e6553] hover:bg-[#1e6553]" 
       : "bg-gray-400 cursor-not-allowed"

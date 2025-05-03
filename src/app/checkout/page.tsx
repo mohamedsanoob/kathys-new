@@ -59,6 +59,9 @@ const CheckoutPage = () => {
   } | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+
+
    
 
   const {
@@ -426,6 +429,9 @@ const CheckoutPage = () => {
     };
 
 
+    console.log(((!selectedAddress || !termsAgreed) && !showAddressForm))
+
+
   return (
     <div className="flex flex-col bg-gray-50" style={{height:"100%"}}>
       {isProcessingPayment && <PaymentLoader />}
@@ -479,6 +485,7 @@ const CheckoutPage = () => {
           showPaymentMode={showPaymentMode}
           setPaymentModeError={setPaymentModeError}
           paymentModeError={paymentModeError}
+          showAddressForm={showAddressForm}
         />
       </div>
 
@@ -500,11 +507,11 @@ const CheckoutPage = () => {
             onClick={handleOrderButtonClick}
             disabled={
               (currentUser 
-                ? !selectedAddress || !termsAgreed || !showAddressForm
-                : !isValid || !termsAgreed) || isProcessingPayment
+                ? !selectedAddress || !termsAgreed || showAddressForm
+                : !isValid || !termsAgreed) || isProcessingPayment 
             }
             className={`w-full py-3 rounded-md text-white font-semibold ${
-              (currentUser ? selectedAddress && termsAgreed && (!showPaymentMode || paymentMode) 
+              (currentUser ? selectedAddress && termsAgreed &&  !showAddressForm && (!showPaymentMode || paymentMode) 
                 : isValid && termsAgreed && (!showPaymentMode || paymentMode))
                 ? "bg-[#1e6553] hover:bg-[#1e6553]" 
                 : "bg-gray-400 cursor-not-allowed"
