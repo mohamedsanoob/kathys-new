@@ -8,12 +8,18 @@ import { toast } from "react-toastify";
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
 import { auth, db } from "@/firebase/config";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { FirebaseError } from "firebase/app";
 
 interface PhoneAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (phoneNumber: string) => void;
 }
+
+const generateUserId = () =>
+  Array.from({ length: 5 }, () =>
+    "abcdefghijklmnopqrstuvwxyz0123456789".charAt(Math.floor(Math.random() * 36))
+  ).join("");
 
 const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -31,7 +37,7 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
     let interval: NodeJS.Timeout;
 
     if (isOTPSent && timer > 0) {
-      interval = setInterval(() => setTimer(prev => prev - 1), 1000);
+      interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
     } else if (timer === 0) {
       setCanResend(true);
     }
@@ -45,17 +51,25 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (isOpen && !isOTPSent) {
+      setupRecaptcha();
+    }
+  }, [isOpen]);
+
   const setupRecaptcha = () => {
+    if (!recaptchaContainerRef.current) {
+      toast.error("reCAPTCHA container not found. Please try again.");
+      return;
+    }
     if (!window.recaptchaVerifier) {
       window.recaptchaVerifier = new RecaptchaVerifier(
-        recaptchaContainerRef.current!,
+        recaptchaContainerRef.current,
         {
           size: "invisible",
-          callback: (response: any) => {
-            // Automatically invoked if invisible CAPTCHA is solved
-          },
+          callback: () => {},
           "expired-callback": () => {
-            toast.warn("reCAPTCHA expired. Please refresh or try again.");
+            toast.warn("reCAPTCHA expired. Please try again.");
           },
         },
         auth
@@ -63,19 +77,24 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
     }
   };
 
+  const validatePhoneNumber = (number: string): boolean => {
+    const phoneRegex = /^[6-9]\d{9}$/;
+    return phoneRegex.test(number);
+  };
+
   const handleSendOTP = async () => {
+    if (!validatePhoneNumber(phoneNumber)) {
+      toast.error("Please enter a valid 10-digit phone number.");
+      return;
+    }
     try {
       setIsSendingOTP(true);
       const formattedPhone = `+91${phoneNumber}`;
-
       setupRecaptcha();
-
-      // Check if recaptchaVerifier is correctly initialized
       const appVerifier = window.recaptchaVerifier;
       if (!appVerifier) {
         throw new Error("reCAPTCHA verification failed. Please try again.");
       }
-
       const result = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
       setConfirmationResult(result);
       setIsOTPSent(true);
@@ -85,10 +104,7 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
     } catch (error: any) {
       console.error("OTP Error:", error);
       toast.error(`Failed to send OTP: ${error.message}`);
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        window.recaptchaVerifier = null;
-      }
+      cleanup();
     } finally {
       setIsSendingOTP(false);
     }
@@ -106,13 +122,6 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-        const generateUserId = () =>
-          Array.from({ length: 5 }, () =>
-            "abcdefghijklmnopqrstuvwxyz0123456789".charAt(
-              Math.floor(Math.random() * 36)
-            )
-          ).join("");
-
         const user_id = generateUserId();
 
         await setDoc(userDocRef, {
@@ -133,9 +142,17 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
       toast.success("Phone number verified successfully!");
       onSuccess(user.phoneNumber!);
       handleClose();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("OTP Verification Error:", error);
-      toast.error("Invalid OTP. Please try again.");
+      let errorMessage = "Invalid OTP. Please try again.";
+      if (error instanceof FirebaseError) {
+        if (error.code === "auth/invalid-verification-code") {
+          errorMessage = "Invalid OTP. Please enter the correct code.";
+        } else if (error.code === "auth/too-many-requests") {
+          errorMessage = "Too many attempts. Please try again later.";
+        }
+      }
+      toast.error(errorMessage);
     } finally {
       setIsVerifying(false);
     }
@@ -166,6 +183,9 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
       window.recaptchaVerifier.clear();
       window.recaptchaVerifier = null;
     }
+    if (recaptchaContainerRef.current) {
+      recaptchaContainerRef.current.innerHTML = "";
+    }
   };
 
   return (
@@ -176,12 +196,14 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm"
+          onClick={handleClose}
         >
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -20, opacity: 0 }}
             className="bg-white p-6 rounded-lg w-full max-w-md mx-4 shadow-xl relative"
+            onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={handleClose}
@@ -198,13 +220,16 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
                 <div className="mb-4">
                   <label className="block text-sm font-medium mb-1">Phone Number</label>
                   <div className="flex">
-                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">+91</span>
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">
+                      +91
+                    </span>
                     <input
                       type="tel"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       className="flex-1 block px-3 py-2 rounded-none rounded-r-md border border-gray-300 focus:ring-2 focus:ring-black focus:border-black outline-none"
                       placeholder="Enter your phone number"
+                      aria-label="Phone number"
                     />
                   </div>
                 </div>
@@ -214,8 +239,34 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
                 <button
                   onClick={handleSendOTP}
                   disabled={isSendingOTP || phoneNumber.length !== 10}
-                  className={`w-full ${isSendingOTP || phoneNumber.length !== 10 ? "bg-gray-400 cursor-not-allowed" : "bg-red-600 hover:bg-red-700"} text-white py-2 rounded transition-all`}
+                  className={`w-full flex justify-center items-center ${
+                    isSendingOTP || phoneNumber.length !== 10
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-red-600 hover:bg-red-700"
+                  } text-white py-2 rounded transition-all`}
                 >
+                  {isSendingOTP ? (
+                    <svg
+                      className="animate-spin h-5 w-5 mr-2 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z"
+                      ></path>
+                    </svg>
+                  ) : null}
                   {isSendingOTP ? "Sending..." : "Send OTP"}
                 </button>
               </>
@@ -228,10 +279,11 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
                     onChange={setOtp}
                     numInputs={6}
                     inputType="number"
-                    renderInput={(props) => (
+                    renderInput={(props, index) => (
                       <input
                         {...props}
                         className="!w-full h-12 border border-gray-300 rounded focus:ring-2 focus:ring-black focus:border-black outline-none transition-all mx-1"
+                        aria-label={`OTP digit ${index + 1}`}
                       />
                     )}
                     containerStyle="flex justify-between"
@@ -243,7 +295,9 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
                     <button
                       onClick={handleResendOTP}
                       disabled={isSendingOTP}
-                      className={`text-red-600 hover:text-red-800 text-sm font-medium ${isSendingOTP ? "opacity-50 cursor-not-allowed" : ""}`}
+                      className={`text-red-600 hover:text-red-800 text-sm font-medium ${
+                        isSendingOTP ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
                     >
                       Resend OTP
                     </button>
@@ -255,8 +309,34 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
                 <button
                   onClick={handleVerifyOTP}
                   disabled={isVerifying || otp.length !== 6}
-                  className={`w-full ${isVerifying || otp.length !== 6 ? "bg-gray-400 cursor-not-allowed" : "bg-red-600 hover:bg-red-700"} text-white py-2 rounded transition-all`}
+                  className={`w-full flex justify-center items-center ${
+                    isVerifying || otp.length !== 6
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-red-600 hover:bg-red-700"
+                  } text-white py-2 rounded transition-all`}
                 >
+                  {isVerifying ? (
+                    <svg
+                      className="animate-spin h-5 w-5 mr-2 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z"
+                      ></path>
+                    </svg>
+                  ) : null}
                   {isVerifying ? "Verifying..." : "Verify OTP"}
                 </button>
               </>
