@@ -262,7 +262,7 @@ const CheckoutPage = () => {
 
       if (paymentMode === 'cod') {
         try {
-          const response = await axios.post("http://localhost:4000/payment/cod", {
+          const response = await axios.post("https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/cod", {
             orderData: orderObject
           });
           
@@ -289,7 +289,7 @@ const CheckoutPage = () => {
         throw new Error("Razorpay SDK failed to load");
       }
 
-      const orderResponse = await axios.post<OrderResponse>("http://localhost:4000/payment/orders", {
+      const orderResponse = await axios.post<OrderResponse>("https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/orders", {
         amount: total,
         currency: "INR",
         orderData: orderObject
@@ -319,7 +319,7 @@ const CheckoutPage = () => {
           try {
             setIsProcessingPayment(true);
             const verificationResponse = await axios.post<PaymentSuccessResponse>(
-              "http://localhost:4000/payment/success",
+              "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/success",
               {
                 orderCreationId: order_id,
                 razorpayPaymentId: response.razorpay_payment_id,
@@ -360,7 +360,7 @@ const CheckoutPage = () => {
           ondismiss: async () => {
             try {
                   setIsProcessingPayment(true);
-              await axios.post("http://localhost:4000/payment/cancel", {
+              await axios.post("https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/cancel", {
                 orderId: order_id,
                 reason: "User closed payment window"
               });
