@@ -91,6 +91,9 @@ const CheckoutPage = () => {
     fetchCartDetails();
   }, []);
 
+
+    
+
   useEffect(() => {
     if (currentUser) {
       fetchUserAddresses();
@@ -278,6 +281,8 @@ const CheckoutPage = () => {
     }
   };
 
+
+
   const onSubmit = async (data: FormData) => {
     setIsProcessingPayment(true);
     
@@ -292,6 +297,7 @@ const CheckoutPage = () => {
         orderStatus: "created",
         tax_amount: 0,
         quantity_each: cartProductsWithDetails.map(product => ({
+            images: product?.images,
           product_id: product.id,
           product_name: product.productName,
           product_price: product.productPrice,
