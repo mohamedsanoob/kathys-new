@@ -500,7 +500,7 @@ const CheckoutPage = () => {
             onClick={handleOrderButtonClick}
             disabled={
               (currentUser 
-                ? !selectedAddress || !termsAgreed || !showPaymentMode 
+                ? !selectedAddress || !termsAgreed || !showAddressForm
                 : !isValid || !termsAgreed) || isProcessingPayment
             }
             className={`w-full py-3 rounded-md text-white font-semibold ${
