@@ -1,10 +1,9 @@
-// components/PhoneAuthModal.tsx
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import OtpInput from "react-otp-input";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { auth, db } from "@/firebase/config";
@@ -29,6 +28,7 @@ const PhoneAuthModal = ({
   const [isSendingOTP, setIsSendingOTP] = useState(false);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -44,25 +44,51 @@ const PhoneAuthModal = ({
     return () => clearInterval(interval);
   }, [isOTPSent, timer]);
 
+  const setupRecaptcha = () => {
+    if (!recaptchaRef.current && typeof window !== 'undefined') {
+      recaptchaRef.current = new RecaptchaVerifier(
+        'recaptcha-container',
+        {
+          size: 'invisible',
+          callback: () => {
+            // This will be called when reCAPTCHA is solved
+            handlePhoneAuth();
+          }
+        },
+        auth
+      );
+    }
+  };
+
   const handlePhoneAuth = async () => {
     try {
+      if (phoneNumber.length !== 10) {
+        toast.error("Please enter a valid 10-digit phone number");
+        return;
+      }
+
       setIsSendingOTP(true);
       const formattedPhone = `+91${phoneNumber.replace(/\D/g, '')}`;
 
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
+      // Clear any existing reCAPTCHA
+      if (recaptchaRef.current) {
+        try {
+          recaptchaRef.current.clear();
+        } catch (e) {
+          console.log("Clearing recaptcha error:", e);
+        }
       }
 
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        'recaptcha-container',
-        { size: 'invisible', callback: () => {} },
-      );
+      setupRecaptcha();
+
+      if (!recaptchaRef.current) {
+        throw new Error("reCAPTCHA not initialized");
+      }
 
       const confirmation = await signInWithPhoneNumber(
         auth, 
         formattedPhone, 
-        window.recaptchaVerifier
+        recaptchaRef.current
       );
       
       setConfirmationResult(confirmation);
@@ -71,9 +97,15 @@ const PhoneAuthModal = ({
     } catch (error) {
       console.error("OTP Error:", error);
       toast.error(`Failed to send OTP: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        window.recaptchaVerifier = null;
+      
+      // Reset reCAPTCHA on error
+      if (recaptchaRef.current) {
+        try {
+          recaptchaRef.current.clear();
+        } catch (e) {
+          console.log("Error clearing recaptcha:", e);
+        }
+        recaptchaRef.current = null;
       }
     } finally {
       setIsSendingOTP(false);
@@ -82,6 +114,11 @@ const PhoneAuthModal = ({
 
   const verifyOTP = async () => {
     try {
+      if (otp.length !== 6) {
+        toast.error("Please enter a 6-digit OTP");
+        return;
+      }
+
       setIsVerifying(true);
       const result = await confirmationResult.confirm(otp);
       const user = result.user;
@@ -128,11 +165,32 @@ const PhoneAuthModal = ({
     setTimer(60);
     setCanResend(false);
     setOtp("");
+    
+    // Reset reCAPTCHA before resending
+    if (recaptchaRef.current) {
+      try {
+        recaptchaRef.current.clear();
+      } catch (e) {
+        console.log("Error clearing recaptcha on resend:", e);
+      }
+      recaptchaRef.current = null;
+    }
+    
     handlePhoneAuth();
     toast.info("OTP resent successfully");
   };
 
   const handleClose = () => {
+    // Clean up reCAPTCHA
+    if (recaptchaRef.current) {
+      try {
+        recaptchaRef.current.clear();
+      } catch (e) {
+        console.log("Error clearing recaptcha on close:", e);
+      }
+      recaptchaRef.current = null;
+    }
+    
     setPhoneNumber("");
     setOtp("");
     setIsOTPSent(false);
@@ -148,7 +206,7 @@ const PhoneAuthModal = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 flex items-center justify-center z-50  bg-opacity-30 backdrop-blur-sm"
+          className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm"
         >
           <motion.div
             initial={{ y: 20, opacity: 0 }}
@@ -194,7 +252,12 @@ const PhoneAuthModal = ({
                 </div>
                 <div id="recaptcha-container"></div>
                 <button
-                  onClick={handlePhoneAuth}
+                  onClick={() => {
+                    setupRecaptcha();
+                    if (recaptchaRef.current) {
+                      recaptchaRef.current.render();
+                    }
+                  }}
                   disabled={isSendingOTP || phoneNumber.length !== 10}
                   className={`w-full ${
                     isSendingOTP || phoneNumber.length !== 10 
