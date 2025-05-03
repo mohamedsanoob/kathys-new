@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { getCartProducts } from "@/actions/actions";
 import axios from "axios";
@@ -23,11 +23,12 @@ declare global {
     Razorpay: new (options: RazorpayOptions) => {
       open: () => void;
     };
+    recaptchaVerifier: any;
   }
 }
 
 const PaymentLoader = () => (
-  <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm">
+  <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm">
     <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center w-[90%]">
       <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-[#1e6553] mx-auto mb-4"></div>
       <h2 className="text-xl font-semibold text-gray-800 mb-2">Processing Payment</h2>
@@ -63,7 +64,6 @@ const CheckoutPage = () => {
   } | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
 
   const {
     register,
@@ -91,126 +91,14 @@ const CheckoutPage = () => {
     fetchCartDetails();
   }, []);
 
+
+    
+
   useEffect(() => {
     if (currentUser) {
       fetchUserAddresses();
     }
   }, [currentUser]);
-
-  const setupRecaptcha = () => {
-    if (!recaptchaRef.current && typeof window !== 'undefined') {
-      recaptchaRef.current = new RecaptchaVerifier(
-        'recaptcha-container',
-        {
-          size: 'invisible',
-          callback: () => {
-            handlePhoneAuth();
-          }
-        },
-        auth
-      );
-    }
-  };
-
-  const handlePhoneAuth = async () => {
-    try {
-      if (phoneNumber.length !== 10) {
-        toast.error("Please enter a valid 10-digit phone number");
-        return;
-      }
-
-      setIsSendingOTP(true);
-      const formattedPhone = `+91${phoneNumber.replace(/\D/g, '')}`;
-
-      // Clear any existing reCAPTCHA
-      if (recaptchaRef.current) {
-        try {
-          recaptchaRef.current.clear();
-        } catch (e) {
-          console.log("Clearing recaptcha error:", e);
-        }
-      }
-
-      setupRecaptcha();
-
-      if (!recaptchaRef.current) {
-        throw new Error("reCAPTCHA not initialized");
-      }
-
-      const confirmation = await signInWithPhoneNumber(
-        auth, 
-        formattedPhone, 
-        recaptchaRef.current
-      );
-      
-      setConfirmationResult(confirmation);
-      setIsOTPSent(true);
-      toast.success("OTP sent successfully!");
-    } catch (error) {
-      console.error("OTP Error:", error);
-      toast.error(`Failed to send OTP: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      
-      // Reset reCAPTCHA on error
-      if (recaptchaRef.current) {
-        try {
-          recaptchaRef.current.clear();
-        } catch (e) {
-          console.log("Error clearing recaptcha:", e);
-        }
-        recaptchaRef.current = null;
-      }
-    } finally {
-      setIsSendingOTP(false);
-    }
-  };
-
-  const verifyOTP = async () => {
-    try {
-      if (otp.length !== 6) {
-        toast.error("Please enter a 6-digit OTP");
-        return;
-      }
-
-      setIsVerifying(true);
-      const result = await confirmationResult.confirm(otp);
-      const user = result.user;
-
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        const generateUserId = () => {
-          const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-          return Array.from({ length: 5 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
-        };
-
-        const user_id = generateUserId();
-
-        await setDoc(userDocRef, {
-          id: user.uid,
-          user_id,
-          phone: user.phoneNumber || `+91${phoneNumber}`,
-          preferences: {
-            language: "en",
-            marketingOptIn: true,
-            currency: "INR"
-          },
-          account_status: "active",
-          email: "",
-          created_at: serverTimestamp()
-        });
-      }
-
-      toast.success("Phone number verified successfully!");
-      setShowLogin(false);
-      setValue("mobileNumber", phoneNumber);
-    } catch (error) {
-      console.error("Error verifying OTP:", error);
-      toast.error("Invalid OTP. Please try again.");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
 
   const fetchUserAddresses = async () => {
     try {
@@ -272,6 +160,80 @@ const CheckoutPage = () => {
     });
   };
 
+  const handlePhoneAuth = async () => {
+    try {
+      setIsSendingOTP(true);
+      const formattedPhone = `+91${phoneNumber.replace(/\D/g, '')}`;
+
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+      }
+
+      window.recaptchaVerifier = new RecaptchaVerifier(
+        auth,
+        'recaptcha-container',
+        { size: 'invisible', callback: () => {} },
+      );
+
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, window.recaptchaVerifier);
+      setConfirmationResult(confirmation);
+      setIsOTPSent(true);
+      toast.success("OTP sent successfully!");
+    } catch (error) {
+      console.error("OTP Error:", error);
+      toast.error(`Failed to send OTP: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+        window.recaptchaVerifier = null;
+      }
+    } finally {
+      setIsSendingOTP(false);
+    }
+  };
+
+  const verifyOTP = async () => {
+    try {
+      setIsVerifying(true);
+      const result = await confirmationResult.confirm(otp);
+      const user = result.user;
+
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        const generateUserId = () => {
+          const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+          return Array.from({ length: 5 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+        };
+
+        const user_id = generateUserId();
+
+        await setDoc(userDocRef, {
+          id: user.uid,
+          user_id,
+          phone: user.phoneNumber || `+91${phoneNumber}`,
+          preferences: {
+            language: "en",
+            marketingOptIn: true,
+            currency: "INR"
+          },
+          account_status: "active",
+          email: "",
+          created_at: serverTimestamp()
+        });
+      }
+
+      toast.success("Phone number verified successfully!");
+      setShowLogin(false);
+      setValue("mobileNumber", phoneNumber);
+    } catch (error) {
+      console.error("Error verifying OTP:", error);
+      toast.error("Invalid OTP. Please try again.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   const validateCheckout = () => {
     if (!termsAgreed) {
       setTermsError(true);
@@ -318,6 +280,8 @@ const CheckoutPage = () => {
       toast.error("Checkout failed. Please try again.");
     }
   };
+
+
 
   const onSubmit = async (data: FormData) => {
     setIsProcessingPayment(true);
@@ -421,6 +385,7 @@ const CheckoutPage = () => {
         currency,
         name: "Kathy's Clothing Store",
         description: "Order Payment",
+        // image: "/logo.png",
         order_id,
         handler: async (response: RazorpayResponse) => {
           try {
@@ -588,12 +553,18 @@ const CheckoutPage = () => {
       </div>
 
       <PhoneAuthModal
-        isOpen={showLogin}
-        onClose={() => setShowLogin(false)}
-        onSuccess={(verifiedPhoneNumber) => {
-          setPhoneNumber(verifiedPhoneNumber);
-          setValue("mobileNumber", verifiedPhoneNumber);
-        }}
+        showLogin={showLogin}
+        setShowLogin={setShowLogin}
+        isOTPSent={isOTPSent}
+        setIsOTPSent={setIsOTPSent}
+        phoneNumber={phoneNumber}
+        setPhoneNumber={setPhoneNumber}
+        otp={otp}
+        setOtp={setOtp}
+        handlePhoneAuth={handlePhoneAuth}
+        verifyOTP={verifyOTP}
+        isSendingOTP={isSendingOTP}
+        isVerifying={isVerifying}
       />
 
       <div id="recaptcha-container" className="hidden"></div>
