@@ -3,6 +3,11 @@ import { Heart, Share, X, Loader2 } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { addProductToCart, getCartProducts } from "@/actions/actions";
 import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/context/AuthContext";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { db } from "@/firebase/config";
+import { toast } from "react-toastify";
+import PhoneAuthModal from "@/app/_components/PhoneAuthModal";
 
 interface Product {
   skuId: string;
@@ -81,6 +86,12 @@ const ProductDetails = ({ product }: { product: Product }) => {
   const [existingCartQty, setExistingCartQty] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
+const [showPhoneAuth, setShowPhoneAuth] = useState(false);
+  const [isWishlistLoading, setIsWishlistLoading] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+
+  const { currentUser } = useAuth();
+  console.log(currentUser, "currentUser");
 
   const areCombinationsEqual = useCallback(
     (comb1: Combination[], comb2: Combination[]): boolean => {
@@ -91,6 +102,29 @@ const ProductDetails = ({ product }: { product: Product }) => {
     },
     []
   );
+
+  useEffect(() => {
+    const checkWishlistStatus = async () => {
+      if (!currentUser) return;
+
+      try {
+        const wishlistRef = doc(db, "wishlists", currentUser.uid);
+        const docSnap = await getDoc(wishlistRef);
+
+        if (docSnap.exists()) {
+          const wishlistData = docSnap.data();
+          const productExists = wishlistData.products.some(
+            (item: { id: string }) => item.id === product.id
+          );
+          setIsInWishlist(productExists);
+        }
+      } catch (error) {
+        console.error("Error checking wishlist:", error);
+      }
+    };
+
+    checkWishlistStatus();
+  }, [currentUser, product.id]);
 
   useEffect(() => {
     const hasVariants =
@@ -214,33 +248,109 @@ const ProductDetails = ({ product }: { product: Product }) => {
     setProductCount((prev) => Math.max(1, prev - 1));
   }, []);
 
-const handleAddToCart = useCallback(async () => {
-  if (hasVariants && !selectedVariant) return;
+  const handleAddToCart = useCallback(async () => {
+    if (hasVariants && !selectedVariant) return;
 
-  setIsLoading(true);
-  try {
-    await addProductToCart({
-      productId: product.id,
-      variantDetails:
-        hasVariants && selectedVariant ? selectedVariant : undefined,
-      quantity: productCount,
-    });
+    setIsLoading(true);
+    try {
+      await addProductToCart({
+        productId: product.id,
+        variantDetails:
+          hasVariants && selectedVariant ? selectedVariant : undefined,
+        quantity: productCount,
+      });
 
-    window.dispatchEvent(new Event("cart-updated"));
-    await refreshCart();
+      window.dispatchEvent(new Event("cart-updated"));
+      await refreshCart();
 
-    setExistingCartQty((prev) => prev + productCount);
-    setProductCount(1);
-  } catch (error) {
-    console.error("Failed to add to cart:", error);
-  } finally {
-    setIsLoading(false);
-  }
-}, [product, selectedVariant, productCount, hasVariants, refreshCart]);
+      setExistingCartQty((prev) => prev + productCount);
+      setProductCount(1);
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [product, selectedVariant, productCount, hasVariants, refreshCart]);
 
-  const handleAddToWishlist = useCallback(() => {
-    console.log("add to wishlist");
-  }, []);
+  const handlePhoneVerified = (phoneNumber: string) => {
+    console.log("Verified phone number:", phoneNumber);
+    // Do something with the verified phone number
+  };
+
+  const handleAddToWishlist = useCallback(async () => {
+    if (!currentUser) {
+      toast.info("Please login to add items to your wishlist");
+       <PhoneAuthModal
+         isOpen={showPhoneAuth}
+         onClose={() => setShowPhoneAuth(false)}
+         onSuccess={handlePhoneVerified}
+       />;
+      return;
+    }
+
+    setIsWishlistLoading(true);
+    try {
+      const wishlistRef = doc(db, "wishlists", currentUser.uid);
+      const docSnap = await getDoc(wishlistRef);
+
+      const productData = {
+        id: product.id,
+        name: product.productName,
+        price: selectedVariant?.price || product.productPrice,
+        discountedPrice:
+          selectedVariant?.discountedPrice || product.productDiscountedPrice,
+        image: product.images[0],
+        variant: selectedVariant
+          ? {
+              combination: selectedVariant.combination,
+              sku: selectedVariant.sku,
+            }
+          : undefined,
+        addedAt: new Date().toISOString(),
+      };
+
+      if (docSnap.exists()) {
+        // Update existing wishlist
+        const wishlistData = docSnap.data();
+        const productIndex = wishlistData.products.findIndex(
+          (item: { id: string }) => item.id === product.id
+        );
+
+        if (productIndex >= 0) {
+          // Remove from wishlist if already exists
+          const updatedProducts = wishlistData.products.filter(
+            (item: { id: string }) => item.id !== product.id
+          );
+          await updateDoc(wishlistRef, {
+            products: updatedProducts,
+          });
+          setIsInWishlist(false);
+          toast.success("Removed from wishlist");
+        } else {
+          // Add to existing wishlist
+          await updateDoc(wishlistRef, {
+            products: [...wishlistData.products, productData],
+          });
+          setIsInWishlist(true);
+          toast.success("Added to wishlist");
+        }
+      } else {
+        // Create new wishlist
+        await setDoc(wishlistRef, {
+          userId: currentUser.uid,
+          products: [productData],
+          createdAt: new Date().toISOString(),
+        });
+        setIsInWishlist(true);
+        toast.success("Added to wishlist");
+      }
+    } catch (error) {
+      console.error("Error updating wishlist:", error);
+      toast.error("Failed to update wishlist");
+    } finally {
+      setIsWishlistLoading(false);
+    }
+  }, [currentUser, product, selectedVariant]);
 
 
 console.log(  selectedVariant ,
@@ -422,12 +532,28 @@ console.log(  selectedVariant ,
 
       <div className="flex gap-6 mb-6 mt-6">
         <button
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          className="flex items-center gap-2 transition-colors"
           onClick={handleAddToWishlist}
+          disabled={isWishlistLoading}
         >
-          <Heart className="w-5 h-5" />
-          <span className="text-sm">Add to Wishlist</span>
+          {isWishlistLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Heart
+              className={`w-5 h-5 ${
+                isInWishlist ? "fill-[#1e6553] text-[#1e6553]" : "text-gray-600"
+              }`}
+            />
+          )}
+          <span
+            className={`text-sm ${
+              isInWishlist ? "text-[#1e6553]" : "text-gray-600"
+            }`}
+          >
+            {isInWishlist ? "In Wishlist" : "Add to Wishlist"}
+          </span>
         </button>
+
         <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
           <Share className="w-5 h-5" />
           <span className="text-sm">Share</span>
