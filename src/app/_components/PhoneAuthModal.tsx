@@ -73,6 +73,8 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
       const appVerifier = window.recaptchaVerifier;
 
       const result = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+
+     
       setConfirmationResult(result);
       setIsOTPSent(true);
       setTimer(60);
