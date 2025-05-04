@@ -88,14 +88,7 @@ const FooterNav = () => {
                   isActive("/wishlist") ? "text-[#1e6553]" : "text-gray-600"
                 )}
               />
-              <span
-                className={cn(
-                  "absolute -top-1 -right-1 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center",
-                  isActive("/wishlist") ? "bg-[#1e6553]" : "bg-red-600"
-                )}
-              >
-                0
-              </span>
+           
             </div>
             <span
               className={cn(

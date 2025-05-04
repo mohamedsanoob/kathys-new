@@ -90,6 +90,9 @@ const page = async ({
   try {
     const product = (await getProductById(product_id)) as Product | null;
 
+
+    console.log(product,"-------->product")
+
     if (!product) {
       return <div>Product not found</div>;
     }

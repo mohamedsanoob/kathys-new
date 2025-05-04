@@ -1,9 +1,10 @@
-import WhishlistItems from "./_components/WhishlistItems"
+import WishListItems from "./_components/WishlistItems"
+
 
 const page = () => {
   return (
     <div>
-      <WhishlistItems />
+      <WishListItems />
     </div>
   )
 }
