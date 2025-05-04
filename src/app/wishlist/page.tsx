@@ -1,4 +1,5 @@
-import WishListItems from "./_components/WishlistItems"
+import WishListItems from "./_components/WishListItems"
+
 
 
 const page = () => {
