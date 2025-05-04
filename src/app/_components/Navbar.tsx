@@ -114,13 +114,18 @@ const Navbar = () => {
                     {/* Desktop Icons */}
                     <div className="hidden md:flex items-center gap-5">
                         <div className="cursor-pointer hover:text-[#1e6553] transition-colors">
-                            <Search size={22} />
+                          
+                                  <Link href="/search">
+                             <Search size={22} />
+                            </Link>
                         </div>
                         <div className="relative cursor-pointer hover:text-[#1e6553] transition-colors">
-                            <Heart size={22} />
-                            <span className="absolute -top-1 -right-1 bg-[#1e6553] text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
-                                3
-                            </span>
+                         
+
+                              <Link href="/wishlist">
+                               <Heart size={22} />
+                            </Link>
+                           
                         </div>
                         <div className="relative cursor-pointer hover:text-[#1e6553] transition-colors">
                             <Link href="/cart">
