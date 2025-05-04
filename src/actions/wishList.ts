@@ -21,7 +21,7 @@ export interface WishlistItem {
 
 export const getUserWishlist = async (userId: string): Promise<WishlistItem[]> => {
   try {
-    const wishlistRef = doc(db, "wishlist", userId);
+    const wishlistRef = doc(db, "wishlists", userId);
     const docSnap = await getDoc(wishlistRef);
     
     if (!docSnap.exists()) return [];
@@ -36,7 +36,7 @@ export const getUserWishlist = async (userId: string): Promise<WishlistItem[]> =
 
 export const removeFromWishlist = async (userId: string, productId: string): Promise<void> => {
   try {
-    const wishlistRef = doc(db, "wishlist", userId);
+    const wishlistRef = doc(db, "wishlists", userId);
     const docSnap = await getDoc(wishlistRef);
     
     if (!docSnap.exists()) throw new Error("Wishlist not found");
