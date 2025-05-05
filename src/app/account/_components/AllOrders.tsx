@@ -276,171 +276,22 @@ const AllOrders = () => {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Min Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  name="minAmount"
-                  value={filters.minAmount}
-                  onChange={handleFilterChange}
-                  className="w-full border border-gray-300 rounded-md p-2"
-                  placeholder="Minimum"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Max Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  name="maxAmount"
-                  value={filters.maxAmount}
-                  onChange={handleFilterChange}
-                  className="w-full border border-gray-300 rounded-md p-2"
-                  placeholder="Maximum"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  From Date
-                </label>
-                <input
-                  type="date"
-                  name="startDate"
-                  value={filters.startDate}
-                  onChange={handleFilterChange}
-                  className="w-full border border-gray-300 rounded-md p-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  To Date
-                </label>
-                <input
-                  type="date"
-                  name="endDate"
-                  value={filters.endDate}
-                  onChange={handleFilterChange}
-                  className="w-full border border-gray-300 rounded-md p-2"
-                />
-              </div>
-            </div>
+      
 
             <div className="flex justify-end gap-2 pt-4">
-              <button
-                onClick={resetFilters}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Reset
-              </button>
+           
               <button
                 onClick={() => setFilterOpen(false)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
-                Apply Filters
+                Apply Filter
               </button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Order Details Dialog */}
-      <Dialog open={orderOpen} fullWidth onClose={() => setOrderOpen(false)}>
-        <DialogContent>
-          {selectedOrder && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold">Order Details</h3>
-                <X
-                  className="cursor-pointer"
-                  onClick={() => setOrderOpen(false)}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-medium mb-2">Order Information</h4>
-                  <p>
-                    <strong>Order ID:</strong> {selectedOrder.order_id}
-                  </p>
-                  <p>
-                    <strong>Status:</strong> {selectedOrder.status}
-                  </p>
-                  <p>
-                    <strong>Total Amount:</strong> ₹{selectedOrder.items_total}
-                  </p>
-                  <p>
-                    <strong>Payment Method:</strong>{" "}
-                    {selectedOrder.payment_mode}
-                  </p>
-                  <p>
-                    <strong>Order Date:</strong>{" "}
-                    {convertTimestampToDate(
-                      selectedOrder.createdAt
-                    ).toLocaleString()}
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-2">Customer Details</h4>
-                  <p>
-                    <strong>Name:</strong> {selectedOrder.customer_details.name}
-                  </p>
-                  <p>
-                    <strong>Phone:</strong>{" "}
-                    {selectedOrder.customer_details.mobile_number}
-                  </p>
-                  <p>
-                    <strong>Address:</strong>{" "}
-                    {selectedOrder.customer_details.address}
-                  </p>
-                  <p>
-                    <strong>City:</strong> {selectedOrder.customer_details.city}
-                  </p>
-                  <p>
-                    <strong>Pincode:</strong>{" "}
-                    {selectedOrder.customer_details.pincode}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Order Items</h4>
-                <div className="border rounded-md divide-y">
-                  {selectedOrder.quantity_each.map((item, index) => (
-                    <div key={index} className="p-3 flex justify-between">
-                      <div>
-                        <p className="font-medium">{item.product_name}</p>
-                        {Object.entries(item.variant_details).map(
-                          ([key, value]) => (
-                            <p key={key} className="text-sm text-gray-600">
-                              {key}: {value}
-                            </p>
-                          )
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p>
-                          ₹{item.discounted_price} × {item.quantity}
-                        </p>
-                        <p className="font-medium">
-                          ₹{item.discounted_price * item.quantity}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+   
     </div>
   );
 };
