@@ -31,7 +31,7 @@ const Page = async ({ params }: { params: { id: string } }) => {
   const grandTotal = (itemsTotal + deliveryFee).toFixed(2);
 
   return (
-    <div className="max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-lg shadow-md mt-20">
+    <div className="max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-lg shadow-md mt-6">
       {/* Order header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-200 pb-6 mb-6">
         <div className="mb-4 sm:mb-0">
