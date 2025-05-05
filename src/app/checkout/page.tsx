@@ -263,7 +263,8 @@ const CheckoutPage = () => {
       if (paymentMode === 'cod') {
         try {
           const response = await axios.post("https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/cod", {
-            orderData: orderObject
+            orderData: orderObject,
+            authenticatedId: currentUser ? currentUser?.uid : undefined
           });
           
           setOrderDetails({
@@ -292,7 +293,8 @@ const CheckoutPage = () => {
       const orderResponse = await axios.post<OrderResponse>("https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/orders", {
         amount: total,
         currency: "INR",
-        orderData: orderObject
+        orderData: orderObject,
+        authenticatedId: currentUser ? currentUser?.uid : undefined
       });
 
       if (!orderResponse.data?.order) {
@@ -325,7 +327,8 @@ const CheckoutPage = () => {
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpayOrderId: response.razorpay_order_id,
                 razorpaySignature: response.razorpay_signature,
-                orderData: orderObject
+                orderData: orderObject,
+                authenticatedId : currentUser? currentUser?.uid : undefined
               }
             );
             
@@ -362,6 +365,7 @@ const CheckoutPage = () => {
                   setIsProcessingPayment(true);
               await axios.post("https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/cancel", {
                 orderId: order_id,
+                authenticatedId: currentUser ? currentUser?.uid : undefined,
                 reason: "User closed payment window"
               });
               setPaymentStatus('failed');
