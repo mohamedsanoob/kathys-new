@@ -215,10 +215,6 @@ const AllOrders = () => {
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-gray-500">Items</span>
-                  <span className="font-medium">{order.items.length}</span>
-                </div>
 
                 <div className="flex items-center justify-between text-sm mb-2">
                   <span className="text-gray-500">Total</span>
