@@ -1,5 +1,3 @@
-import { useAuth } from "@/context/AuthContext";
-import Navbar from "../_components/Navbar";
 import Addresses from "./_components/Addresses";
 import Account from "./_components/Account";
 import AllOrders from "./_components/AllOrders";
