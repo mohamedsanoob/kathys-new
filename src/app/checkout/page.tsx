@@ -501,6 +501,7 @@ const CheckoutPage = () => {
 
 
       <div id="recaptcha-container" className="hidden"></div>
+           <div style={{height:"50px",width:"100px"}}></div>
       <div className="left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 md:hidden fixed md:static  bottom-0 left-0 right-0 z-10">
         <div className="container mx-auto flex md:flex-row items-center justify-between gap-4">
           <div className="text-center md:text-left w-50">

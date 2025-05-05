@@ -31,7 +31,7 @@ const Page = async ({ params }: { params: { id: string } }) => {
   const grandTotal = (itemsTotal + deliveryFee).toFixed(2);
 
   return (
-    <div className="max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-lg shadow-md">
+    <div className="max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-lg shadow-md mt-20">
       {/* Order header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-200 pb-6 mb-6">
         <div className="mb-4 sm:mb-0">
@@ -172,24 +172,13 @@ const Page = async ({ params }: { params: { id: string } }) => {
             </div>
           </div>
         </div>
-        {res.trackingInfo?.courier && (
-          <div className="text-sm text-gray-600 space-y-1">
-            <p>
-              <span className="font-medium">Shipped via:</span>{" "}
-              {res.trackingInfo.courier}
-            </p>
-            {res.trackingInfo.trackingId && (
-              <p>
-                <span className="font-medium">Tracking ID:</span>{" "}
-                {res.trackingInfo.trackingId}
-              </p>
-            )}
-          </div>
-        )}
+  
       </div>
 
       {/* Order items */}
+    
       <div className="mb-8">
+           {res.trackingInfo?.courier && (
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3>Courier Name : {res.trackingInfo?.courier}</h3>
@@ -203,7 +192,7 @@ const Page = async ({ params }: { params: { id: string } }) => {
           >
             Track Order
           </Link>
-        </div>
+        </div>)}
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Order Items
         </h2>
