@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getUserOrders } from "@/actions/actions";
-import { X, Filter } from "lucide-react";
+import { X, Filter, ArrowRight, ShoppingBag } from "lucide-react";
 import { Dialog, DialogContent } from "@mui/material";
 import Link from "next/link";
 
@@ -123,10 +123,6 @@ const AllOrders = () => {
     setFilteredOrders(result);
   };
 
-  const handleOrderClick = (order: OrderType) => {
-    setSelectedOrder(order);
-    setOrderOpen(true);
-  };
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>
@@ -169,31 +165,86 @@ const AllOrders = () => {
       </div>
 
       {filteredOrders.length === 0 ? (
-        <div className="text-center text-gray-500 mt-10">
-          {userOrders.length === 0
-            ? "No Orders Found"
-            : "No orders match your filters"}
+        <div className="flex flex-col items-center justify-center py-12">
+          <ShoppingBag className="w-12 h-12 text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-500 mb-1">
+            {userOrders.length === 0
+              ? "You haven't placed any orders yet"
+              : "No matching orders found"}
+          </h3>
+          <p className="text-sm text-gray-400">
+            {userOrders.length === 0
+              ? "Start shopping to see your orders here"
+              : "Try adjusting your filters"}
+          </p>
+          {userOrders.length === 0 && (
+            <Link
+              href="/products"
+              className="mt-4 px-4 py-2 bg-primary-500 text-white rounded-md text-sm font-medium hover:bg-primary-600 transition-colors"
+            >
+              Browse Products
+            </Link>
+          )}
         </div>
       ) : (
-        <div className="flex flex-wrap gap-4 w-full">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredOrders.map((order) => (
             <Link
               key={order.id}
-              href={`/track-order/${order.order_id}`}
-              className="border border-gray-200 flex flex-col gap-1 rounded-md p-4 w-full sm:w-[calc(50%-1rem)] cursor-pointer hover:shadow-md transition"
+              href={`/track-order/${order.id}`}
+              className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-200 bg-white"
             >
-              <p className="text-md font-semibold">Order #{order.order_id}</p>
-              <p className="text-sm text-gray-600">
-                Total: ₹{order.items_total}
-              </p>
-              <p className="text-sm text-gray-600 capitalize">
-                Status: {order.status}
-              </p>
-              <p className="text-xs text-gray-400">
-                {order.createdAt
-                  ? convertTimestampToDate(order.createdAt).toLocaleString()
-                  : "Date unknown"}
-              </p>
+              <div className="p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Order #{order.id.slice(0, 8)}...
+                  </h3>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      order.status === "shipped"
+                        ? "bg-green-100 text-green-800"
+                        : order.status === "delivered"
+                        ? "bg-blue-100 text-blue-800"
+                        : order.status === "cancelled"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {order.status.charAt(0).toUpperCase() +
+                      order.status.slice(1)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-gray-500">Items</span>
+                  <span className="font-medium">{order.items.length}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-gray-500">Total</span>
+                  <span className="font-medium">
+                    ₹{order.items_total.toLocaleString("en-IN")}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Order Date</span>
+                  <span className="text-gray-600">
+                    {order.createdAt
+                      ? convertTimestampToDate(
+                          order.createdAt
+                        ).toLocaleDateString()
+                      : "-"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+                <div className="text-sm text-primary-600 font-medium flex items-center justify-between">
+                  <span>Track Order</span>
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </div>
             </Link>
           ))}
         </div>
