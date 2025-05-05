@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getUserOrders } from "@/actions/actions";
 import { X, Filter } from "lucide-react";
 import { Dialog, DialogContent } from "@mui/material";
+import Link from "next/link";
 
 interface OrderType {
   id: string;
@@ -87,23 +88,25 @@ const AllOrders = () => {
 
     // Status filter
     if (filters.status !== "all") {
-      result = result.filter(order => order.status.toLowerCase() === filters.status.toLowerCase());
+      result = result.filter(
+        (order) => order.status.toLowerCase() === filters.status.toLowerCase()
+      );
     }
 
     // Amount range filter
     if (filters.minAmount) {
       const min = parseFloat(filters.minAmount);
-      result = result.filter(order => order.items_total >= min);
+      result = result.filter((order) => order.items_total >= min);
     }
     if (filters.maxAmount) {
       const max = parseFloat(filters.maxAmount);
-      result = result.filter(order => order.items_total <= max);
+      result = result.filter((order) => order.items_total <= max);
     }
 
     // Date range filter
     if (filters.startDate) {
       const startDate = new Date(filters.startDate);
-      result = result.filter(order => {
+      result = result.filter((order) => {
         const orderDate = convertTimestampToDate(order.createdAt);
         return orderDate >= startDate;
       });
@@ -111,7 +114,7 @@ const AllOrders = () => {
     if (filters.endDate) {
       const endDate = new Date(filters.endDate);
       endDate.setHours(23, 59, 59, 999); // Include entire end day
-      result = result.filter(order => {
+      result = result.filter((order) => {
         const orderDate = convertTimestampToDate(order.createdAt);
         return orderDate <= endDate;
       });
@@ -125,11 +128,13 @@ const AllOrders = () => {
     setOrderOpen(true);
   };
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
+  const handleFilterChange = (
+    e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>
+  ) => {
     const { name, value } = e.target;
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -143,7 +148,10 @@ const AllOrders = () => {
     });
   };
 
-  const convertTimestampToDate = (timestamp: { seconds: number; nanoseconds: number }) => {
+  const convertTimestampToDate = (timestamp: {
+    seconds: number;
+    nanoseconds: number;
+  }) => {
     return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
   };
 
@@ -151,7 +159,7 @@ const AllOrders = () => {
     <div className="flex flex-col gap-4 w-full">
       <div className="flex justify-between items-center">
         <p className="text-lg font-medium">Showing all Orders</p>
-        <button 
+        <button
           onClick={() => setFilterOpen(true)}
           className="flex items-center gap-2 border border-gray-200 rounded-md py-1 px-4 cursor-pointer hover:bg-gray-50"
         >
@@ -162,23 +170,31 @@ const AllOrders = () => {
 
       {filteredOrders.length === 0 ? (
         <div className="text-center text-gray-500 mt-10">
-          {userOrders.length === 0 ? "No Orders Found" : "No orders match your filters"}
+          {userOrders.length === 0
+            ? "No Orders Found"
+            : "No orders match your filters"}
         </div>
       ) : (
         <div className="flex flex-wrap gap-4 w-full">
           {filteredOrders.map((order) => (
-            <div
+            <Link
               key={order.id}
+              href={`/track-order/${order.order_id}`}
               className="border border-gray-200 flex flex-col gap-1 rounded-md p-4 w-full sm:w-[calc(50%-1rem)] cursor-pointer hover:shadow-md transition"
-              onClick={() => handleOrderClick(order)}
             >
               <p className="text-md font-semibold">Order #{order.order_id}</p>
-              <p className="text-sm text-gray-600">Total: ₹{order.items_total}</p>
-              <p className="text-sm text-gray-600 capitalize">Status: {order.status}</p>
-              <p className="text-xs text-gray-400">
-                {order.createdAt ? convertTimestampToDate(order.createdAt).toLocaleString() : "Date unknown"}
+              <p className="text-sm text-gray-600">
+                Total: ₹{order.items_total}
               </p>
-            </div>
+              <p className="text-sm text-gray-600 capitalize">
+                Status: {order.status}
+              </p>
+              <p className="text-xs text-gray-400">
+                {order.createdAt
+                  ? convertTimestampToDate(order.createdAt).toLocaleString()
+                  : "Date unknown"}
+              </p>
+            </Link>
           ))}
         </div>
       )}
@@ -188,19 +204,24 @@ const AllOrders = () => {
         <DialogContent>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Filter Orders</h3>
-            <X className="cursor-pointer" onClick={() => setFilterOpen(false)} />
+            <X
+              className="cursor-pointer"
+              onClick={() => setFilterOpen(false)}
+            />
           </div>
-          
+
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
               <select
                 name="status"
                 value={filters.status}
                 onChange={handleFilterChange}
                 className="w-full border border-gray-300 rounded-md p-2"
               >
-                {statusOptions.map(option => (
+                {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -210,7 +231,9 @@ const AllOrders = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Min Amount (₹)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Min Amount (₹)
+                </label>
                 <input
                   type="number"
                   name="minAmount"
@@ -221,7 +244,9 @@ const AllOrders = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Max Amount (₹)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Max Amount (₹)
+                </label>
                 <input
                   type="number"
                   name="maxAmount"
@@ -235,7 +260,9 @@ const AllOrders = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  From Date
+                </label>
                 <input
                   type="date"
                   name="startDate"
@@ -245,7 +272,9 @@ const AllOrders = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  To Date
+                </label>
                 <input
                   type="date"
                   name="endDate"
@@ -281,29 +310,59 @@ const AllOrders = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold">Order Details</h3>
-                <X className="cursor-pointer" onClick={() => setOrderOpen(false)} />
+                <X
+                  className="cursor-pointer"
+                  onClick={() => setOrderOpen(false)}
+                />
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h4 className="font-medium mb-2">Order Information</h4>
-                  <p><strong>Order ID:</strong> {selectedOrder.order_id}</p>
-                  <p><strong>Status:</strong> {selectedOrder.status}</p>
-                  <p><strong>Total Amount:</strong> ₹{selectedOrder.items_total}</p>
-                  <p><strong>Payment Method:</strong> {selectedOrder.payment_mode}</p>
-                  <p><strong>Order Date:</strong> {convertTimestampToDate(selectedOrder.createdAt).toLocaleString()}</p>
+                  <p>
+                    <strong>Order ID:</strong> {selectedOrder.order_id}
+                  </p>
+                  <p>
+                    <strong>Status:</strong> {selectedOrder.status}
+                  </p>
+                  <p>
+                    <strong>Total Amount:</strong> ₹{selectedOrder.items_total}
+                  </p>
+                  <p>
+                    <strong>Payment Method:</strong>{" "}
+                    {selectedOrder.payment_mode}
+                  </p>
+                  <p>
+                    <strong>Order Date:</strong>{" "}
+                    {convertTimestampToDate(
+                      selectedOrder.createdAt
+                    ).toLocaleString()}
+                  </p>
                 </div>
-                
+
                 <div>
                   <h4 className="font-medium mb-2">Customer Details</h4>
-                  <p><strong>Name:</strong> {selectedOrder.customer_details.name}</p>
-                  <p><strong>Phone:</strong> {selectedOrder.customer_details.mobile_number}</p>
-                  <p><strong>Address:</strong> {selectedOrder.customer_details.address}</p>
-                  <p><strong>City:</strong> {selectedOrder.customer_details.city}</p>
-                  <p><strong>Pincode:</strong> {selectedOrder.customer_details.pincode}</p>
+                  <p>
+                    <strong>Name:</strong> {selectedOrder.customer_details.name}
+                  </p>
+                  <p>
+                    <strong>Phone:</strong>{" "}
+                    {selectedOrder.customer_details.mobile_number}
+                  </p>
+                  <p>
+                    <strong>Address:</strong>{" "}
+                    {selectedOrder.customer_details.address}
+                  </p>
+                  <p>
+                    <strong>City:</strong> {selectedOrder.customer_details.city}
+                  </p>
+                  <p>
+                    <strong>Pincode:</strong>{" "}
+                    {selectedOrder.customer_details.pincode}
+                  </p>
                 </div>
               </div>
-              
+
               <div>
                 <h4 className="font-medium mb-2">Order Items</h4>
                 <div className="border rounded-md divide-y">
@@ -311,15 +370,21 @@ const AllOrders = () => {
                     <div key={index} className="p-3 flex justify-between">
                       <div>
                         <p className="font-medium">{item.product_name}</p>
-                        {Object.entries(item.variant_details).map(([key, value]) => (
-                          <p key={key} className="text-sm text-gray-600">
-                            {key}: {value}
-                          </p>
-                        ))}
+                        {Object.entries(item.variant_details).map(
+                          ([key, value]) => (
+                            <p key={key} className="text-sm text-gray-600">
+                              {key}: {value}
+                            </p>
+                          )
+                        )}
                       </div>
                       <div className="text-right">
-                        <p>₹{item.discounted_price} × {item.quantity}</p>
-                        <p className="font-medium">₹{item.discounted_price * item.quantity}</p>
+                        <p>
+                          ₹{item.discounted_price} × {item.quantity}
+                        </p>
+                        <p className="font-medium">
+                          ₹{item.discounted_price * item.quantity}
+                        </p>
                       </div>
                     </div>
                   ))}

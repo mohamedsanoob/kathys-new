@@ -32,7 +32,7 @@ const Page = async ({ params }: { params: Promise<{ id: string }> }) => {
   const subCategoriesDetails = await Promise.all(subCategoriesPromises);
 
   const initialProducts = fetchedProducts.map((product) => ({
-    ...product,
+    ...product,ž
     createdDate: product.createdDate
       ? (product.createdDate as Timestamp).toMillis()
       : null,
