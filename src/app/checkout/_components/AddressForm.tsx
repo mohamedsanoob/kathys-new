@@ -173,7 +173,7 @@ const AddressForm = ({ register, errors, onSubmit }: AddressFormProps) => {
 
       <button
         type="submit"
-        className="w-full py-3  text-white font-medium rounded bg-bg-[#1e6553] hover:bg-bg-[#1e6553] transition-colors"
+        className="w-full py-3  text-white font-medium rounded bg-[#1e6553] hover:bg-[#1e6553] transition-colors"
         style={{cursor:"pointer"}}
       >
         Save Address
