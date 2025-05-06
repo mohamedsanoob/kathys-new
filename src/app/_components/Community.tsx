@@ -23,12 +23,14 @@ const communities = [
   },
 ];
 
+
+
 const Community = () => {
   return (
     <div className="max-w-[1290px] mx-auto pt-10 md:pt-20 pb-8 px-4">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 text-center md:text-left">
         <h4 className="text-3xl font-medium">
-          Join our 200k+
+          Join our 50k+
           <br />
           Community
         </h4>

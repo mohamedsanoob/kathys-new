@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
+import Link from "next/link";
 
 const Rating = () => {
   return (
@@ -22,7 +23,7 @@ const Rating = () => {
         {/* Headline Section */}
         <div className="flex flex-col gap-3">
           <p className="font-medium text-sm sm:text-base text-gray-600">
-            200K+ collections
+            50K+ collections
           </p>
           <h4 className="text-3xl sm:text-4xl font-semibold leading-snug">
             Kerala&apos;s Most Loved
@@ -30,7 +31,7 @@ const Rating = () => {
             Ethnic Store ❤️
           </h4>
           <p className="text-gray-500 text-sm sm:text-base">
-            With 200k+ fans, we’re proud to be Kerala&apos;s most loved ethnic
+            With 50k+ fans, we’re proud to be Kerala&apos;s most loved ethnic
             store! Explore timeless classics and trendy ethnic collections
             crafted for every occasion. Shop now and embrace elegance like never
             before!
@@ -38,13 +39,15 @@ const Rating = () => {
         </div>
 
         {/* CTA Button */}
-        <div className="inline-flex items-center gap-2 px-5 py-2 border border-gray-300 rounded-md hover:bg-gray-100 cursor-pointer transition w-fit">
+        <Link
+          href={"/categories"}
+          className="inline-flex items-center gap-2 px-5 py-2 border border-gray-300 rounded-md hover:bg-gray-100 cursor-pointer transition w-fit"
+        >
           <p className="text-sm sm:text-base">Shop Now</p>
           <ArrowRight size={18} />
-        </div>
+        </Link>
 
         <hr className="border-gray-200" />
-
         {/* Swiper (placeholder) */}
         <div>
           <Swiper slidesPerView={1} spaceBetween={10}>

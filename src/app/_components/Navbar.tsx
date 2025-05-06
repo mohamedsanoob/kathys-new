@@ -105,9 +105,9 @@ const Navbar = () => {
                             >
                                 {currentUser ? "ACCOUNT" : "LOGIN/REGISTER"}
                             </li>
-                            <li className="cursor-pointer hover:text-[#1e6553] transition-colors py-2">
+                            {/* <li className="cursor-pointer hover:text-[#1e6553] transition-colors py-2">
                                 <Link href="/contact" className="block">CONTACT</Link>
-                            </li>
+                            </li> */}
                         </ul>
                     </div>
 

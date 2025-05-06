@@ -297,13 +297,13 @@ const Page = async ({ params }: { params: { id: string } }) => {
               <span className="text-gray-600 font-medium">Payment Status:</span>{" "}
               <span
                 className={`${
-                  res.payment_status === "paid"
+                  res.status === "paid"
                     ? "text-green-600"
                     : "text-yellow-600"
                 }`}
               >
-                {res.payment_status.charAt(0).toUpperCase() +
-                  res.payment_status.slice(1)}
+                {res.status.charAt(0).toUpperCase() +
+                  res.status.slice(1)}
               </span>
             </p>
           </div>

@@ -19,7 +19,7 @@ const Help = () => {
             Need help?
           </p>
           <p className="text-2xl sm:text-3xl font-medium text-center md:text-left">
-            (+91) 9876543210
+            (+91) 919074912348
           </p>
           <p className="text-gray-400 text-sm sm:text-base text-center md:text-left">
             We are available 10am - 7pm
