@@ -63,8 +63,10 @@ const AllOrders = () => {
   });
 
   const fetchOrders = async (uid: string | undefined) => {
+    console.log(uid, "uid");
     if (!uid) return;
     const orders = await getUserOrders(uid);
+    console.log(orders, "orders");
     if (orders.length > 0) {
       setUserOrders(orders);
       setFilteredOrders(orders);
