@@ -57,7 +57,6 @@ export default function RootLayout({
         </AuthProvider>
 
         </Suspense>
-       
       </body>
     </html>
   );

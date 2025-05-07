@@ -14,6 +14,7 @@ interface ProductsSectionProps {
   totalProducts: number;
   itemsPerPage: number;
   categoryName: string;
+  categoryImage: string;
 }
 
 const ProductsSection: React.FC<ProductsSectionProps> = ({
@@ -21,6 +22,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   totalProducts,
   itemsPerPage,
   categoryName,
+  categoryImage,
 }) => {
   const [isGridView, setIsGridView] = useState(true);
   const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -37,18 +39,19 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   const router = useRouter();
 
   // Memoize params to avoid unnecessary recalculations
-  const { minPriceParam, maxPriceParam, colorParam, sizesParam } = useMemo(() => {
-    const minPrice = searchParams.get("minPrice");
-    const maxPrice = searchParams.get("maxPrice");
-    const color = searchParams.get("color");
-    const sizes = searchParams.get("sizes");
-    return {
-      minPriceParam: minPrice ? parseInt(minPrice) : undefined,
-      maxPriceParam: maxPrice ? parseInt(maxPrice) : undefined,
-      colorParam: color ? `${color}` : "",
-      sizesParam: sizes ? sizes.split(',') : [],
-    };
-  }, [searchParams]);
+  const { minPriceParam, maxPriceParam, colorParam, sizesParam } =
+    useMemo(() => {
+      const minPrice = searchParams.get("minPrice");
+      const maxPrice = searchParams.get("maxPrice");
+      const color = searchParams.get("color");
+      const sizes = searchParams.get("sizes");
+      return {
+        minPriceParam: minPrice ? parseInt(minPrice) : undefined,
+        maxPriceParam: maxPrice ? parseInt(maxPrice) : undefined,
+        colorParam: color ? `${color}` : "",
+        sizesParam: sizes ? sizes.split(",") : [],
+      };
+    }, [searchParams]);
 
   const toggleFilter = useCallback(() => {
     const params = new URLSearchParams(searchParams);
@@ -57,7 +60,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   }, [searchParams, router]);
 
   const fetchProducts = useCallback(async () => {
-    console.log(sizesParam,"dsc")
+    console.log(sizesParam, "dsc");
     setLoading(true);
     try {
       const { products: initialFetchProducts, lastVisible } =
@@ -78,7 +81,15 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [categoryName, itemsPerPage, sortBy, minPriceParam, maxPriceParam, colorParam, sizesParam]);
+  }, [
+    categoryName,
+    itemsPerPage,
+    sortBy,
+    minPriceParam,
+    maxPriceParam,
+    colorParam,
+    sizesParam,
+  ]);
 
   const fetchMoreProducts = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -94,7 +105,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
           minPriceParam,
           maxPriceParam,
           colorParam,
-          sizesParam.join(',')
+          sizesParam.join(",")
         );
 
       setProducts((prev) => {
@@ -120,7 +131,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
     minPriceParam,
     maxPriceParam,
     colorParam,
-    sizesParam
+    sizesParam,
   ]);
 
   // Initial load and filter changes
@@ -159,21 +170,19 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
 
   const clearSingleFilter = useCallback(
     (key: string) => {
-   
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete(key);
-  
-      if(searchParams.size===2){
-            router.push(window.location.pathname);
-      }else{
-   router.push(`?${newParams.toString()}`);
+
+      if (searchParams.size === 2) {
+        router.push(window.location.pathname);
+      } else {
+        router.push(`?${newParams.toString()}`);
       }
-   
     },
     [searchParams, router]
   );
 
-  console.log(searchParams.size,"adsa")
+  console.log(searchParams.size, "adsa");
 
   const clearAllFilters = useCallback(() => {
     router.push(window.location.pathname);
@@ -213,7 +222,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
       {/* Banner Image */}
       <div className="w-full relative aspect-[3/1] mb-4">
         <Image
-          src="https://dressupfashion.in/wp-content/uploads/2024/11/web3.jpg.webp"
+          src={categoryImage}
           alt="Category Banner"
           fill
           className="object-cover rounded"
@@ -308,30 +317,32 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
             </button>
           )}
 
-          {sizesParam.length > 0 && sizesParam.map((size) => (
-            <button
-              key={size}
-              onClick={() => {
-                const newSizes = sizesParam.filter(s => s !== size);
-                const newParams = new URLSearchParams(searchParams.toString());
-                if (newSizes.length > 0) {
-                  newParams.set("sizes", newSizes.join(','));
-                } else {
-                  newParams.delete("sizes");
-                }
-                  if(searchParams.size===2){
-            router.push(window.location.pathname);
-      }else{
-   router.push(`?${newParams.toString()}`);
-      }
-      
-              }}
-              className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
-            >
-              <X className="font-bold text-bold w-4 h-4" />
-              Size: {size}
-            </button>
-          ))}
+          {sizesParam.length > 0 &&
+            sizesParam.map((size) => (
+              <button
+                key={size}
+                onClick={() => {
+                  const newSizes = sizesParam.filter((s) => s !== size);
+                  const newParams = new URLSearchParams(
+                    searchParams.toString()
+                  );
+                  if (newSizes.length > 0) {
+                    newParams.set("sizes", newSizes.join(","));
+                  } else {
+                    newParams.delete("sizes");
+                  }
+                  if (searchParams.size === 2) {
+                    router.push(window.location.pathname);
+                  } else {
+                    router.push(`?${newParams.toString()}`);
+                  }
+                }}
+                className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+              >
+                <X className="font-bold text-bold w-4 h-4" />
+                Size: {size}
+              </button>
+            ))}
         </div>
       )}
 

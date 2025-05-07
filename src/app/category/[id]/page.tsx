@@ -24,6 +24,8 @@ const Page = async ({ params }: { params: Promise<{ id: string }> }) => {
   // Fetch current category details
   const currentCategory = await getCategoryById(id);
 
+  console.log(currentCategory, "currentCategory");
+
   // Fetch all subcategory details
   const subCategoriesPromises = (categories?.subCategories || []).map(
     (subCategoryId: string) => getCategoryById(subCategoryId)
@@ -92,6 +94,7 @@ const Page = async ({ params }: { params: Promise<{ id: string }> }) => {
             totalProducts={totalCount}
             itemsPerPage={ITEMS_PER_PAGE}
             categoryName={id}
+            categoryImage= {currentCategory?.images[0]}
           />
         </div>
       </div>
