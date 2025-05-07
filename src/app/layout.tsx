@@ -7,6 +7,7 @@ import "react-toastify/dist/ReactToastify.css";
 import Navbar from "./_components/Navbar";
 import FooterNav from "./_components/FooterNav";
 import { Suspense } from 'react'
+import NavigationProgress from "./_components/NavigationComponent";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -27,6 +28,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${jost.className} antialiased`}>
+             
+        <NavigationProgress />
+
            <Suspense fallback={
           <div className="flex justify-center items-center h-[100vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
