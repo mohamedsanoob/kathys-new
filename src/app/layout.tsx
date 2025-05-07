@@ -41,7 +41,7 @@ export default function RootLayout({
             <Navbar />
             <div className="md:pb-0 overflow-y-auto flex-1">
               {children}
-                          <div style={{height:"20px",width:"100px"}}></div>
+                         
             </div>
 
             <FooterNav />
