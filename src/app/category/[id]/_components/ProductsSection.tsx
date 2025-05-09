@@ -217,10 +217,13 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
     );
   }, [isGridView, products, categoryName]);
 
+
+  console.log(products,"----------->products")
+
   return (
     <div className="flex-1 w-full overflow-hidden px-2 md:px-0">
       {/* Banner Image */}
-      <div className="w-full relative aspect-[3/1] mb-4">
+      <div className="w-full relative aspect-[4/1] mb-4">
         <Image
           src={categoryImage}
           alt="Category Banner"
@@ -236,13 +239,13 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
           <LayoutGrid
             onClick={() => setIsGridView(true)}
             className={`cursor-pointer w-5 h-5 ${
-              isGridView ? "text-blue-500" : "text-gray-400"
+              isGridView ? "text-green-900" : "text-gray-400"
             }`}
           />
           <List
             onClick={() => setIsGridView(false)}
             className={`cursor-pointer w-5 h-5 ${
-              !isGridView ? "text-blue-500" : "text-gray-400"
+              !isGridView ? "text-green-900" : "text-gray-400"
             }`}
           />
           <p className="text-sm">

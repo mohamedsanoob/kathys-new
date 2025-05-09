@@ -7,6 +7,8 @@ import { Suspense } from "react";
 const Collections = async () => {
   const categoriesWithProducts = await getCollectionsWithProducts();
 
+  console.log(categoriesWithProducts,"=======>category")
+
   return (
     <div className="max-w-[1290px] mx-auto px-4">
       {categoriesWithProducts?.map((category) => (
@@ -16,9 +18,7 @@ const Collections = async () => {
             <h4 className="text-lg sm:text-xl md:text-2xl font-medium">
               {category.categoryName}
             </h4>
-            <p className="text-sm sm:text-base text-gray-500 max-w-md">
-              {category.description || "Explore our premium collection"}
-            </p>
+       { category?.description && <div dangerouslySetInnerHTML={{ __html: category?.description }} ></div> }     
           </div>
 
           {/* Products Grid */}

@@ -9,6 +9,7 @@ const ProductListItem = ({
 }: {
   product: Product;
   categoryName: string;
+  
 }) => (
   <div className="border-b pb-6">
     <div className="flex flex-col md:flex-row gap-4 md:gap-8">
@@ -36,22 +37,18 @@ const ProductListItem = ({
             </p>
           </div>
         </div>
-        <p className="text-gray-500 text-sm md:text-base">
-          Beautiful Ajrakh Printed 3 Pcs Cotton Side slit kurtis with bottom and
-          Dupatta with elegant Mirror works – With Lining
-        </p>
+
+        <div dangerouslySetInnerHTML={{ __html: product?.description }} />
+       
         <hr className="text-gray-200" />
-        <button className="hidden md:block text-white font-medium bg-amber-600 px-4 md:px-8 py-2 w-fit rounded-sm hover:bg-amber-700 transition-colors">
-          Select options
-        </button>
+        <Link    href={"/product/" + product.id} className="hidden md:block text-white font-medium bg-green-900 px-4 md:px-8 py-2 w-fit hover:bg-green-900 transition-colors">
+          View Product
+        </Link>
         <div className="text-sm">
           <p className="flex gap-2">
-            <span className="font-medium">SKU:</span> <span>N/A</span>
+            <span className="font-medium">SKU:</span> <span>{product?.skuId}</span>
           </p>
-          <p className="flex gap-2">
-            <span className="font-medium">Category:</span>{" "}
-            <span>{categoryName}</span>
-          </p>
+       
         </div>
       </div>
     </div>

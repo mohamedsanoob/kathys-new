@@ -353,10 +353,7 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
   }, [currentUser, product, selectedVariant]);
 
 
-console.log(  selectedVariant ,
-    productCount ,existingCartQty ,selectedVariant?.inventory ,
-    isLoading ,
-    productCount ,"myre")
+
 
   return (
     <div className="w-full lg:w-[55%] px-4 lg:px-8">
