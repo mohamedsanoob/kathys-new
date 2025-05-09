@@ -6,8 +6,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Navbar from "./_components/Navbar";
 import FooterNav from "./_components/FooterNav";
-import { Suspense } from 'react'
-import NavigationProgress from "./_components/NavigationComponent";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -28,34 +27,29 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${jost.className} antialiased`}>
-             
-        <NavigationProgress />
-
-           <Suspense fallback={
-          <div className="flex justify-center items-center h-[100vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
-      </div>
-        }>
-           <AuthProvider>
-          <div className="flex flex-col h-[100vh]">
-            <Navbar />
-            <div className="md:pb-0 overflow-y-auto flex-1">
-              {children}
-                         
+        <Suspense
+          fallback={
+            <div className="flex justify-center items-center h-[100vh]">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
             </div>
+          }
+        >
+          <AuthProvider>
+            <div className="flex flex-col h-[100vh]">
+              <Navbar />
+              <div className="md:pb-0 overflow-y-auto flex-1">{children}</div>
 
-            <FooterNav />
-          </div>
-          <ToastContainer
-            position="top-right"
-            autoClose={3000}
-            hideProgressBar={false}
-            closeOnClick
-            pauseOnHover
-            draggable
-          />
-        </AuthProvider>
-
+              <FooterNav />
+            </div>
+            <ToastContainer
+              position="top-right"
+              autoClose={3000}
+              hideProgressBar={false}
+              closeOnClick
+              pauseOnHover
+              draggable
+            />
+          </AuthProvider>
         </Suspense>
       </body>
     </html>
