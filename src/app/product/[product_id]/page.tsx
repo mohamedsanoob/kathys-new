@@ -140,9 +140,7 @@ const page = async ({
           </div>
           </div>
         <div className="flex flex-col gap-8 md:gap-16 max-w-[1290px] m-auto">
-          <p className="w-[90%] md:w-full m-auto mt-4 md:mt-6 mb-[-1rem] md:mb-[-2.4rem]">
-            {product.productName}
-          </p>
+          
           <div className="flex flex-col md:flex-row gap-10">
             <ProductImage images={product.images} />
             <ProductDetails product={simpleProduct as unknown as Product} />
