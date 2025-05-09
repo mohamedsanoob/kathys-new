@@ -136,11 +136,8 @@ const page = async ({
               <ArrowLeft className="w-4 h-4" />
               Back to products
             </Link>
-            <p className="mt-2">{product.productName}</p>
-          </div>
-          </div>
-        <div className="flex flex-col gap-8 md:gap-16 max-w-[1290px] m-auto">
-          
+            <p className="mt-2 mb-1">{product.productName}</p>
+        </div>
           <div className="flex flex-col md:flex-row gap-10">
             <ProductImage images={product.images} />
             <ProductDetails product={simpleProduct as unknown as Product} />
@@ -150,7 +147,9 @@ const page = async ({
             variants={product?.variants || []}
           />
           <RelatedProducts categories={product.categories} />
-        </div>
+         
+          </div>
+      
       </Suspense>
     );
   } catch (error) {
