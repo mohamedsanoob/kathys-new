@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { getProductsByCategory } from "@/actions/actions";
 import { Product } from "@/types/product";
 import Image from "next/image";
-import { LayoutGrid, List, ListFilter, X } from "lucide-react";
+import { LayoutGrid, List, ListFilter, Loader2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import namer from "color-namer";
 import ProductListItem from "./ProductListItem";
@@ -352,7 +352,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
       {/* Loading state for initial load */}
       {loading && (
         <div className="flex justify-center items-center h-64">
-          <div className="w-8 h-8 border-4 border-t-amber-500 border-gray-200 rounded-full animate-spin"></div>
+     <Loader2 className="animate-spin rounded-full h-12 w-12 text-green-700" />
         </div>
       )}
 
@@ -363,7 +363,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
       <div ref={loaderRef} className="mt-8 flex justify-center items-center">
         {loadingMore ? (
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 border-2 border-t-amber-500 border-gray-200 rounded-full animate-spin"></div>
+  <Loader2 className="animate-spin rounded-full h-12 w-12 text-green-700" />
             <span className="text-gray-600">Loading more...</span>
           </div>
         ) : hasMore ? (
