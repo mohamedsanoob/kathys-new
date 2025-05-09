@@ -43,7 +43,7 @@ export const PaymentSuccess = ({
 
       <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md justify-center">
         <Link
-          href="/orders"
+          href={`/track-order/${orderId}`}
           className="px-6 py-3 bg-[#1e6553] text-white font-medium rounded-md hover:bg-[#1e6553]/90 transition-colors text-center"
         >
           View Order Details

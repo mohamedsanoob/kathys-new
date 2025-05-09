@@ -36,7 +36,7 @@ const Page = async ({ params }: { params: { id: string } }) => {
       {/* Back button */}
       <div className="mb-4">
         <Link
-          href="/orders"
+          href="/"
           className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="mr-2" />
