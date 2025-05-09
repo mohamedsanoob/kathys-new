@@ -1,6 +1,7 @@
 import { getOrderById } from "@/actions/order";
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 const Page = async ({ params }: { params: { id: string } }) => {
   const res = await getOrderById(params.id);
@@ -32,6 +33,17 @@ const Page = async ({ params }: { params: { id: string } }) => {
 
   return (
     <div className="max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-lg shadow-md mt-6">
+      {/* Back button */}
+      <div className="mb-4">
+        <Link
+          href="/orders"
+          className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="mr-2" />
+          Back to Orders
+        </Link>
+      </div>
+
       {/* Order header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-200 pb-6 mb-6">
         <div className="mb-4 sm:mb-0">
@@ -48,6 +60,7 @@ const Page = async ({ params }: { params: { id: string } }) => {
         </div>
       </div>
 
+      {/* Rest of your existing code... */}
       {/* Order status */}
       <div className="mb-8 p-4 bg-gray-50 rounded-lg">
         <div className="flex items-center justify-between mb-4">
@@ -72,19 +85,6 @@ const Page = async ({ params }: { params: { id: string } }) => {
               : "Order Created"}
           </span>
         </div>
-        {/* <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3">
-          <div
-            className={`h-2.5 rounded-full ${
-              res.status === "shipped"
-                ? "bg-green-500 w-full" // 100% - final status
-                : res.status === "accepted"
-                ? "bg-blue-500 w-2/3" // 66% - almost there
-                : res.status === "pending"
-                ? "bg-yellow-500 w-1/3" // 33% - in progress
-                : "bg-gray-500 w-0" // 0% - just created
-            }`}
-          ></div>
-        </div> */}
 
         <div className="mb-6">
           {/* Progress bar */}
@@ -172,27 +172,26 @@ const Page = async ({ params }: { params: { id: string } }) => {
             </div>
           </div>
         </div>
-  
       </div>
 
       {/* Order items */}
-    
       <div className="mb-8">
-           {res.trackingInfo?.courier && (
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3>Courier Name : {res.trackingInfo?.courier}</h3>
-            <h4>Tracking ID : {res.trackingInfo?.trackingId}</h4>
+        {res.trackingInfo?.courier && (
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3>Courier Name : {res.trackingInfo?.courier}</h3>
+              <h4>Tracking ID : {res.trackingInfo?.trackingId}</h4>
+            </div>
+            <Link
+              href={"https://www.dtdc.in/trace.asp"}
+              className="text-sm font-medium bg-green-700 text-white rounded-md px-4 py-2 transition-colors"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Track Order
+            </Link>
           </div>
-          <Link
-            href={"https://www.dtdc.in/trace.asp"}
-            className="text-sm font-medium bg-green-700 text-white rounded-md px-4 py-2 transition-colors"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Track Order
-          </Link>
-        </div>)}
+        )}
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Order Items
         </h2>

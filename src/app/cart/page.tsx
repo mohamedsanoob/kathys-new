@@ -356,7 +356,7 @@ const CartPage = () => {
       <div className="bg-white border-t border-gray-200 py-3 px-4 md:hidden fixed md:static  bottom-0 left-0 right-0 z-10">
         <div className="flex items-center justify-between gap-4">
           <div className="text-center w-1/2">
-            <p className="font-semibold">Total: ₹{total.toFixed(2)}</p>
+            <p className="font-semibold">Total: ₹{parseFloat(total.toFixed(2)) + 75}</p>
           </div>
           <Link 
             href={(hasOutOfStockItems || cartProducts.length === 0) ? "#" : "/checkout"} 

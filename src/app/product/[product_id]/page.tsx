@@ -5,6 +5,8 @@ import ProductDescription from "./_components/ProductDescription";
 import RelatedProducts from "./_components/RelatedProducts";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 interface Product {
   skuId: string;
@@ -91,6 +93,8 @@ const page = async ({
   try {
     const product = (await getProductById(product_id)) as Product | null;
 
+    console.log(product,"-------->product")
+
     console.log(product, "-------->product");
 
     if (!product) {
@@ -122,6 +126,19 @@ const page = async ({
           </div>
         }
       >
+         <div className="flex flex-col gap-8 md:gap-16 max-w-[1290px] m-auto">
+          {/* Back button added here */}
+          <div className="w-[90%] md:w-full m-auto mt-4 md:mt-6 mb-[-1rem] md:mb-[-2.4rem]">
+            <Link 
+              href="/" 
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to products
+            </Link>
+            <p className="mt-2">{product.productName}</p>
+          </div>
+          </div>
         <div className="flex flex-col gap-8 md:gap-16 max-w-[1290px] m-auto">
           <p className="w-[90%] md:w-full m-auto mt-4 md:mt-6 mb-[-1rem] md:mb-[-2.4rem]">
             {product.productName}

@@ -3,8 +3,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { getCartProducts } from "@/actions/actions";
 import axios from "axios";
-import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
-import { auth, db } from "@/firebase/config";
+import {  db } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
 import {
   collection,
@@ -25,7 +24,6 @@ import {
 } from "@/types/checkout";
 import OrderSummary from "./_components/orderSummary";
 import BillingDetails from "./_components/BillingDetails";
-
 import { toast } from "react-toastify";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Loader2, XCircle } from "lucide-react";
@@ -43,7 +41,7 @@ declare global {
 }
 
 const PaymentLoader = () => (
-  <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm">
+  <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm">
     <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center w-[90%]">
       <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-[#1e6553] mx-auto mb-4"></div>
       <h2 className="text-xl font-semibold text-gray-800 mb-2">
@@ -174,6 +172,9 @@ const CheckoutPage = () => {
     return sum + price * product.quantity;
   }, 0);
 
+  const deliveryFee = paymentMode === 'cod' ? 150 : 75;
+  const grandTotal = total + deliveryFee;
+
   const loadScript = (src: string): Promise<boolean> => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -239,14 +240,14 @@ const CheckoutPage = () => {
     try {
       const orderObject = {
         cartId: localStorage.getItem("guestCartId") || `cart_${Date.now()}`,
-        payment_mode: paymentMode === "cod" ? "COD" : "Razorpay",
-        items_total: total,
+        payment_mode: paymentMode === 'cod' ? 'COD' : 'Razorpay',
+        items_total: grandTotal,
+        delivery: paymentMode === 'cod' ? 150 : 75,
         additional_info: data.notes || "",
         channel: "Web",
-        delivery: 0,
         orderStatus: "created",
         tax_amount: 0,
-        quantity_each: cartProductsWithDetails.map((product) => ({
+        quantity_each: cartProductsWithDetails.map(product => ({
           images: product?.images,
           product_id: product.id,
           product_name: product.productName,
@@ -281,9 +282,9 @@ const CheckoutPage = () => {
           nanoseconds: 0,
         },
         orderDetails: {
-          amount: total,
-          currency: "INR",
-        },
+          amount: grandTotal,
+          currency: "INR"
+        }
       };
 
       if (paymentMode === "cod") {
@@ -298,8 +299,8 @@ const CheckoutPage = () => {
 
           setOrderDetails({
             id: response.data.orderId,
-            amount: total,
-            paymentMethod: "cash on delivery",
+            amount: grandTotal,
+            paymentMethod: 'cash on delivery'
           });
           setPaymentStatus("success");
           localStorage.removeItem("guestCartId");
@@ -324,15 +325,15 @@ const CheckoutPage = () => {
         throw new Error("Razorpay SDK failed to load");
       }
 
-      const orderResponse = await axios.post<OrderResponse>(
-        "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/orders",
-        {
-          amount: total,
-          currency: "INR",
-          orderData: orderObject,
-          authenticatedId: currentUser ? currentUser?.uid : undefined,
-        }
-      );
+
+      console.log(grandTotal,"-------------->grand")
+
+      const orderResponse = await axios.post<OrderResponse>("https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/orders", {
+        amount: grandTotal,
+        currency: "INR",
+        orderData: orderObject,
+        authenticatedId: currentUser ? currentUser?.uid : undefined
+      });
 
       if (!orderResponse.data?.order) {
         throw new Error("Failed to create payment order");
@@ -342,38 +343,36 @@ const CheckoutPage = () => {
 
       setOrderDetails({
         id: order_id,
-        amount: total,
-        paymentMethod: "razorpay",
+        amount: grandTotal,
+        paymentMethod: 'razorpay'
       });
 
       const paymentOptions: RazorpayOptions = {
         key: process.env.RAZORPAY_KEY_ID || "rzp_test_N6VzhsIMdUpe3s",
-        amount: (total * 100).toString(),
+        amount: ((total + paymentMode === 'cod' ? 150 : 75) * 100).toString(),
         currency,
         name: "Kathy's Clothing Store",
         description: "Order Payment",
-        // image: "/logo.png",
         order_id,
         handler: async (response: RazorpayResponse) => {
           try {
             setIsProcessingPayment(true);
-            const verificationResponse =
-              await axios.post<PaymentSuccessResponse>(
-                "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/success",
-                {
-                  orderCreationId: order_id,
-                  razorpayPaymentId: response.razorpay_payment_id,
-                  razorpayOrderId: response.razorpay_order_id,
-                  razorpaySignature: response.razorpay_signature,
-                  orderData: orderObject,
-                  authenticatedId: currentUser ? currentUser?.uid : undefined,
-                }
-              );
-
+            const verificationResponse = await axios.post<PaymentSuccessResponse>(
+              "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/success",
+              {
+                orderCreationId: order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
+                orderData: orderObject,
+                authenticatedId: currentUser? currentUser?.uid : undefined
+              }
+            );
+            
             setOrderDetails({
               id: verificationResponse.data.orderId,
-              amount: total,
-              paymentMethod: "razorpay",
+              amount: grandTotal,
+              paymentMethod: 'razorpay'
             });
             setPaymentStatus("success");
             localStorage.removeItem("guestCartId");
@@ -403,23 +402,18 @@ const CheckoutPage = () => {
           ondismiss: async () => {
             try {
               setIsProcessingPayment(true);
-              await axios.post(
-                "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/cancel",
-                {
-                  orderId: order_id,
-                  authenticatedId: currentUser ? currentUser?.uid : undefined,
-                  reason: "User closed payment window",
-                }
-              );
-              setPaymentStatus("failed");
+              await axios.post("https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/cancel", {
+                orderId: order_id,
+                authenticatedId: currentUser ? currentUser?.uid : undefined,
+                reason: "User closed payment window"
+              });
+              setPaymentStatus('failed');
               setPaymentError("Payment was cancelled. Please try again.");
               setIsProcessingPayment(false);
             } catch (cancelError) {
               setIsProcessingPayment(false);
-              setPaymentStatus("failed");
-              setPaymentError(
-                "Payment was cancelled but there was an error updating your order."
-              );
+              setPaymentStatus('failed');
+              setPaymentError("Payment was cancelled but there was an error updating your order.");
             }
           },
         },
@@ -452,7 +446,11 @@ const CheckoutPage = () => {
     handlePlaceOrder();
   };
 
-  if (paymentStatus === "success" && orderDetails) {
+  const handlePhoneVerified = (phoneNumber: string) => {
+    console.log("Verified phone number:", phoneNumber);
+  };
+
+  if (paymentStatus === 'success' && orderDetails) {
     return (
       <PaymentSuccess
         orderId={orderDetails.id}
@@ -475,12 +473,6 @@ const CheckoutPage = () => {
       />
     );
   }
-
-  const handlePhoneVerified = (phoneNumber: string) => {
-    console.log("Verified phone number:", phoneNumber);
-  };
-
-  console.log((!selectedAddress || !termsAgreed) && !showAddressForm);
 
   return (
     <Suspense
@@ -564,43 +556,40 @@ const CheckoutPage = () => {
           onSuccess={handlePhoneVerified}
         />
 
-        <div id="recaptcha-container" className="hidden"></div>
-        <div style={{ height: "50px", width: "100px" }}></div>
-        <div className="left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 md:hidden fixed md:static  bottom-0 left-0 right-0 z-10">
-          <div className="container mx-auto flex md:flex-row items-center justify-between gap-4">
-            <div className="text-center md:text-left w-50">
-              <p className="font-semibold">Total: ₹{total.toFixed(2)}</p>
-            </div>
+    
 
-            <button
-              onClick={handleOrderButtonClick}
-              disabled={
-                (currentUser
-                  ? !selectedAddress || !termsAgreed || showAddressForm
-                  : !isValid || !termsAgreed) || isProcessingPayment
-              }
-              className={`w-full py-3 rounded-md text-white font-semibold ${
-                (
-                  currentUser
-                    ? selectedAddress &&
-                      termsAgreed &&
-                      !showAddressForm &&
-                      (!showPaymentMode || paymentMode)
-                    : isValid &&
-                      termsAgreed &&
-                      (!showPaymentMode || paymentMode)
-                )
-                  ? "bg-[#1e6553] hover:bg-[#1e6553]"
-                  : "bg-gray-400 cursor-not-allowed"
-              } transition-colors`}
-            >
-              {isProcessingPayment
-                ? "Processing..."
-                : showPaymentMode
-                ? paymentMode
-                  ? `Pay ₹${total.toFixed(2)}`
+      <div id="recaptcha-container" className="hidden"></div>
+      <div style={{height:"50px",width:"100px"}}></div>
+      
+      <div className="left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 md:hidden fixed md:static bottom-0 left-0 right-0 z-10">
+        <div className="container mx-auto flex md:flex-row items-center justify-between gap-4">
+          <div className="text-center md:text-left w-50">
+            <p className="font-semibold">Total: ₹{parseFloat(grandTotal.toFixed(2))}</p>
+        
+          </div>
+
+          <button
+            onClick={handleOrderButtonClick}
+            disabled={
+              (currentUser 
+                ? !selectedAddress || !termsAgreed || showAddressForm
+                : !isValid || !termsAgreed) || isProcessingPayment 
+            }
+            className={`w-full py-3 rounded-md text-white font-semibold ${
+              (currentUser ? selectedAddress && termsAgreed && !showAddressForm && (!showPaymentMode || paymentMode) 
+                : isValid && termsAgreed && (!showPaymentMode || paymentMode))
+                ? "bg-[#1e6553] hover:bg-[#1e6553]" 
+                : "bg-gray-400 cursor-not-allowed"
+            } transition-colors`}
+          >
+            {isProcessingPayment ? (
+              "Processing..."
+            ) : (
+              showPaymentMode 
+                ? paymentMode 
+                  ? `Pay ₹${grandTotal.toFixed(2)}` 
                   : "Select Payment Method"
-                : "Continue"}
+                : "Continue")}
             </button>
           </div>
         </div>
