@@ -1,4 +1,5 @@
 import { getAllCategories } from "@/actions/actions";
+import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -7,16 +8,18 @@ export default async function CategoriesList() {
   const categories = await getAllCategories();
   
   return (
-    <Suspense fallback={
-      <div className="flex justify-center items-center h-[100vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center h-[100vh]">
+          <Loader2 className="animate-spin rounded-full h-12 w-12 text-green-700" />
+        </div>
+      }
+    >
       <div className="p-4 md:w-[92%] md:m-auto">
         <h1 className="text-1xl mb-3">All Category</h1>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {categories.map(category => (
-            <Link 
+          {categories.map((category) => (
+            <Link
               key={category.id}
               href={`/category/${category.id}`}
               className="group relative block rounded-lg overflow-hidden hover:shadow-md transition-all"
@@ -40,7 +43,7 @@ export default async function CategoriesList() {
                   </div>
                 )}
               </div>
-              
+
               {/* Category Name Overlay */}
               <div className="absolute inset-0 bg-black/20 flex items-end p-3">
                 <h3 className="text-white font-medium text-center w-full drop-shadow-md">

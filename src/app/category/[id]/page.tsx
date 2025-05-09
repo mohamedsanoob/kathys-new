@@ -5,6 +5,7 @@ import { Timestamp } from "firebase/firestore";
 import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
+import { Loader2 } from "lucide-react";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -46,7 +47,7 @@ const Page = async ({ params }: { params: Promise<{ id: string }> }) => {
     <Suspense
       fallback={
         <div className="flex justify-center items-center h-[100vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+          <Loader2 className="animate-spin rounded-full h-12 w-12 text-green-700" />
         </div>
       }
     >
@@ -94,7 +95,7 @@ const Page = async ({ params }: { params: Promise<{ id: string }> }) => {
             totalProducts={totalCount}
             itemsPerPage={ITEMS_PER_PAGE}
             categoryName={id}
-            categoryImage= {currentCategory?.images[0]}
+            categoryImage={currentCategory?.images[0]}
           />
         </div>
       </div>

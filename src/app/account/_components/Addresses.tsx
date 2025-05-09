@@ -5,9 +5,16 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { Button, Dialog, DialogContent, MenuItem, TextField } from "@mui/material";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  MenuItem,
+  TextField,
+} from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 import { getUserAddresses, updateUserAddress } from "@/actions/actions";
+import { deleteUserAddressById } from "@/actions/address";
 
 interface FormData {
   name: string;
@@ -34,11 +41,20 @@ interface AddressType {
 
 const validationSchema = yup.object().shape({
   name: yup.string().required("Name is required"),
-  mobile: yup.string().matches(/^[0-9]{10}$/, "Mobile number must be 10 digits").required("Mobile number is required"),
-  email: yup.string().email("Invalid email format").required("Email is required"),
+  mobile: yup
+    .string()
+    .matches(/^[0-9]{10}$/, "Mobile number must be 10 digits")
+    .required("Mobile number is required"),
+  email: yup
+    .string()
+    .email("Invalid email format")
+    .required("Email is required"),
   address: yup.string().required("Address is required"),
   city: yup.string().required("City is required"),
-  pincode: yup.string().matches(/^[0-9]{6}$/, "Pincode must be 6 digits").required("Pincode is required"),
+  pincode: yup
+    .string()
+    .matches(/^[0-9]{6}$/, "Pincode must be 6 digits")
+    .required("Pincode is required"),
   state: yup.string().required("State is required"),
 });
 
@@ -53,23 +69,47 @@ const commonTextFieldStyles = {
   "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
     borderColor: "#000",
   },
-  "& .MuiFormHelperText-root": {
-  },
+  "& .MuiFormHelperText-root": {},
 };
 
 const states = [
-  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa",
-  "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
-  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland",
-  "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
-  "Uttar Pradesh", "Uttarakhand", "West Bengal",
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
 ];
 
 const Addresses = () => {
   const { currentUser } = useAuth();
   const [userAddresses, setUserAddresses] = useState<AddressType[]>([]);
   const [editOpen, setEditOpen] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<AddressType | null>(null);
+  const [editingAddress, setEditingAddress] = useState<AddressType | null>(
+    null
+  );
 
   const {
     control,
@@ -121,7 +161,11 @@ const Addresses = () => {
       pinCode: data.pincode,
     };
 
-    const success = await updateUserAddress(currentUser.uid, editingAddress.id, updatedData);
+    const success = await updateUserAddress(
+      currentUser.uid,
+      editingAddress.id,
+      updatedData
+    );
 
     if (success) {
       console.log("Address updated!");
@@ -146,6 +190,12 @@ const Addresses = () => {
     setEditOpen(true);
   };
 
+  const handleDelete = (address: AddressType) => {
+    if (address.id && currentUser?.uid) {
+      deleteUserAddressById(currentUser?.uid, address.id);
+    }
+  };
+
   return (
     <div className="flex flex-wrap gap-4 w-full">
       {userAddresses.map((address) => (
@@ -166,11 +216,15 @@ const Addresses = () => {
             >
               Edit
             </p>
-            <p className="font-medium cursor-pointer text-red-500">Delete</p>
+            <p
+              className="font-medium cursor-pointer text-red-500"
+              onClick={() => handleDelete(address)}
+            >
+              Delete
+            </p>
           </div>
         </div>
       ))}
-
       <Dialog open={editOpen} fullWidth>
         <DialogContent>
           <div className="flex justify-between">
