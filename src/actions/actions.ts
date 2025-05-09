@@ -549,7 +549,7 @@ export const getProductsByCategory = async (
     const productsSnapshots = await Promise.all(queryPromises);
     
     // Combine and deduplicate results
-    let allProducts = productsSnapshots.flatMap(snapshot => 
+    const allProducts = productsSnapshots.flatMap(snapshot => 
       snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
     );
     
