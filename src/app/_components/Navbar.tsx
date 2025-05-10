@@ -7,14 +7,26 @@ import PhoneAuthModal from "./PhoneAuthModal";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/useCart";
+import useTrackView from "@/hooks/useTrackView";
+
+
+
+
 
 const Navbar = () => {
-  const { currentUser } = useAuth();
-  const router = useRouter();
-  const { totalQuantity, totalPrice, isLoading, isUpdating } = useCart();
+useTrackView()
+    const { currentUser } = useAuth();
+    const router = useRouter();
+    const { totalQuantity, totalPrice, isLoading, isUpdating } = useCart();
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [showPhoneAuth, setShowPhoneAuth] = useState(false);
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showPhoneAuth, setShowPhoneAuth] = useState(false);
+
+
+
+
+
+
 
   const handlePhoneVerified = (phoneNumber: string) => {
     console.log("Verified phone number:", phoneNumber);

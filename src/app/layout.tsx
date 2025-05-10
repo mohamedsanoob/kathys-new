@@ -9,6 +9,7 @@ import FooterNav from "./_components/FooterNav";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 
+
 export const metadata: Metadata = {
   title: "Kathys Clothing Store",
   description: "Your one-stop shopping destination",

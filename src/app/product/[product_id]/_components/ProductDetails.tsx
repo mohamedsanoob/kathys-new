@@ -9,6 +9,7 @@ import { db } from "@/firebase/config";
 import { toast } from "react-toastify";
 import PhoneAuthModal from "@/app/_components/PhoneAuthModal";
 
+
 interface Product {
   skuId: string;
   unitQuantity: number;
@@ -75,6 +76,7 @@ interface CartProduct {
 }
 
 const ProductDetails = ({ product }: { product: Product }) => {
+     
   const { refreshCart } = useCart();
   const [selectedVariant, setSelectedVariant] = useState<VariantDetail | null>(
     null
