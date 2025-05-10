@@ -291,7 +291,7 @@ const CheckoutPage = () => {
       if (paymentMode === "cod") {
         try {
           const response = await axios.post(
-            "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/cod",
+            "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api/payment/cod",
             {
               orderData: orderObject,
               authenticatedId: currentUser ? currentUser?.uid : undefined,
@@ -333,7 +333,7 @@ const CheckoutPage = () => {
       console.log(grandTotal, "-------------->grand");
 
       const orderResponse = await axios.post<OrderResponse>(
-        "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/orders",
+        "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api/payment/orders",
         {
           amount: grandTotal,
           currency: "INR",
@@ -367,7 +367,7 @@ const CheckoutPage = () => {
             setIsProcessingPayment(true);
             const verificationResponse =
               await axios.post<PaymentSuccessResponse>(
-                "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/success",
+                "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api/payment/success",
                 {
                   orderCreationId: order_id,
                   razorpayPaymentId: response.razorpay_payment_id,
@@ -412,7 +412,7 @@ const CheckoutPage = () => {
             try {
               setIsProcessingPayment(true);
               await axios.post(
-                "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/cancel",
+                "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api/payment/cancel",
                 {
                   orderId: order_id,
                   authenticatedId: currentUser ? currentUser?.uid : undefined,
