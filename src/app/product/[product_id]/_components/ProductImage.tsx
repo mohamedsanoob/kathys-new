@@ -24,30 +24,25 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    
+
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   if (!images || images.length === 0) return <p>No images available</p>;
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!imageRef.current || !zoom) return;
-    const { left, top, width, height } = imageRef.current.getBoundingClientRect();
-    let x = ((e.clientX - left) / width) * 100;
-    let y = ((e.clientY - top) / height) * 100;
+    if (!imageRef.current || !zoom || isMobile) return;
+    const { left, top, width, height } =
+      imageRef.current.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
 
-    // Add more gap on mobile by limiting the position range
-    if (isMobile) {
-      x = Math.max(25, Math.min(75, x)); // Keep cursor within center 50% of image
-      y = Math.max(25, Math.min(75, y));
-    } else {
-      x = Math.max(0, Math.min(100, x));
-      y = Math.max(0, Math.min(100, y));
-    }
-
-    setPosition({ x, y });
+    setPosition({
+      x: Math.max(0, Math.min(100, x)),
+      y: Math.max(0, Math.min(100, y)),
+    });
   };
 
   return (
@@ -65,8 +60,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
           <SwiperSlide key={index}>
             <div
               ref={imageRef}
-              className="relative overflow-hidden cursor-zoom-in h-auto"
-              onTouchStart={() => isMobile && setZoom(prev => !prev)}
+              className="relative overflow-hidden"
               onMouseEnter={() => !isMobile && setZoom(true)}
               onMouseLeave={() => !isMobile && setZoom(false)}
               onMouseMove={handleMouseMove}
@@ -76,24 +70,12 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
                 alt="product-image"
                 width={1000}
                 height={1000}
-                className="transition-transform duration-200 object-cover lg:object-contain"
+                className="object-cover lg:object-contain"
                 style={{
-                  transform: zoom 
-                    ? `scale(${isMobile ? 1.8 : 2.4})` 
-                    : "scale(1)",
+                  transform: !isMobile && zoom ? "scale(2.4)" : "scale(1)",
                   transformOrigin: `${position.x}% ${position.y}%`,
                 }}
               />
-              {isMobile && zoom && (
-                <div className="absolute inset-0 border-2 border-gray-400 pointer-events-none"
-                  style={{
-                    left: '25%',
-                    right: '25%',
-                    top: '25%',
-                    bottom: '25%',
-                  }}
-                ></div>
-              )}
             </div>
           </SwiperSlide>
         ))}
@@ -106,7 +88,6 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
         watchSlidesProgress={true}
         modules={[FreeMode, Navigation, Thumbs]}
         className="mySwiper"
-        style={{ width: "100px !important" }}
       >
         {images.map((image, index) => (
           <SwiperSlide key={index} className="w-10">

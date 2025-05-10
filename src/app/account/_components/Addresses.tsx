@@ -198,6 +198,7 @@ const Addresses = () => {
 
   return (
     <div className="flex flex-wrap gap-4 w-full">
+      {userAddresses.length === 0 && <p className="text-center text-gray-500 w-full py-4">No addresses found</p>}
       {userAddresses.map((address) => (
         <div
           key={address.id}

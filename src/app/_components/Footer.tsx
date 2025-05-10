@@ -83,14 +83,6 @@ const Footer = () => {
                   My Account
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/track-order"
-                  className="hover:text-white transition-colors"
-                >
-                  Track Order
-                </Link>
-              </li>
             </ul>
           </div>
         </div>

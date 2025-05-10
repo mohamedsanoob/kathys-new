@@ -179,7 +179,7 @@ const AllOrders = () => {
           </p>
           {userOrders.length === 0 && (
             <Link
-              href="/products"
+              href="/categories"
               className="mt-4 px-6 py-2 bg-green-700 text-white rounded-full text-sm font-medium hover:bg-green-800 transition-colors shadow-sm"
             >
               Browse Products
