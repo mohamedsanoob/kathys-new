@@ -6,8 +6,10 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const Page = () => {
+  const user = useAuth()
   const { id } = useParams();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -62,7 +64,7 @@ const Page = () => {
     <div className="max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-lg shadow-md mt-6">
       <div className="mb-4">
         <Link
-          href="/"
+          href={`${user.currentUser?'/account?category=orders':'/'}`}
           className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="mr-2" />
