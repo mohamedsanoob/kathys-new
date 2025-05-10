@@ -498,7 +498,7 @@ const CheckoutPage = () => {
       }
     >
       <div
-        className="flex flex-col justify-between bg-gray-50"
+        className="flex flex-col  bg-gray-50"
         style={{ height: "100%" }}
       >
         {isProcessingPayment && <PaymentLoader />}
