@@ -32,7 +32,7 @@ const page = ({ searchParams }: { searchParams: { category?: string } }) => {
     <div>
       <div>
     <Account/>
-        <div className="flex flex-col md:flex-row border border-gray-200 rounded-md md:shadow-md w-[90%]  mx-auto">
+        <div className="flex flex-col md:flex-row border border-gray-200 rounded-md md:shadow-md w-[92%]  mx-auto">
           {/* Mobile back button - shown only when content is visible on mobile */}
           {showContentOnMobile && (
             <div className="md:hidden flex items-center p-4 border-b border-gray-200">
