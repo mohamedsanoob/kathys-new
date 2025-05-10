@@ -482,7 +482,7 @@ const CheckoutPage = () => {
         </div>
       }
     >
-      <div className="flex flex-col bg-gray-50" style={{ height: "100%" }}>
+      <div className="flex flex-col justify-between bg-gray-50" style={{ height: "100%" }}>
         {isProcessingPayment && <PaymentLoader />}
 
         <div className="bg-white border-b border-gray-200 py-4 px-4 flex items-center">
@@ -555,13 +555,7 @@ const CheckoutPage = () => {
           onClose={() => setShowLogin(false)}
           onSuccess={handlePhoneVerified}
         />
-
-    
-
-      <div id="recaptcha-container" className="hidden"></div>
-      <div style={{height:"50px",width:"100px"}}></div>
-      
-      <div className="left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 md:hidden fixed md:static bottom-0 left-0 right-0 z-10">
+      <div className=" bg-white border-t border-gray-200 py-3 px-4 md:hidden">
         <div className="container mx-auto flex md:flex-row items-center justify-between gap-4">
           <div className="text-center md:text-left w-50">
             <p className="font-semibold">Total: ₹{parseFloat(grandTotal.toFixed(2))}</p>

@@ -129,7 +129,7 @@ const CartPage = () => {
   }
 
   return (
-    <div className="flex flex-col lg:pt-10 h-[100%]">
+    <div className="flex flex-col lg:pt-10 h-full justify-between">
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-16 p-4 md:p-8 lg:px-[6%] flex-1 overflow-y-scroll">
         {/* Mobile View */}
         <div className="lg:hidden w-full">
@@ -353,7 +353,7 @@ const CartPage = () => {
       </div>
 
       {/* Mobile Checkout Bar */}
-      <div className="bg-white border-t border-gray-200 py-3 px-4 md:hidden fixed md:static  bottom-0 left-0 right-0 z-10">
+      <div className="bg-white border-t border-gray-200 py-3 px-4 md:hidden">
         <div className="flex items-center justify-between gap-4">
           <div className="text-center w-1/2">
             <p className="font-semibold">Total: ₹{parseFloat(total.toFixed(2)) + 75}</p>

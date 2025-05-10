@@ -262,7 +262,7 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="fixed inset-0 bg-black z-20 md:hidden"
+                className="fixed inset-0 bg-black z-999 md:hidden"
                 onClick={toggleMobileMenu}
                 transition={{ duration: 0.2 }}
               />

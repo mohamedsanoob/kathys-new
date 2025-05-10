@@ -34,10 +34,10 @@ const Navbar = () => {
   return (
     <>
       {/* Fixed Navbar for Mobile */}
-      <nav className=" shadow-sm bg-white z-50 w-full border-b border-gray-100">
+      <nav className=" shadow-sm bg-white w-full border-b border-gray-100">
         <div className="relative flex items-center justify-between mx-auto h-14 md:h-[5.25rem] px-4 sm:px-6 lg:px-8 max-w-[1290px]">
           {/* Mobile Menu Button */}
-          <div className="md:hidden z-10">
+          <div className="md:hidden">
             <button
               onClick={toggleMobileMenu}
               className="text-gray-700 hover:text-[#1e6553] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1e6553] rounded-md transition-colors"
@@ -221,9 +221,6 @@ const Navbar = () => {
         onClose={() => setShowPhoneAuth(false)}
         onSuccess={handlePhoneVerified}
       />
-
-      {/* Spacer for mobile to prevent content from being hidden behind fixed navbar */}
-      <div className="h-14 md:hidden"></div>
     </>
   );
 };
