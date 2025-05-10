@@ -256,16 +256,7 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
         <AnimatePresence>
           {isMobileMenuOpen && (
             <>
-              <motion.div
-                key="overlay"
-                variants={overlayVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                className="fixed inset-0 z-999 md:hidden"
-                onClick={toggleMobileMenu}
-                transition={{ duration: 0.2 }}
-              />
+        
 
               <motion.div
                 key="menu"
