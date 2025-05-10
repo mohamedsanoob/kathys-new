@@ -192,7 +192,9 @@ const Addresses = () => {
 
   const handleDelete = (address: AddressType) => {
     if (address.id && currentUser?.uid) {
-      deleteUserAddressById(currentUser?.uid, address.id);
+      deleteUserAddressById(currentUser?.uid, address.id).then(()=>{
+              fetchAddresses(currentUser.uid);
+      })
     }
   };
 
