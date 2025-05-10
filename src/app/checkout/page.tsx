@@ -3,7 +3,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { getCartProducts } from "@/actions/actions";
 import axios from "axios";
-import {  db } from "@/firebase/config";
+import { db } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
 import {
   collection,
@@ -172,7 +172,7 @@ const CheckoutPage = () => {
     return sum + price * product.quantity;
   }, 0);
 
-  const deliveryFee = paymentMode === 'cod' ? 150 : 75;
+  const deliveryFee = paymentMode === "cod" ? 150 : 75;
   const grandTotal = total + deliveryFee;
 
   const loadScript = (src: string): Promise<boolean> => {
@@ -206,6 +206,7 @@ const CheckoutPage = () => {
   const handlePlaceOrder = async () => {
     if (paymentMode === "") {
       setShowPaymentMode(true);
+      window.scrollTo(0, 0);
       setPaymentModeError(true);
       return;
     } else {
@@ -240,14 +241,14 @@ const CheckoutPage = () => {
     try {
       const orderObject = {
         cartId: localStorage.getItem("guestCartId") || `cart_${Date.now()}`,
-        payment_mode: paymentMode === 'cod' ? 'COD' : 'Razorpay',
+        payment_mode: paymentMode === "cod" ? "COD" : "Razorpay",
         items_total: grandTotal,
-        delivery: paymentMode === 'cod' ? 150 : 75,
+        delivery: paymentMode === "cod" ? 150 : 75,
         additional_info: data.notes || "",
         channel: "Web",
         orderStatus: "created",
         tax_amount: 0,
-        quantity_each: cartProductsWithDetails.map(product => ({
+        quantity_each: cartProductsWithDetails.map((product) => ({
           images: product?.images,
           product_id: product.id,
           product_name: product.productName,
@@ -283,8 +284,8 @@ const CheckoutPage = () => {
         },
         orderDetails: {
           amount: grandTotal,
-          currency: "INR"
-        }
+          currency: "INR",
+        },
       };
 
       if (paymentMode === "cod") {
@@ -297,14 +298,18 @@ const CheckoutPage = () => {
             }
           );
 
+     
+
           setOrderDetails({
             id: response.data.orderId,
             amount: grandTotal,
-            paymentMethod: 'cash on delivery'
+            paymentMethod: "cash on delivery",
           });
-          setPaymentStatus("success");
+
+          window.dispatchEvent(new Event("cart-remove-all"));
           localStorage.removeItem("guestCartId");
           setIsProcessingPayment(false);
+          setPaymentStatus("success");
           return;
         } catch (error: any) {
           console.error("COD order error:", error);
@@ -325,15 +330,17 @@ const CheckoutPage = () => {
         throw new Error("Razorpay SDK failed to load");
       }
 
+      console.log(grandTotal, "-------------->grand");
 
-      console.log(grandTotal,"-------------->grand")
-
-      const orderResponse = await axios.post<OrderResponse>("https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/orders", {
-        amount: grandTotal,
-        currency: "INR",
-        orderData: orderObject,
-        authenticatedId: currentUser ? currentUser?.uid : undefined
-      });
+      const orderResponse = await axios.post<OrderResponse>(
+        "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/orders",
+        {
+          amount: grandTotal,
+          currency: "INR",
+          orderData: orderObject,
+          authenticatedId: currentUser ? currentUser?.uid : undefined,
+        }
+      );
 
       if (!orderResponse.data?.order) {
         throw new Error("Failed to create payment order");
@@ -344,35 +351,37 @@ const CheckoutPage = () => {
       setOrderDetails({
         id: order_id,
         amount: grandTotal,
-        paymentMethod: 'razorpay'
+        paymentMethod: "razorpay",
       });
 
       const paymentOptions: RazorpayOptions = {
         key: process.env.RAZORPAY_KEY_ID || "rzp_test_N6VzhsIMdUpe3s",
-        amount: ((total + paymentMode === 'cod' ? 150 : 75) * 100).toString(),
+        amount: ((total + paymentMode === "cod" ? 150 : 75) * 100).toString(),
         currency,
         name: "Kathy's Clothing Store",
         description: "Order Payment",
         order_id,
         handler: async (response: RazorpayResponse) => {
           try {
+            window.dispatchEvent(new Event("cart-remove-all"));
             setIsProcessingPayment(true);
-            const verificationResponse = await axios.post<PaymentSuccessResponse>(
-              "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/success",
-              {
-                orderCreationId: order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpaySignature: response.razorpay_signature,
-                orderData: orderObject,
-                authenticatedId: currentUser? currentUser?.uid : undefined
-              }
-            );
-            
+            const verificationResponse =
+              await axios.post<PaymentSuccessResponse>(
+                "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/success",
+                {
+                  orderCreationId: order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpaySignature: response.razorpay_signature,
+                  orderData: orderObject,
+                  authenticatedId: currentUser ? currentUser?.uid : undefined,
+                }
+              );
+
             setOrderDetails({
               id: verificationResponse.data.orderId,
               amount: grandTotal,
-              paymentMethod: 'razorpay'
+              paymentMethod: "razorpay",
             });
             setPaymentStatus("success");
             localStorage.removeItem("guestCartId");
@@ -402,18 +411,23 @@ const CheckoutPage = () => {
           ondismiss: async () => {
             try {
               setIsProcessingPayment(true);
-              await axios.post("https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/cancel", {
-                orderId: order_id,
-                authenticatedId: currentUser ? currentUser?.uid : undefined,
-                reason: "User closed payment window"
-              });
-              setPaymentStatus('failed');
+              await axios.post(
+                "https://us-central1-resmenu-c1b90.cloudfunctions.net/api/payment/cancel",
+                {
+                  orderId: order_id,
+                  authenticatedId: currentUser ? currentUser?.uid : undefined,
+                  reason: "User closed payment window",
+                }
+              );
+              setPaymentStatus("failed");
               setPaymentError("Payment was cancelled. Please try again.");
               setIsProcessingPayment(false);
             } catch (cancelError) {
               setIsProcessingPayment(false);
-              setPaymentStatus('failed');
-              setPaymentError("Payment was cancelled but there was an error updating your order.");
+              setPaymentStatus("failed");
+              setPaymentError(
+                "Payment was cancelled but there was an error updating your order."
+              );
             }
           },
         },
@@ -450,13 +464,14 @@ const CheckoutPage = () => {
     console.log("Verified phone number:", phoneNumber);
   };
 
-  if (paymentStatus === 'success' && orderDetails) {
+  if (paymentStatus === "success" && orderDetails) {
     return (
       <PaymentSuccess
         orderId={orderDetails.id}
         amount={orderDetails.amount}
         paymentMethod={orderDetails.paymentMethod}
         onContinueShopping={() => (window.location.href = "/")}
+        paymentMode={paymentMode}
       />
     );
   }
@@ -482,7 +497,10 @@ const CheckoutPage = () => {
         </div>
       }
     >
-      <div className="flex flex-col justify-between bg-gray-50" style={{ height: "100%" }}>
+      <div
+        className="flex flex-col justify-between bg-gray-50"
+        style={{ height: "100%" }}
+      >
         {isProcessingPayment && <PaymentLoader />}
 
         <div className="bg-white border-b border-gray-200 py-4 px-4 flex items-center">
@@ -555,35 +573,42 @@ const CheckoutPage = () => {
           onClose={() => setShowLogin(false)}
           onSuccess={handlePhoneVerified}
         />
-      <div className=" bg-white border-t border-gray-200 py-3 px-4 md:hidden">
-        <div className="container mx-auto flex md:flex-row items-center justify-between gap-4">
-          <div className="text-center md:text-left w-50">
-            <p className="font-semibold">Total: ₹{parseFloat(grandTotal.toFixed(2))}</p>
-        
-          </div>
-
-          <button
-            onClick={handleOrderButtonClick}
-            disabled={
-              (currentUser 
-                ? !selectedAddress || !termsAgreed || showAddressForm
-                : !isValid || !termsAgreed) || isProcessingPayment 
-            }
-            className={`w-full py-3 rounded-md text-white font-semibold ${
-              (currentUser ? selectedAddress && termsAgreed && !showAddressForm && (!showPaymentMode || paymentMode) 
-                : isValid && termsAgreed && (!showPaymentMode || paymentMode))
-                ? "bg-[#1e6553] hover:bg-[#1e6553]" 
-                : "bg-gray-400 cursor-not-allowed"
-            } transition-colors`}
-          >
-            {isProcessingPayment ? (
-              "Processing..."
-            ) : (
-              showPaymentMode 
-                ? paymentMode 
-                  ? `Pay ₹${grandTotal.toFixed(2)}` 
+        <div className=" bg-white border-t border-gray-200 py-3 px-4 md:hidden">
+          <div className="container mx-auto flex md:flex-row items-center justify-between gap-4">
+            <div className="text-center md:text-left w-50">
+              <p className="font-semibold">
+                Total: ₹{parseFloat(grandTotal.toFixed(2))}
+              </p>
+            </div>
+            <button
+              onClick={handleOrderButtonClick}
+              disabled={
+                (currentUser
+                  ? !selectedAddress || !termsAgreed || showAddressForm
+                  : !isValid || !termsAgreed) || isProcessingPayment
+              }
+              className={`w-full py-3 rounded-md text-white font-semibold ${
+                (
+                  currentUser
+                    ? selectedAddress &&
+                      termsAgreed &&
+                      !showAddressForm &&
+                      (!showPaymentMode || paymentMode)
+                    : isValid &&
+                      termsAgreed &&
+                      (!showPaymentMode || paymentMode)
+                )
+                  ? "bg-[#1e6553] hover:bg-[#1e6553]"
+                  : "bg-gray-400 cursor-not-allowed"
+              } transition-colors`}
+            >
+              {isProcessingPayment
+                ? "Processing..."
+                : showPaymentMode
+                ? paymentMode
+                  ? `Pay ₹${grandTotal.toFixed(2)}`
                   : "Select Payment Method"
-                : "Continue")}
+                : "Continue"}
             </button>
           </div>
         </div>

@@ -2,13 +2,14 @@
 import { cn } from "@/lib/utils";
 import { Home, Search, Heart, Menu, User } from "lucide-react";
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import PhoneAuthModal from "./PhoneAuthModal";
 
 const FooterNav = () => {
   const { currentUser } = useAuth();
+  const router = useRouter();
   const { product_id } = useParams();
   const pathname = usePathname();
   const [showPhoneAuth, setShowPhoneAuth] = useState(false);
@@ -79,7 +80,16 @@ const FooterNav = () => {
             </span>
           </Link>
 
-          <Link href="/wishlist" className="flex flex-col items-center">
+          <div
+            className="flex flex-col items-center"
+            onClick={() => {
+              if (currentUser) {
+                router.push("/wishlist");
+              }else{
+                setShowPhoneAuth(true);
+              }
+            }}
+          >
             <div className="relative">
               <Heart
                 size={20}
@@ -99,7 +109,7 @@ const FooterNav = () => {
             >
               WISHLIST
             </span>
-          </Link>
+          </div>
 
           <div
             className="flex flex-col items-center cursor-pointer"

@@ -244,7 +244,7 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
                   className={`w-full flex justify-center items-center ${
                     isSendingOTP || phoneNumber.length !== 10
                       ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-red-600 hover:bg-red-700"
+                      : "bg-green-800 hover:bg-green-900"
                   } text-white py-2 rounded transition-all`}
                 >
                   {isSendingOTP ? (

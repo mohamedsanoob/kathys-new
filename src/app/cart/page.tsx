@@ -65,7 +65,7 @@ const CartPage = () => {
       await removeCartItem(productId, sku);
       window.dispatchEvent(new Event("cart-updated"));
       await fetchCartProducts();
-    } catch (error) {
+    } catch (error) { 
       console.error("Failed to remove product:", error);
     }
   };

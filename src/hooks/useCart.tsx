@@ -71,7 +71,13 @@ export const useCart = () => {
       refreshCartRef.current();
     };
     window.addEventListener("cart-updated", handleCartUpdated);
+    window.addEventListener("cart-remove-all", () => {
+      setCartProducts([]);
+    });
     return () => {
+      window.removeEventListener("cart-remove-all", () => {
+        setCartProducts([]);
+      });
       window.removeEventListener("cart-updated", handleCartUpdated);
     };
   }, []);
@@ -96,8 +102,6 @@ export const useCart = () => {
     [cartProducts]
   );
 
-
-
   return useMemo(
     () => ({
       cartProducts,
@@ -107,7 +111,6 @@ export const useCart = () => {
       isUpdating,
       refreshCart,
       lastUpdated,
-
     }),
     [
       cartProducts,

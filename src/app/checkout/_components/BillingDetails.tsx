@@ -3,6 +3,7 @@ import SavedAddresses from "./SavedAddresses";
 import AddressForm from "./AddressForm";
 import GuestCheckoutForm from "./GuestCheckoutForm";
 import PaymentModeSelector from "./PaymentModeSelector";
+import { useEffect, useRef } from "react";
 
 interface BillingDetailsProps {
   currentUser: any;
@@ -19,8 +20,8 @@ interface BillingDetailsProps {
   saveNewAddress: (data: any) => Promise<void>;
   handleSubmit: any;
   getValues: any;
-  paymentMode?: 'online' | 'cod';
-  setPaymentMode?: (mode: 'online' | 'cod') => void;
+  paymentMode?: "online" | "cod";
+  setPaymentMode?: (mode: "online" | "cod") => void;
   showPaymentMode: boolean; // new prop
 }
 
@@ -39,37 +40,47 @@ const BillingDetails = ({
   saveNewAddress,
   handleSubmit,
   getValues,
-  paymentMode = 'online',
+  paymentMode = "online",
   setPaymentMode = () => {},
-  showPaymentMode // use this to control payment section
+  showPaymentMode, // use this to control payment section
 }: BillingDetailsProps) => {
-  const addressStepCompleted = currentUser 
+  const addressStepCompleted = currentUser
     ? !!selectedAddress && !showAddressForm
     : isValid;
+  const paymentModeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showPaymentMode && paymentModeRef.current) {
+      paymentModeRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [showPaymentMode]);
 
   return (
-    <div 
+    <div
       className="w-full lg:w-2/3  lg:pb-[5.45%] lg:overflow-y-scroll"
       style={{
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
       }}
     >
-        {(!addressStepCompleted && !showPaymentMode)  &&    <div className="flex justify-between items-center">
-     
-        {!currentUser?.uid &&  (
-          <button 
-            style={{ cursor: "pointer" }}
-            onClick={() => setShowLogin(true)} 
-            className="text-[#1e6553] hover:text-[#1e6553] text-sm font-medium"
-          >
-            Already a user? Sign In
-          </button>
-        )}
-      </div>}
+      {!addressStepCompleted && !showPaymentMode && (
+        <div className="flex justify-between items-center">
+          {!currentUser?.uid && (
+            <button
+              style={{ cursor: "pointer" }}
+              onClick={() => setShowLogin(true)}
+              className="text-[#1e6553] hover:text-[#1e6553] text-sm font-medium"
+            >
+              Already a user? Sign In
+            </button>
+          )}
+        </div>
+      )}
 
-
-        {(!addressStepCompleted || !showPaymentMode ) && (
+      {(!addressStepCompleted || !showPaymentMode) && (
         <>
           {currentUser ? (
             <div className="lg:mt-5 mt-0">
@@ -89,7 +100,7 @@ const BillingDetails = ({
                   >
                     ← Back to Saved Addresses
                   </button>
-                  <AddressForm 
+                  <AddressForm
                     register={register}
                     errors={errors}
                     onSubmit={handleSubmit(saveNewAddress)}
@@ -98,7 +109,7 @@ const BillingDetails = ({
               )}
             </div>
           ) : (
-            <GuestCheckoutForm 
+            <GuestCheckoutForm
               register={register}
               errors={errors}
               handleSubmit={handleSubmit}
@@ -112,8 +123,14 @@ const BillingDetails = ({
       {/* Show PaymentMode only if address step is completed AND user clicked Continue */}
       {addressStepCompleted && showPaymentMode && (
         <div className="lg:mt-8 mt-0">
-          <h5 className="font-semibold text-lg mb-4">Payment Options</h5>
-          <PaymentModeSelector 
+          <h5
+            className="font-semibold text-lg mb-4"
+            ref={paymentModeRef}
+            id="paymentErrorSection"
+          >
+            Payment Options
+          </h5>
+          <PaymentModeSelector
             onPaymentModeChange={setPaymentMode}
             currentMode={paymentMode}
           />

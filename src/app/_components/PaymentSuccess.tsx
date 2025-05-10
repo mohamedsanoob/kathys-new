@@ -7,6 +7,7 @@ interface PaymentSuccessProps {
   amount: number;
   paymentMethod: string;
   onContinueShopping?: () => void;
+  paymentMode?: "online" | "cod" |"";
 }
 
 export const PaymentSuccess = ({
@@ -14,14 +15,19 @@ export const PaymentSuccess = ({
   amount,
   paymentMethod,
   onContinueShopping,
+  paymentMode,
 }: PaymentSuccessProps) => {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 text-center mt-7">
+    <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 text-center my-7">
       <div className="bg-green-100 p-6 rounded-full mb-6">
         <CheckCircle2 className="h-16 w-16 text-green-600" />
       </div>
-      
-      <h1 className="text-3xl font-bold text-gray-900 mb-4">Payment Successful!</h1>
+
+      <h1 className="text-3xl font-bold text-gray-900 mb-4">
+        {paymentMode === "cod"
+          ? "Order Placed Successfullly!"
+          : "Payment Successful!"}
+      </h1>
       <p className="text-lg text-gray-600 mb-8">
         Thank you for your purchase. Your order has been confirmed.
       </p>

@@ -876,7 +876,7 @@ export const removeCartItem = async (productId: string, variantSku?: string | nu
     // Filter out the item to remove
     const updatedProducts = products.filter(product => {
 
-      console.log(product,productId,variantSku,"=======>jj")
+    
       // For non-variant products, only match productId
       if (!product.variantDetails?.sku) {
         return product.productId !== productId;

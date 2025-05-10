@@ -9,10 +9,6 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/useCart";
 import useTrackView from "@/hooks/useTrackView";
 
-
-
-
-
 const Navbar = () => {
 useTrackView()
     const { currentUser } = useAuth();
@@ -20,13 +16,6 @@ useTrackView()
     const { totalQuantity, totalPrice, isLoading, isUpdating } = useCart();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showPhoneAuth, setShowPhoneAuth] = useState(false);
-
-
-
-
-
-
-
 
   const handlePhoneVerified = (phoneNumber: string) => {
     console.log("Verified phone number:", phoneNumber);
@@ -75,7 +64,7 @@ useTrackView()
           <div className="absolute transform left-1/2 -translate-x-1/2 md:static md:transform-none h-full w-50px">
             <Link href="/" className="flex items-center h-full w-full">
               <Image
-                src="https://dukaan.b-cdn.net/200x200/webp/7270358/bb32b6b5-733b-420a-a72f-405fcc4fcd48/1661604665901-9d9159aa-3202-4f7e-b40f-0d1a6af8b1ba.jpeg/f7aae514-866e-46e4-a56d-26cdd93dacf9.jpeg"
+                src='/kathys-logo.webp'
                 alt="logo"
                 width={1000}
                 height={1000}
