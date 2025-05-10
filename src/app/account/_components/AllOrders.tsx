@@ -135,7 +135,7 @@ const AllOrders = () => {
   return (
     <div className="flex flex-col gap-4 w-full px-4 md:px-0">
       {/* Header with filter */}
-      <div className="flex justify-between items-center sticky top-0 bg-white z-10 py-3">
+      <div className="flex justify-between items-center sticky top-0 bg-white z-10">
         <p className="text-lg font-medium">Your Orders</p>
         <button
           onClick={() => setFilterOpen(true)}
