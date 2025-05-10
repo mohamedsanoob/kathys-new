@@ -81,7 +81,7 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
     const newParams = new URLSearchParams(window.location.search);
     newParams.set("minPrice", value[0].toString());
     newParams.set("maxPrice", value[1].toString());
-    
+
     router.push(`?${newParams.toString()}`);
   }, [value, router]);
 
@@ -262,7 +262,7 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="fixed inset-0 bg-black z-999 md:hidden"
+                className="fixed inset-0 z-999 md:hidden"
                 onClick={toggleMobileMenu}
                 transition={{ duration: 0.2 }}
               />

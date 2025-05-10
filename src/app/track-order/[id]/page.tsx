@@ -1,20 +1,71 @@
-import { getOrderById } from "@/actions/order";
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
-const Page = async ({ params }: { params: { id: string } }) => {
-  const res = await getOrderById(params.id);
+interface Order {
+  id: string;
+  status: string;
+  createdAt: { seconds: number; nanoseconds: number };
+  items_total: number;
+  delivery: number;
+  coupon_discount: number;
+  tax_amount: number;
+  payment_mode: string;
+  quantity_each: Array<{
+    product_id: string;
+    product_name: string;
+    images: string[];
+    variant_details?: Record<string, string>;
+    quantity: number;
+    product_price: number;
+    discounted_price: number;
+  }>;
+  customer_details: {
+    name: string;
+    email: string;
+    mobile_number: string;
+    address: string;
+    locality_area: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
+  trackingInfo?: {
+    courier: string;
+    trackingId: string;
+  };
+}
 
-  if (!res) {
-    return (
-      <div className="max-w-[732px] mx-auto p-6 text-center">
-        Order not found
-      </div>
-    );
-  }
+const Page = ({ params }: { params: { id: string } }) => {
+  const user = useAuth()
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Format dates
+  useEffect(() => {
+    const fetchOrder = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/orders/${params.id}`);
+        if (!res.ok) {
+          throw new Error("Failed to fetch order");
+        }
+        const data = await res.json();
+        setOrder(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
+  }, [params.id]);
+
   const formatDate = (timestamp: { seconds: number; nanoseconds: number }) => {
     const date = new Date(timestamp.seconds * 1000);
     return date.toLocaleString("en-IN", {
@@ -26,9 +77,39 @@ const Page = async ({ params }: { params: { id: string } }) => {
     });
   };
 
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto p-6 text-center">
+        <p>Loading order details...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto p-6 text-center">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="max-w-2xl mx-auto p-6 text-center">
+        Order not found
+      </div>
+    );
+  }
+
   // Calculate totals
-  const itemsTotal = res.items_total / 100; // Assuming prices are in paisa
-  const deliveryFee = res.delivery / 100;
+  const itemsTotal = order.items_total / 100;
+  const deliveryFee = order.delivery / 100;
   const grandTotal = (itemsTotal + deliveryFee).toFixed(2);
 
   return (
@@ -36,7 +117,7 @@ const Page = async ({ params }: { params: { id: string } }) => {
       {/* Back button */}
       <div className="mb-4">
         <Link
-          href="/"
+          href={`${user?.currentUser?"/account?category=orders":"/"}`}
           className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="mr-2" />
@@ -53,34 +134,33 @@ const Page = async ({ params }: { params: { id: string } }) => {
           </p>
         </div>
         <div className="">
-          <p className="text-sm font-medium text-gray-900">Order #{res.id}</p>
+          <p className="text-sm font-medium text-gray-900">Order #{order.id}</p>
           <p className="text-sm text-gray-500 mt-1">
-            Placed on {formatDate(res.createdAt)}
+            Placed on {formatDate(order.createdAt)}
           </p>
         </div>
       </div>
 
-      {/* Rest of your existing code... */}
       {/* Order status */}
       <div className="mb-8 p-4 bg-gray-50 rounded-lg">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Order Status</h2>
           <span
             className={`px-3 py-1 rounded-full text-sm font-semibold ${
-              res.status === "shipped"
-                ? "bg-green-100 text-green-800" // Green for final shipped status
-                : res.status === "accepted"
-                ? "bg-blue-100 text-blue-800" // Blue for accepted
-                : res.status === "pending"
-                ? "bg-yellow-100 text-yellow-800" // Yellow for pending
-                : "bg-gray-100 text-gray-800" // Gray for created
+              order.status === "shipped"
+                ? "bg-green-100 text-green-800"
+                : order.status === "accepted"
+                ? "bg-blue-100 text-blue-800"
+                : order.status === "pending"
+                ? "bg-yellow-100 text-yellow-800"
+                : "bg-gray-100 text-gray-800"
             }`}
           >
-            {res.status === "shipped"
+            {order.status === "shipped"
               ? "Shipped"
-              : res.status === "accepted"
+              : order.status === "accepted"
               ? "Accepted"
-              : res.status === "pending"
+              : order.status === "pending"
               ? "Processing"
               : "Order Created"}
           </span>
@@ -91,11 +171,11 @@ const Page = async ({ params }: { params: { id: string } }) => {
           <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
             <div
               className={`h-2.5 rounded-full transition-all duration-300 ${
-                res.status === "shipped"
+                order.status === "shipped"
                   ? "bg-green-500 w-full"
-                  : res.status === "accepted"
+                  : order.status === "accepted"
                   ? "bg-blue-500 w-2/3"
-                  : res.status === "pending"
+                  : order.status === "pending"
                   ? "bg-yellow-500 w-1/3"
                   : "bg-gray-500 w-0"
               }`}
@@ -106,12 +186,12 @@ const Page = async ({ params }: { params: { id: string } }) => {
           <div className="flex justify-between text-xs text-gray-600 px-1">
             <div
               className={`flex flex-col items-center ${
-                res.status === "created" ? "text-black font-medium" : ""
+                order.status === "created" ? "text-black font-medium" : ""
               }`}
             >
               <div
                 className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 ${
-                  res.status === "created"
+                  order.status === "created"
                     ? "bg-gray-500 text-white"
                     : "bg-gray-200"
                 }`}
@@ -122,14 +202,14 @@ const Page = async ({ params }: { params: { id: string } }) => {
             </div>
             <div
               className={`flex flex-col items-center ${
-                res.status === "pending" ? "text-black font-medium" : ""
+                order.status === "pending" ? "text-black font-medium" : ""
               }`}
             >
               <div
                 className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 ${
-                  res.status === "pending" ||
-                  res.status === "accepted" ||
-                  res.status === "shipped"
+                  order.status === "pending" ||
+                  order.status === "accepted" ||
+                  order.status === "shipped"
                     ? "bg-yellow-500 text-white"
                     : "bg-gray-200"
                 }`}
@@ -140,12 +220,12 @@ const Page = async ({ params }: { params: { id: string } }) => {
             </div>
             <div
               className={`flex flex-col items-center ${
-                res.status === "accepted" ? "text-black font-medium" : ""
+                order.status === "accepted" ? "text-black font-medium" : ""
               }`}
             >
               <div
                 className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 ${
-                  res.status === "accepted" || res.status === "shipped"
+                  order.status === "accepted" || order.status === "shipped"
                     ? "bg-blue-500 text-white"
                     : "bg-gray-200"
                 }`}
@@ -156,12 +236,12 @@ const Page = async ({ params }: { params: { id: string } }) => {
             </div>
             <div
               className={`flex flex-col items-center ${
-                res.status === "shipped" ? "text-black font-medium" : ""
+                order.status === "shipped" ? "text-black font-medium" : ""
               }`}
             >
               <div
                 className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 ${
-                  res.status === "shipped"
+                  order.status === "shipped"
                     ? "bg-green-500 text-white"
                     : "bg-gray-200"
                 }`}
@@ -176,11 +256,11 @@ const Page = async ({ params }: { params: { id: string } }) => {
 
       {/* Order items */}
       <div className="mb-8">
-        {res.trackingInfo?.courier && (
+        {order.trackingInfo?.courier && (
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3>Courier Name : {res.trackingInfo?.courier}</h3>
-              <h4>Tracking ID : {res.trackingInfo?.trackingId}</h4>
+              <h3>Courier Name : {order.trackingInfo?.courier}</h3>
+              <h4>Tracking ID : {order.trackingInfo?.trackingId}</h4>
             </div>
             <Link
               href={"https://www.dtdc.in/trace.asp"}
@@ -196,7 +276,7 @@ const Page = async ({ params }: { params: { id: string } }) => {
           Order Items
         </h2>
         <div className="space-y-4">
-          {res.quantity_each.map((item) => (
+          {order.quantity_each.map((item) => (
             <div
               key={item.product_id}
               className="flex flex-row items-center gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -252,28 +332,28 @@ const Page = async ({ params }: { params: { id: string } }) => {
           <div className="flex justify-between">
             <span className="text-gray-600">Items Total</span>
             <span className="text-gray-900">
-              ₹{(res.items_total / 100).toFixed(2)}
+              ₹{(order.items_total / 100).toFixed(2)}
             </span>
           </div>
-          {res.coupon_discount > 0 && (
+          {order.coupon_discount > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-600">Coupon Discount</span>
               <span className="text-red-600">
-                -₹{(res.coupon_discount / 100).toFixed(2)}
+                -₹{(order.coupon_discount / 100).toFixed(2)}
               </span>
             </div>
           )}
           <div className="flex justify-between">
             <span className="text-gray-600">Delivery Fee</span>
             <span className="text-gray-900">
-              ₹{(res.delivery / 100).toFixed(2)}
+              ₹{(order.delivery / 100).toFixed(2)}
             </span>
           </div>
-          {res.tax_amount > 0 && (
+          {order.tax_amount > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-600">Tax</span>
               <span className="text-gray-900">
-                ₹{(res.tax_amount / 100).toFixed(2)}
+                ₹{(order.tax_amount / 100).toFixed(2)}
               </span>
             </div>
           )}
@@ -287,22 +367,22 @@ const Page = async ({ params }: { params: { id: string } }) => {
             <p className="text-sm">
               <span className="text-gray-600 font-medium">Payment Method:</span>{" "}
               <span className="text-gray-900">
-                {res.payment_mode === "COD"
+                {order.payment_mode === "COD"
                   ? "Cash on Delivery"
-                  : res.payment_mode}
+                  : order.payment_mode}
               </span>
             </p>
             <p className="text-sm mt-1">
               <span className="text-gray-600 font-medium">Payment Status:</span>{" "}
               <span
                 className={`${
-                  res.status === "paid"
+                  order.status === "paid"
                     ? "text-green-600"
                     : "text-yellow-600"
                 }`}
               >
-                {res.status.charAt(0).toUpperCase() +
-                  res.status.slice(1)}
+                {order.status.charAt(0).toUpperCase() +
+                  order.status.slice(1)}
               </span>
             </p>
           </div>
@@ -317,24 +397,24 @@ const Page = async ({ params }: { params: { id: string } }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">Name</h3>
-            <p className="text-gray-900">{res.customer_details.name}</p>
+            <p className="text-gray-900">{order.customer_details.name}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">Email</h3>
-            <p className="text-gray-900">{res.customer_details.email}</p>
+            <p className="text-gray-900">{order.customer_details.email}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">Phone</h3>
             <p className="text-gray-900">
-              {res.customer_details.mobile_number}
+              {order.customer_details.mobile_number}
             </p>
           </div>
           <div className="sm:col-span-2">
             <h3 className="text-sm font-medium text-gray-500 mb-1">Address</h3>
-            <p className="text-gray-900">{res.customer_details.address}</p>
+            <p className="text-gray-900">{order.customer_details.address}</p>
             <p className="text-gray-900">
-              {res.customer_details.locality_area}, {res.customer_details.city},{" "}
-              {res.customer_details.state} - {res.customer_details.pincode}
+              {order.customer_details.locality_area}, {order.customer_details.city},{" "}
+              {order.customer_details.state} - {order.customer_details.pincode}
             </p>
           </div>
         </div>
