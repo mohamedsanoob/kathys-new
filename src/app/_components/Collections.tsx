@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getCollectionsWithProducts } from "@/actions/actions";
 import { ArrowRight, ShoppingBag } from "lucide-react";
 import Image from "next/image";
