@@ -49,7 +49,7 @@ const page = ({ searchParams }: { searchParams: { category?: string } }) => {
           </div>
           
           {/* Content area - shown on mobile when category selected, always on desktop */}
-          <div className={`${showContentOnMobile ? 'block' : 'hidden md:block'} w-full md:w-[75%] p-4`}>
+          <div className={`${showContentOnMobile ? 'block' : 'hidden md:block'} w-full md:w-[75%] p-3`}>
             {renderComponent()}
           </div>
         </div>
