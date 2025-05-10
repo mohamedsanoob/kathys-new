@@ -1,70 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getOrderById } from "@/actions/order";
+import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
 
-interface Order {
-  id: string;
-  status: string;
-  createdAt: { seconds: number; nanoseconds: number };
-  items_total: number;
-  delivery: number;
-  coupon_discount: number;
-  tax_amount: number;
-  payment_mode: string;
-  quantity_each: Array<{
-    product_id: string;
-    product_name: string;
-    images: string[];
-    variant_details?: Record<string, string>;
-    quantity: number;
-    product_price: number;
-    discounted_price: number;
-  }>;
-  customer_details: {
-    name: string;
-    email: string;
-    mobile_number: string;
-    address: string;
-    locality_area: string;
-    city: string;
-    state: string;
-    pincode: string;
-  };
-  trackingInfo?: {
-    courier: string;
-    trackingId: string;
-  };
-}
-
-const Page = ({ params }: { params: { id: string } }) => {
-  const user = useAuth()
-  const [order, setOrder] = useState<Order | null>(null);
+const Page = () => {
+  const { id } = useParams();
+  const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!id) return;
+
     const fetchOrder = async () => {
       try {
-        setLoading(true);
-        const res = await fetch(`/api/orders/${params.id}`);
-        if (!res.ok) {
-          throw new Error("Failed to fetch order");
-        }
-        const data = await res.json();
-        setOrder(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
+        const res = await getOrderById(id as string);
+        setOrder(res);
+      } catch (error) {
+        console.error("Error fetching order:", error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchOrder();
-  }, [params.id]);
+  }, [id]);
 
   const formatDate = (timestamp: { seconds: number; nanoseconds: number }) => {
     const date = new Date(timestamp.seconds * 1000);
@@ -79,45 +42,27 @@ const Page = ({ params }: { params: { id: string } }) => {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto p-6 text-center">
-        <p>Loading order details...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-2xl mx-auto p-6 text-center">
-        <p className="text-red-500 mb-4">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Try Again
-        </button>
-      </div>
+      <div className="max-w-[732px] mx-auto p-6 text-center">Loading...</div>
     );
   }
 
   if (!order) {
     return (
-      <div className="max-w-2xl mx-auto p-6 text-center">
+      <div className="max-w-[732px] mx-auto p-6 text-center">
         Order not found
       </div>
     );
   }
 
-  // Calculate totals
   const itemsTotal = order.items_total / 100;
   const deliveryFee = order.delivery / 100;
   const grandTotal = (itemsTotal + deliveryFee).toFixed(2);
 
   return (
     <div className="max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-lg shadow-md mt-6">
-      {/* Back button */}
       <div className="mb-4">
         <Link
-          href={`${user?.currentUser?"/account?category=orders":"/"}`}
+          href="/"
           className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="mr-2" />
@@ -125,7 +70,6 @@ const Page = ({ params }: { params: { id: string } }) => {
         </Link>
       </div>
 
-      {/* Order header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-200 pb-6 mb-6">
         <div className="mb-4 sm:mb-0">
           <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
@@ -133,7 +77,7 @@ const Page = ({ params }: { params: { id: string } }) => {
             Thank you for your purchase
           </p>
         </div>
-        <div className="">
+        <div>
           <p className="text-sm font-medium text-gray-900">Order #{order.id}</p>
           <p className="text-sm text-gray-500 mt-1">
             Placed on {formatDate(order.createdAt)}
@@ -141,7 +85,6 @@ const Page = ({ params }: { params: { id: string } }) => {
         </div>
       </div>
 
-      {/* Order status */}
       <div className="mb-8 p-4 bg-gray-50 rounded-lg">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Order Status</h2>
@@ -167,7 +110,6 @@ const Page = ({ params }: { params: { id: string } }) => {
         </div>
 
         <div className="mb-6">
-          {/* Progress bar */}
           <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
             <div
               className={`h-2.5 rounded-full transition-all duration-300 ${
@@ -182,79 +124,40 @@ const Page = ({ params }: { params: { id: string } }) => {
             ></div>
           </div>
 
-          {/* Status indicators */}
           <div className="flex justify-between text-xs text-gray-600 px-1">
-            <div
-              className={`flex flex-col items-center ${
-                order.status === "created" ? "text-black font-medium" : ""
-              }`}
-            >
-              <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 ${
-                  order.status === "created"
-                    ? "bg-gray-500 text-white"
-                    : "bg-gray-200"
-                }`}
-              >
-                1
-              </div>
-              Created
-            </div>
-            <div
-              className={`flex flex-col items-center ${
-                order.status === "pending" ? "text-black font-medium" : ""
-              }`}
-            >
-              <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 ${
-                  order.status === "pending" ||
-                  order.status === "accepted" ||
-                  order.status === "shipped"
-                    ? "bg-yellow-500 text-white"
-                    : "bg-gray-200"
-                }`}
-              >
-                2
-              </div>
-              Pending
-            </div>
-            <div
-              className={`flex flex-col items-center ${
-                order.status === "accepted" ? "text-black font-medium" : ""
-              }`}
-            >
-              <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 ${
-                  order.status === "accepted" || order.status === "shipped"
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-200"
-                }`}
-              >
-                3
-              </div>
-              Accepted
-            </div>
-            <div
-              className={`flex flex-col items-center ${
-                order.status === "shipped" ? "text-black font-medium" : ""
-              }`}
-            >
-              <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 ${
-                  order.status === "shipped"
-                    ? "bg-green-500 text-white"
-                    : "bg-gray-200"
-                }`}
-              >
-                ✓
-              </div>
-              Shipped
-            </div>
+            {[
+              { label: "Created", color: "gray-500" },
+              { label: "Pending", color: "yellow-500" },
+              { label: "Accepted", color: "blue-500" },
+              { label: "Shipped", color: "green-500" },
+            ].map((step, idx) => {
+              const active =
+                idx === 0 ||
+                (order.status === "pending" && idx <= 1) ||
+                (order.status === "accepted" && idx <= 2) ||
+                (order.status === "shipped" && idx <= 3);
+              return (
+                <div
+                  key={idx}
+                  className={`flex flex-col items-center ${
+                    active ? "text-black font-medium" : ""
+                  }`}
+                >
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 ${
+                      active ? `bg-${step.color} text-white` : "bg-gray-200"
+                    }`}
+                  >
+                    {idx < 3 ? idx + 1 : "✓"}
+                  </div>
+                  {step.label}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Order items */}
       <div className="mb-8">
         {order.trackingInfo?.courier && (
           <div className="flex items-center justify-between mb-4">
@@ -263,7 +166,7 @@ const Page = ({ params }: { params: { id: string } }) => {
               <h4>Tracking ID : {order.trackingInfo?.trackingId}</h4>
             </div>
             <Link
-              href={"https://www.dtdc.in/trace.asp"}
+              href="https://www.dtdc.in/trace.asp"
               className="text-sm font-medium bg-green-700 text-white rounded-md px-4 py-2 transition-colors"
               target="_blank"
               rel="noopener noreferrer"
@@ -272,11 +175,12 @@ const Page = ({ params }: { params: { id: string } }) => {
             </Link>
           </div>
         )}
+
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Order Items
         </h2>
         <div className="space-y-4">
-          {order.quantity_each.map((item) => (
+          {order.quantity_each.map((item: any) => (
             <div
               key={item.product_id}
               className="flex flex-row items-center gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -323,7 +227,6 @@ const Page = ({ params }: { params: { id: string } }) => {
         </div>
       </div>
 
-      {/* Order summary */}
       <div className="mb-8 border border-gray-200 rounded-lg p-4">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Order Summary
@@ -376,20 +279,16 @@ const Page = ({ params }: { params: { id: string } }) => {
               <span className="text-gray-600 font-medium">Payment Status:</span>{" "}
               <span
                 className={`${
-                  order.status === "paid"
-                    ? "text-green-600"
-                    : "text-yellow-600"
+                  order.status === "paid" ? "text-green-600" : "text-yellow-600"
                 }`}
               >
-                {order.status.charAt(0).toUpperCase() +
-                  order.status.slice(1)}
+                {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
               </span>
             </p>
           </div>
         </div>
       </div>
 
-      {/* Customer details */}
       <div className="border border-gray-200 rounded-lg p-4">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Customer Details
