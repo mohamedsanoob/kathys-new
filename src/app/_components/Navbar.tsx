@@ -39,6 +39,7 @@ useTrackView()
         <div className="relative flex items-center justify-between mx-auto h-14 md:h-[5.25rem] px-4 sm:px-6 lg:px-8 max-w-[1290px]">
           {/* Mobile Menu Button */}
           <div className="md:hidden">
+        
             <button
               onClick={toggleMobileMenu}
               className="text-gray-700 hover:text-[#1e6553] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1e6553] rounded-md transition-colors"

@@ -330,7 +330,7 @@ const CheckoutPage = () => {
         throw new Error("Razorpay SDK failed to load");
       }
 
-      console.log(grandTotal, "-------------->grand");
+
 
       const orderResponse = await axios.post<OrderResponse>(
         "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api/payment/orders",
@@ -356,7 +356,7 @@ const CheckoutPage = () => {
 
       const paymentOptions: RazorpayOptions = {
         key: process.env.RAZORPAY_KEY_ID || "rzp_test_N6VzhsIMdUpe3s",
-        amount: ((total + paymentMode === "cod" ? 150 : 75) * 100).toString(),
+        amount: grandTotal.toString(),
         currency,
         name: "Kathy's Clothing Store",
         description: "Order Payment",
@@ -576,9 +576,12 @@ const CheckoutPage = () => {
         <div className=" bg-white border-t border-gray-200 py-3 px-4 md:hidden">
           <div className="container mx-auto flex md:flex-row items-center justify-between gap-4">
             <div className="text-center md:text-left w-50">
-              <p className="font-semibold">
-                Total: ₹{parseFloat(grandTotal.toFixed(2))}
-              </p>
+         <p className="font-semibold">
+  Total: ₹{Number(grandTotal).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}
+</p>
             </div>
             <button
               onClick={handleOrderButtonClick}

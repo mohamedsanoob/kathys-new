@@ -356,7 +356,12 @@ const CartPage = () => {
       <div className="bg-white border-t border-gray-200 py-3 px-4 md:hidden">
         <div className="flex items-center justify-between gap-4">
           <div className="text-center w-1/2">
-            <p className="font-semibold">Total: ₹{parseFloat(total.toFixed(2)) + 75}</p>
+<p className="font-semibold">
+  Total: ₹{(total + 75).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}
+</p>
           </div>
           <Link 
             href={(hasOutOfStockItems || cartProducts.length === 0) ? "#" : "/checkout"} 
