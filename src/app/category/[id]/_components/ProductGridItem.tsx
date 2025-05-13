@@ -1,3 +1,4 @@
+"use client";
 import { Product } from '@/types/product';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -17,14 +18,23 @@ const ProductGridItem = ({ product }: { product: Product }) => (
       />
     </Link>
     <p className="text-sm md:text-base line-clamp-2">{product.productName}</p>
-    <div className="flex gap-3">
-      <p className="line-through text-xs md:text-sm text-gray-400">
-        ₹{product.productPrice.toFixed(2)}
-      </p>
-      <p className="text-xs md:text-sm font-semibold">
-        ₹{product.productDiscountedPrice.toFixed(2)}
-      </p>
-    </div>
+   <div className="flex gap-2 items-center mt-1">
+                  {product.productPrice && product.productDiscountedPrice !== undefined && 
+                   product.productDiscountedPrice !== product.productPrice ? (
+                    <>
+                      <p className="line-through text-xs sm:text-sm text-gray-400">
+                        ₹{product.productPrice.toLocaleString("en-IN")}
+                      </p>
+                      <p className="text-sm font-semibold">
+                        ₹{product.productDiscountedPrice.toLocaleString("en-IN")}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm font-semibold">
+                      ₹{product.productPrice?.toLocaleString("en-IN")}
+                    </p>
+                  )}
+                </div>
   </div>
 );
 

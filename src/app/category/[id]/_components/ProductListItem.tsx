@@ -1,3 +1,4 @@
+"use client";
 import { Product } from '@/types/product';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -28,14 +29,24 @@ const ProductListItem = ({
       <div className="flex flex-col gap-3 md:gap-6 w-full">
         <div className="flex flex-col gap-2">
           <p className="text-lg md:text-2xl">{product.productName}</p>
-          <div className="flex gap-3 md:gap-4 text-base md:text-xl">
-            <p className="line-through text-gray-400">
-              ₹{product.productPrice.toFixed(2)}
-            </p>
-            <p className="font-semibold">
-              ₹{product.productDiscountedPrice.toFixed(2)}
-            </p>
-          </div>
+        
+             <div className="flex gap-2 items-center mt-1">
+                  {product.productPrice && product.productDiscountedPrice !== undefined && 
+                   product.productDiscountedPrice !== product.productPrice ? (
+                    <>
+                      <p className="line-through text-xs sm:text-sm text-gray-400">
+                        ₹{product.productPrice.toLocaleString("en-IN")}
+                      </p>
+                      <p className="text-sm font-semibold">
+                        ₹{product.productDiscountedPrice.toLocaleString("en-IN")}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm font-semibold">
+                      ₹{product.productPrice?.toLocaleString("en-IN")}
+                    </p>
+                  )}
+                </div>
         </div>
 
         <div dangerouslySetInnerHTML={{ __html: product?.description }} />

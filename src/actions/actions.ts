@@ -256,7 +256,13 @@ export const getCollectionsWithProducts = async (): Promise<
   }[]
 > => {
   try {
-    const categoriesSnapshot = await getDocs(collection(db, "categories"));
+     const categoriesQuery = query(
+      collection(db, "categories"),
+      where("active", "==", true),  // Only active categories
+      orderBy("order", "asc"),      // Sort by order in ascending order
+      limit(5)                      // Limit to 5 results
+    );
+    const categoriesSnapshot = await getDocs(categoriesQuery);
     const categories: Category[] = categoriesSnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
@@ -278,6 +284,7 @@ export const getCollectionsWithProducts = async (): Promise<
         const productsQuery = query(
           collection(db, "products"),
           where("categories", "array-contains", category.id),
+           where("active", "==", true),
           limit(4)
         );
         const productsSnapshot = await getDocs(productsQuery);
@@ -325,6 +332,9 @@ export const getCollectionsWithProducts = async (): Promise<
   }
 };
 
+
+
+
 export const getCategoryByName = async (
   categoryName: string
 ): Promise<Category | null> => {
@@ -332,7 +342,8 @@ export const getCategoryByName = async (
     const querySnapshot = await getDocs(
       query(
         collection(db, "categories"),
-        where("categoryName", "==", categoryName)
+        where("categoryName", "==", categoryName),
+             where("active", "==", true),
       )
     );
 
@@ -353,7 +364,9 @@ export const getAllCategories = async (): Promise<Category[]> => {
   try {
     const categoriesQuery = query(
       collection(db, "categories"),
-      orderBy("categoryName", "asc") // Optional: sort by name
+      orderBy("categoryName", "asc"), // Optional: sort by name
+           where("active", "==", true),
+             orderBy("order", "asc"),   
     );
     
     const querySnapshot = await getDocs(categoriesQuery);
@@ -375,7 +388,8 @@ export const getCategoryById = async (
     const querySnapshot = await getDocs(
       query(
         collection(db, "categories"),
-        where("id", "==", id)
+        where("id", "==", id),
+             where("active", "==", true),
       )
     );
 
@@ -485,7 +499,8 @@ export const getProductsByCategory = async (
     // First, get the category document
     const categoryQuery = query(
       collection(db, "categories"),
-      where("id", "==", categoryId)
+      where("id", "==", categoryId),
+           where("active", "==", true),
     );
     const categorySnapshot = await getDocs(categoryQuery);
 
@@ -508,7 +523,8 @@ export const getProductsByCategory = async (
       const chunk = allCategoryIds.slice(i, i + chunkSize);
       let chunkQuery = query(
         collection(db, "products"),
-        where("categories", "array-contains-any", chunk)
+        where("categories", "array-contains-any", chunk),
+             where("active", "==", true),
       );
 
       // Apply price filters if provided
@@ -611,7 +627,8 @@ export const getProductsByCategory = async (
         const chunk = allCategoryIds.slice(i, i + chunkSize);
         let countQuery = query(
           collection(db, "products"),
-          where("categories", "array-contains-any", chunk)
+          where("categories", "array-contains-any", chunk),
+               where("active", "==", true),
         );
 
         if (minPrice !== undefined && maxPrice !== undefined) {
@@ -673,7 +690,8 @@ export const getRelatedProducts = async (
     const productsCollection = collection(db, "products");
     const q = query(
       productsCollection,
-      where("categories", "array-contains-any", categoryValues)
+      where("categories", "array-contains-any", categoryValues),
+      where("active", "==", true),
     );
 
     const querySnapshot = await getDocs(q);
@@ -790,7 +808,7 @@ export async function getCartProducts() {
 
     // Fetch products
     const productsRef = collection(db, "products");
-    const q = query(productsRef, where("id", "in", productIdsInCart));
+    const q = query(productsRef, where("id", "in", productIdsInCart), where("active", "==", true),);
     const productsSnapshot = await getDocs(q);
     
     const productsData = productsSnapshot.docs.map(doc => ({
@@ -1002,7 +1020,8 @@ export const getColorsByCategory = async (
     const queryPromises = allCategoryIds.map(categoryId => 
       getDocs(query(
         collection(db, "products"),
-        where("categories", "array-contains", categoryId)
+        where("categories", "array-contains", categoryId),
+             where("active", "==", true),
       ))
     );
 
