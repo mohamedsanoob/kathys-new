@@ -56,8 +56,8 @@ const Page = () => {
     );
   }
 
-  const itemsTotal = order.items_total / 100;
-  const deliveryFee = order.delivery / 100;
+  const itemsTotal = order.items_total;
+  const deliveryFee = order.delivery;
   const grandTotal = (itemsTotal + deliveryFee).toFixed(2);
 
   return (
@@ -215,11 +215,11 @@ const Page = () => {
                   <div className="text-right">
                     {item.discounted_price && (
                       <span className="text-gray-500 line-through mr-2">
-                        ₹{(item.product_price / 100).toFixed(2)}
+                        ₹{(item.product_price ).toFixed(2)}
                       </span>
                     )}
                     <span className="font-medium text-gray-900">
-                      ₹{(item.discounted_price / 100).toFixed(2)}
+                      ₹{(item.discounted_price ).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -237,28 +237,28 @@ const Page = () => {
           <div className="flex justify-between">
             <span className="text-gray-600">Items Total</span>
             <span className="text-gray-900">
-              ₹{(order.items_total / 100).toFixed(2)}
+              ₹{(order.items_total).toFixed(2)}
             </span>
           </div>
           {order.coupon_discount > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-600">Coupon Discount</span>
               <span className="text-red-600">
-                -₹{(order.coupon_discount / 100).toFixed(2)}
+                -₹{(order.coupon_discount).toFixed(2)}
               </span>
             </div>
           )}
           <div className="flex justify-between">
             <span className="text-gray-600">Delivery Fee</span>
             <span className="text-gray-900">
-              ₹{(order.delivery / 100).toFixed(2)}
+              ₹{(order.delivery ).toFixed(2)}
             </span>
           </div>
           {order.tax_amount > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-600">Tax</span>
               <span className="text-gray-900">
-                ₹{(order.tax_amount / 100).toFixed(2)}
+                ₹{(order.tax_amount).toFixed(2)}
               </span>
             </div>
           )}
