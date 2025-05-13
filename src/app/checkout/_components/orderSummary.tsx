@@ -48,7 +48,7 @@ const OrderSummary = ({
                     {product.variantDetails.combination.map((c) => c.value).join(", ")} × {product.quantity}
                   </td>
                   <td className="text-end py-3 text-sm">
-                    ₹{((product.productDiscountedPrice || product.productPrice) * product.quantity).toFixed(2)}
+                    ₹{((product?.variantDetails?.discountedPrice || product?.variantDetails?.price) * product.quantity).toFixed(2)}
                   </td>
                 </tr>
               ))}

@@ -99,7 +99,7 @@ const CartPage = () => {
   };
 
   const total = cartProducts.reduce((sum, product) => {
-    const price = product.productDiscountedPrice || product.productPrice;
+    const price = product?.variantDetails?.discountedPrice || product?.variantDetails?.price;
     return sum + (price * product.quantity);
   }, 0);
 
@@ -114,6 +114,10 @@ const CartPage = () => {
       </div>
     );
   }
+
+
+
+  console.log(cartProducts,"============>cartProducts")
 
   if (cartProducts.length === 0) {
     return (
@@ -169,7 +173,7 @@ const CartPage = () => {
                   <div className="flex justify-between items-center mt-2">
                     <p className="text-sm font-medium">
                       ₹{" "}
-                      {(product.productDiscountedPrice || product.productPrice)
+                      {(product?.variantDetails?.discountedPrice || product?.variantDetails?.price)
                         .toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
@@ -219,7 +223,7 @@ const CartPage = () => {
                 <p className="text-sm font-medium">
                   ₹{" "}
                   {(
-                    (product.productDiscountedPrice || product.productPrice) *
+                    (product?.variantDetails?.discountedPrice || product?.variantDetails?.price) *
                     product.quantity
                   ).toLocaleString("en-IN", {
                     minimumFractionDigits: 2,

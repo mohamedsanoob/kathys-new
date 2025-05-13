@@ -14,7 +14,8 @@ interface ProductsSectionProps {
   totalProducts: number;
   itemsPerPage: number;
   categoryName: string;
-  categoryImage: string;
+  categoryImageDesktop: string;
+  categoryImageMobile : string;
 }
 
 const ProductsSection: React.FC<ProductsSectionProps> = ({
@@ -22,7 +23,8 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   totalProducts,
   itemsPerPage,
   categoryName,
-  categoryImage,
+  categoryImageDesktop,
+  categoryImageMobile
 }) => {
   const [isGridView, setIsGridView] = useState(true);
   const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -223,15 +225,36 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   return (
     <div className="flex-1 w-full overflow-hidden px-2 md:px-0">
       {/* Banner Image */}
-      <div className="w-full relative aspect-[4/1] mb-4">
-        <Image
-          src={categoryImage}
-          alt="Category Banner"
-          fill
-          className="object-cover rounded"
-          priority
-        />
-      </div>
+  {(categoryImageMobile || categoryImageDesktop) && (
+        <div className="w-full relative aspect-[4/1] mb-4">
+          {/* Mobile Image - shown on small screens */}
+          <div className="md:hidden w-full h-full">
+            {categoryImageMobile && (
+              <Image
+                src={categoryImageMobile}
+                alt={`${categoryName} banner`}
+                fill
+                className="object-cover rounded"
+                priority
+              />
+            )}
+          </div>
+          
+          {/* Desktop Image - shown on medium screens and up */}
+          <div className="hidden md:block w-full h-full">
+            {categoryImageDesktop && (
+              <Image
+                src={categoryImageDesktop}
+                alt={`${categoryName} banner`}
+                fill
+                className="object-cover rounded"
+                priority
+              />
+            )}
+          </div>
+        </div>
+      )}
+   
 
       {/* Controls Bar */}
       <div className="flex justify-between items-center my-4">

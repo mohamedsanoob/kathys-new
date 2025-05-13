@@ -59,6 +59,7 @@ const Page = () => {
     fetchData();
   }, [id]);
 
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[100vh]">
@@ -92,6 +93,9 @@ const Page = () => {
       ? product.updatedDate.toMillis()
       : null,
   }));
+
+
+
 
   return (
     <div className="flex flex-col max-w-[1290px] mx-auto md:mt-[1rem] p-1">
@@ -135,7 +139,8 @@ const Page = () => {
           totalProducts={data.totalCount}
           itemsPerPage={ITEMS_PER_PAGE}
           categoryName={id}
-          categoryImage={currentCategory?.images[0]}
+          categoryImageDesktop={currentCategory?.desktopBanner}
+          categoryImageMobile={currentCategory?.mobileBanner}
         />
       </div>
     </div>

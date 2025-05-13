@@ -168,7 +168,7 @@ const CheckoutPage = () => {
   };
 
   const total = cartProductsWithDetails.reduce((sum, product) => {
-    const price = product.productDiscountedPrice || product.productPrice;
+    const price = product?.variantDetails?.discountedPrice || product?.variantDetails?.price;
     return sum + price * product.quantity;
   }, 0);
 

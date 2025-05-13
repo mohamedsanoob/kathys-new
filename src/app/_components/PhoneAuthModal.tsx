@@ -297,7 +297,7 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
                     <button
                       onClick={handleResendOTP}
                       disabled={isSendingOTP}
-                      className={`text-red-600 hover:text-red-800 text-sm font-medium ${
+                      className={`bg-green-800 hover:bg-green-900 text-sm font-medium ${
                         isSendingOTP ? "opacity-50 cursor-not-allowed" : ""
                       }`}
                     >
@@ -314,7 +314,7 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
                   className={`w-full flex justify-center items-center ${
                     isVerifying || otp.length !== 6
                       ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-red-600 hover:bg-red-700"
+                      : "bg-green-800 hover:bg-green-900"
                   } text-white py-2 rounded transition-all`}
                 >
                   {isVerifying ? (

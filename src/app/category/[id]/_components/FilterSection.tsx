@@ -11,7 +11,6 @@ import { useEffect, useState, useCallback } from "react";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-
 const FilterSection = ({ categoryName }: { categoryName: string }) => {
   const searchParams = useSearchParams();
   const [filterColors, setFilterColors] = useState<{ color: string; count: number }[]>([]);
@@ -55,8 +54,8 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
 
         if (sizesParam) {
           setSelectedSizes(sizesParam.split(','));
-        }else{
-              setSelectedSizes([]);
+        } else {
+          setSelectedSizes([]);
         }
       } catch (error) {
         console.error("Error fetching filter data:", error);
@@ -65,9 +64,6 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
 
     fetchData();
   }, [categoryName, searchParams]);
-
-
-  console.log(selectedSizes,"asdasd")
 
   useEffect(() => {
     setIsMobileMenuOpen(searchParams.get("filter") === "open");
@@ -81,14 +77,13 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
     const newParams = new URLSearchParams(window.location.search);
     newParams.set("minPrice", value[0].toString());
     newParams.set("maxPrice", value[1].toString());
-
     router.push(`?${newParams.toString()}`);
   }, [value, router]);
 
   const handleColorFilter = useCallback((color: string) => {
     const newParams = new URLSearchParams(window.location.search);
     newParams.set("color", color);
-     newParams.set("filter", "");
+    newParams.set("filter", "");
     router.push(`?${newParams.toString()}`);
   }, [router]);
 
@@ -109,9 +104,8 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
     }
 
     setSelectedSizes(updatedSizes);
-      newParams.set("filter", "");
+    newParams.set("filter", "");
     router.push(`?${newParams.toString()}`);
-      
   }, [selectedSizes, router]);
 
   const toggleMobileMenu = useCallback(() => {
@@ -146,6 +140,7 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
       {/* Desktop Filter Section */}
       <div className="hidden md:block w-full md:w-1/4 pr-6">
         <div className="sticky space-y-8">
+          {/* Price Filter - Always shown */}
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -181,73 +176,78 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
             </div>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="space-y-4"
-          >
-            <h3 className="font-semibold text-lg text-gray-900">Filter by Color</h3>
-            <div className="grid grid-cols-1 gap-3">
-              {filterColors.map((color, index) => (
-                <motion.button
-                  key={index}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleColorFilter(color?.color?.name)}
-                  className="flex items-center justify-between p-1 rounded hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-5 h-5 rounded-full border border-gray-200"
-                      style={{ backgroundColor: color?.color?.hex }}
-                      aria-label={getColorNamesFromHex(color?.color?.hex)}
-                    />
-                    <span className="text-sm text-gray-700">
-                      {color?.color?.name}
-                    </span>
-                  </div>
-                  <span className="text-xs text-gray-500">
-                    ({color.count})
-                  </span>
-                </motion.button>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Size Filter Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
-            className="space-y-4"
-          >
-            <h3 className="font-semibold text-lg text-gray-900">Filter by Size</h3>
-            <div className="grid grid-cols-1 gap-3">
-              {filterSizes.map((sizeItem, index) => (
-                <motion.div
-                  key={index}
-                  whileHover={{ scale: 1.02 }}
-                  className="flex items-center space-x-2"
-                >
-                  <Checkbox
-                    id={`size-${sizeItem.size}`}
-                    checked={selectedSizes.includes(sizeItem.size)}
-                    onChange={() => handleSizeFilter(sizeItem.size)}
-                  />
-                  <label
-                    htmlFor={`size-${sizeItem.size}`}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center justify-between w-full"
+          {/* Color Filter - Only shown if filterColors has items */}
+          {filterColors.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              className="space-y-4"
+            >
+              <h3 className="font-semibold text-lg text-gray-900">Filter by Color</h3>
+              <div className="grid grid-cols-1 gap-3">
+                {filterColors.map((color, index) => (
+                  <motion.button
+                    key={index}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleColorFilter(color?.color?.name)}
+                    className="flex items-center justify-between p-1 rounded hover:bg-gray-50 transition-colors"
                   >
-                    <span>{sizeItem.size}</span>
-                    <span className="text-xs text-gray-500 ml-2">
-                      ({sizeItem.count})
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-5 h-5 rounded-full border border-gray-200"
+                        style={{ backgroundColor: color?.color?.hex }}
+                        aria-label={getColorNamesFromHex(color?.color?.hex)}
+                      />
+                      <span className="text-sm text-gray-700">
+                        {color?.color?.name}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      ({color.count})
                     </span>
-                  </label>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Size Filter - Only shown if filterSizes has items */}
+          {filterSizes.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+              className="space-y-4"
+            >
+              <h3 className="font-semibold text-lg text-gray-900">Filter by Size</h3>
+              <div className="grid grid-cols-1 gap-3">
+                {filterSizes.map((sizeItem, index) => (
+                  <motion.div
+                    key={index}
+                    whileHover={{ scale: 1.02 }}
+                    className="flex items-center space-x-2"
+                  >
+                    <Checkbox
+                      id={`size-${sizeItem.size}`}
+                      checked={selectedSizes.includes(sizeItem.size)}
+                      onChange={() => handleSizeFilter(sizeItem.size)}
+                    />
+                    <label
+                      htmlFor={`size-${sizeItem.size}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center justify-between w-full"
+                    >
+                      <span>{sizeItem.size}</span>
+                      <span className="text-xs text-gray-500 ml-2">
+                        ({sizeItem.count})
+                      </span>
+                    </label>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
 
@@ -256,7 +256,15 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
         <AnimatePresence>
           {isMobileMenuOpen && (
             <>
-        
+              <motion.div
+                key="overlay"
+                variants={overlayVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="fixed inset-0 bg-black z-20"
+                onClick={toggleMobileMenu}
+              />
 
               <motion.div
                 key="menu"
@@ -280,6 +288,7 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
                     </motion.button>
                   </div>
 
+                  {/* Mobile Price Filter - Always shown */}
                   <motion.div 
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -315,72 +324,77 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
                     </div>
                   </motion.div>
 
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="space-y-3"
-                  >
-                    <h3 className="font-semibold text-gray-900">Filter by Color</h3>
-                    <div className="grid grid-cols-1 gap-3">
-                      {filterColors.map((color, index) => (
-                        <motion.button
-                          key={index}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => handleColorFilter(color?.color?.hex)}
-                          className="flex items-center justify-between p-1 rounded hover:bg-gray-50 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="w-5 h-5 rounded-full border border-gray-200"
-                              style={{ backgroundColor: color?.color?.hex }}
-                              aria-label={getColorNamesFromHex(color?.color?.hex)}
-                            />
-                            <span className="text-sm text-gray-700">
-                              {getColorNamesFromHex(color?.color?.hex)}
-                            </span>
-                          </div>
-                          <span className="text-xs text-gray-500">
-                            ({color.count})
-                          </span>
-                        </motion.button>
-                      ))}
-                    </div>
-                  </motion.div>
-
-                  {/* Mobile Size Filter */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="space-y-3"
-                  >
-                    <h3 className="font-semibold text-gray-900">Filter by Size</h3>
-                    <div className="grid grid-cols-1 gap-3">
-                      {filterSizes.map((sizeItem, index) => (
-                        <motion.div
-                          key={index}
-                          whileTap={{ scale: 0.98 }}
-                          className="flex items-center space-x-2"
-                        >
-                          <Checkbox
-                            id={`mobile-size-${sizeItem.size}`}
-                            checked={selectedSizes.includes(sizeItem.size)}
-                            onChange={() => handleSizeFilter(sizeItem.size)}
-                          />
-                          <label
-                            htmlFor={`mobile-size-${sizeItem.size}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center justify-between w-full"
+                  {/* Mobile Color Filter - Only shown if filterColors has items */}
+                  {filterColors.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="space-y-3"
+                    >
+                      <h3 className="font-semibold text-gray-900">Filter by Color</h3>
+                      <div className="grid grid-cols-1 gap-3">
+                        {filterColors.map((color, index) => (
+                          <motion.button
+                            key={index}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => handleColorFilter(color?.color?.hex)}
+                            className="flex items-center justify-between p-1 rounded hover:bg-gray-50 transition-colors"
                           >
-                            <span>{sizeItem.size}</span>
-                            <span className="text-xs text-gray-500 ml-2">
-                              ({sizeItem.count})
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="w-5 h-5 rounded-full border border-gray-200"
+                                style={{ backgroundColor: color?.color?.hex }}
+                                aria-label={getColorNamesFromHex(color?.color?.hex)}
+                              />
+                              <span className="text-sm text-gray-700">
+                                {getColorNamesFromHex(color?.color?.hex)}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              ({color.count})
                             </span>
-                          </label>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </motion.div>
+                          </motion.button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Mobile Size Filter - Only shown if filterSizes has items */}
+                  {filterSizes.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="space-y-3"
+                    >
+                      <h3 className="font-semibold text-gray-900">Filter by Size</h3>
+                      <div className="grid grid-cols-1 gap-3">
+                        {filterSizes.map((sizeItem, index) => (
+                          <motion.div
+                            key={index}
+                            whileTap={{ scale: 0.98 }}
+                            className="flex items-center space-x-2"
+                          >
+                            <Checkbox
+                              id={`mobile-size-${sizeItem.size}`}
+                              checked={selectedSizes.includes(sizeItem.size)}
+                              onChange={() => handleSizeFilter(sizeItem.size)}
+                            />
+                            <label
+                              htmlFor={`mobile-size-${sizeItem.size}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center justify-between w-full"
+                            >
+                              <span>{sizeItem.size}</span>
+                              <span className="text-xs text-gray-500 ml-2">
+                                ({sizeItem.count})
+                              </span>
+                            </label>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
               </motion.div>
             </>
