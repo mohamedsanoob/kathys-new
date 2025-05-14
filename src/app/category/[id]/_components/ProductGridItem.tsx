@@ -4,38 +4,66 @@ import Image from 'next/image';
 import Link from 'next/link';
 import React from 'react'
 
-const ProductGridItem = ({ product }: { product: Product }) => (
-  <div className="flex flex-col gap-2">
-    <Link
-      href={"/product/" + product.id}
-      className="w-full h-75  aspect-square relative bg-gray-50 overflow-hidden"
-    >
-      <Image
-        src={product.images[0]}
-        alt={product.productName}
-        fill
-        className="object-cover"
-      />
-    </Link>
-    <p className="text-sm md:text-base line-clamp-2">{product.productName}</p>
-   <div className="flex gap-2 items-center mt-1">
-                  {product.productPrice && product.productDiscountedPrice !== undefined && 
-                   product.productDiscountedPrice !== product.productPrice ? (
-                    <>
-                      <p className="line-through text-xs sm:text-sm text-gray-400">
-                        ₹{product.productPrice.toLocaleString("en-IN")}
-                      </p>
-                      <p className="text-sm font-semibold">
-                        ₹{product.productDiscountedPrice.toLocaleString("en-IN")}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm font-semibold">
-                      ₹{product.productPrice?.toLocaleString("en-IN")}
-                    </p>
-                  )}
-                </div>
-  </div>
-);
+const ProductGridItem = ({ product }: { product: Product }) => {
+  // Check if product is out of stock
+  const isOutOfStock = () => {
+    // If product has variants but no variantDetails, it's out of stock
+    if (product.variants?.length > 0 && (!product.variantDetails || product.variantDetails.length === 0)) {
+      return true;
+    }
+    
+    // For products with variants, check if all variants have inventory <= 0
+    if (product.variants?.length > 0 && product.variantDetails?.length > 0) {
+      return product.variantDetails.every(variant => variant.inventory <= 0);
+    }
+    
+    // For non-variant products, check the quantity
+    return product.quantity <= 0;
+  };
 
-export default ProductGridItem
+  const outOfStock = isOutOfStock();
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Link
+        href={outOfStock ? '#' : "/product/" + product.id}
+        className={`w-full h-75 aspect-square relative bg-gray-50 overflow-hidden ${outOfStock ? 'cursor-not-allowed' : ''}`}
+        aria-disabled={outOfStock}
+      >
+        <Image
+          src={product.images[0]}
+          alt={product.productName}
+          fill
+          className={`object-cover ${outOfStock ? 'opacity-80' : ''}`}
+        />
+        {outOfStock && (
+          <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-medium">
+            Out of Stock
+          </div>
+        )}
+      </Link>
+      <p className={`text-sm md:text-base line-clamp-2 ${outOfStock ? 'text-gray-400' : ''}`}>
+        {product.productName}
+      </p>
+      <div className="flex gap-2 items-center mt-1">
+        {product.productPrice && product.productDiscountedPrice !== undefined && 
+         product.productDiscountedPrice !== product.productPrice ? (
+          <>
+            <p className={`line-through text-xs sm:text-sm ${outOfStock ? 'text-gray-300' : 'text-gray-400'}`}>
+              ₹{product.productPrice.toLocaleString("en-IN")}
+            </p>
+            <p className={`text-sm font-semibold ${outOfStock ? 'text-gray-400' : ''}`}>
+              ₹{product.productDiscountedPrice.toLocaleString("en-IN")}
+            </p>
+          </>
+        ) : (
+          <p className={`text-sm font-semibold ${outOfStock ? 'text-gray-400' : ''}`}>
+            ₹{product.productPrice?.toLocaleString("en-IN")}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ProductGridItem;
