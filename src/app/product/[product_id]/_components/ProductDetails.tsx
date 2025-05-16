@@ -8,6 +8,7 @@ import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { toast } from "react-toastify";
 import PhoneAuthModal from "@/app/_components/PhoneAuthModal";
+import ShowShareModal from "@/app/_components/ShowShareModel";
 
 
 interface Product {
@@ -91,7 +92,7 @@ const ProductDetails = ({ product }: { product: Product }) => {
 const [showPhoneAuth, setShowPhoneAuth] = useState(false);
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
-
+  const [showShareModal, setShowShareModal] = useState(false);
   const { currentUser } = useAuth();
   console.log(currentUser, "currentUser");
 
@@ -355,6 +356,32 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
   }, [currentUser, product, selectedVariant]);
 
 
+    const handleShare = async () => {
+    const productUrl = `${window.location.origin}/products/${product.id}`;
+    const shareText = `Check out ${product.productName} on our store!`;
+
+    try {
+      if (navigator.share) {
+        // Use native share API if available (mobile devices)
+        await navigator.share({
+          title: product.productName,
+          text: shareText,
+          url: productUrl,
+        });
+      } else {
+        // Fallback to custom share modal
+        setShowShareModal(true);
+      }
+    } catch (err) {
+      // User cancelled the share
+      console.log('Share cancelled:', err);
+    }
+  };
+
+
+
+
+
 
 
   return (
@@ -553,7 +580,10 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
           </span>
         </button>
 
-        <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+     <button 
+          onClick={handleShare}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+        >
           <Share className="w-5 h-5" />
           <span className="text-sm">Share</span>
         </button>
@@ -566,11 +596,12 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
           <span className="font-medium text-gray-900">SKU:</span>{" "}
           {selectedVariant?.sku || product.skuId || "N/A"}
         </p>
-        <p>
-          <span className="font-medium text-gray-900">Category:</span>{" "}
-          {product.productCategory || "N/A"}
-        </p>
+  
       </div>
+
+      {showShareModal && (
+ <ShowShareModal product={product} setShowShareModal={setShowShareModal}/>
+)}
     </div>
   );
 };
