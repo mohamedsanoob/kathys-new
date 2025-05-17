@@ -9,6 +9,7 @@ import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "fi
 import { auth, db } from "@/firebase/config";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
+import axios from "axios";
 
 interface PhoneAuthModalProps {
   isOpen: boolean;
@@ -139,6 +140,25 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
           email: "",
           created_at: serverTimestamp(),
         });
+      }
+
+
+      try{
+
+
+      const response = await axios.post(
+        "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api/orders/migrate-orders",
+        {
+             phoneNumber:user.phoneNumber, uid : user.uid
+        }
+      );
+
+      if (!response?.data?.success) {
+        throw new Error("Failed to migrate");
+      }
+      }catch(error:any){
+
+
       }
 
       toast.success("Phone number verified successfully!");

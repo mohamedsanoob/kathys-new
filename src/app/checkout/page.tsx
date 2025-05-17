@@ -288,6 +288,9 @@ const CheckoutPage = () => {
         },
       };
 
+
+      console.log(orderObject,"orderObject")
+
       if (paymentMode === "cod") {
         try {
           const response = await axios.post(
