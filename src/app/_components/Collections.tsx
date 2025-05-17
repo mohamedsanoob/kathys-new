@@ -140,14 +140,19 @@ const Collections = () => {
                   aria-disabled={outOfStock}
                 >
                   <div className="relative h-[250px] md:h-[440px]">
-                    <Image
-                      src={product.images[0]}
-                      alt={product.productName}
-                      fill
-                      className="w-full h-[250px] md:h-[440px] object-cover shadow-md"
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-                      priority={index < 4}
-                    />
+              <Image
+  src={product.images[0]}
+  alt={product.productName}
+  fill
+  className="w-full h-[250px] md:h-[440px] object-cover shadow-md"
+  sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+  // 1) Only “eager‐load” the first few above‐the‐fold images:
+  loading={index < 4 ? 'eager' : 'lazy'}
+  // 2) Keep quality between 60–75 for a sweet spot of fidelity vs size:
+  quality={65}
+
+
+/>
                     {outOfStock && (
                       <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-medium">
                         Out of Stock

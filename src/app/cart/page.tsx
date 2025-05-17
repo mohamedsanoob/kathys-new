@@ -146,6 +146,7 @@ const CartPage = () => {
                       src={product.images[0]}
                       alt={product.productName}
                       width={80}
+                      quality={50}
                       height={80}
                       className="w-16 h-20 object-cover rounded cursor-pointer"
                     />

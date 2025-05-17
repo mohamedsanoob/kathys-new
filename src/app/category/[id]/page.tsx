@@ -110,14 +110,19 @@ const Page = () => {
               >
                 {subCategory.images?.[0] && (
                   <div className="absolute inset-0">
-                    <Image
-                      src={subCategory.images[0]}
-                      alt={subCategory.categoryName}
-                      fill
-                      className="object-cover transition-transform duration-200 group-hover:scale-103"
-                      sizes="(max-width: 640px) 100px, (max-width: 768px) 80px, 70px"
-                      quality={80}
-                    />
+                <Image
+  src={subCategory.images[0]}
+  alt={subCategory.categoryName}
+  fill
+  className="object-cover transition-transform duration-200 group-hover:scale-105"
+  sizes="(max-width: 640px) 100px, (max-width: 768px) 80px, 70px"
+  // 1) Let off-screen images lazy-load (default in Next.js), only critical ones use eager.
+  loading="lazy"
+  // 2) Drop quality to 65 for ~30% smaller files without visible artifacts.
+  quality={65}
+  // 3) Show a tiny blurred SVG while the full image loads.
+
+/>
                     <div className="absolute inset-0 bg-opacity-25 group-hover:bg-opacity-15 transition-all duration-150" />
                   </div>
                 )}

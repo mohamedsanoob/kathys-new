@@ -193,6 +193,7 @@ const Page = () => {
                   alt={item.product_name}
                   fill
                   className="object-contain rounded-md border border-gray-200"
+                  quality={50}
                 />
               </div>
               <div className="flex-1">
