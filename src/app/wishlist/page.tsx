@@ -1,4 +1,7 @@
+"use client";
 import WishListItems from "./_components/WishListItems"
+
+
 
 
 

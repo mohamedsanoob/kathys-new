@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from 'react';
 import Addresses from "./_components/Addresses";
 import Account from "./_components/Account";
 import AllOrders from "./_components/AllOrders";
@@ -5,13 +8,19 @@ import HomeItems from "./_components/HomeItems";
 import Signout from "./_components/Signout";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from 'next/navigation';
 
+const AccountPage = () => {
+  const searchParams = useSearchParams();
+  const [activeComponent, setActiveComponent] = useState<string | null>(null);
+  const [showContentOnMobile, setShowContentOnMobile] = useState(false);
 
-
-const page = ({ searchParams }: { searchParams: { category?: string } }) => {
-  
-  const activeComponent = searchParams?.category;
-  const showContentOnMobile = !!activeComponent;
+  useEffect(() => {
+    // Get category from URL search params
+    const category = searchParams?.get('category') || null;
+    setActiveComponent(category);
+    setShowContentOnMobile(!!category);
+  }, [searchParams]);
 
   const renderComponent = () => {
     switch (activeComponent) {
@@ -26,13 +35,11 @@ const page = ({ searchParams }: { searchParams: { category?: string } }) => {
     }
   };
 
-
-
   return (
     <div>
       <div>
-    <Account/>
-        <div className="flex flex-col md:flex-row border border-gray-200 rounded-md md:shadow-md w-[92%]  mx-auto">
+        <Account />
+        <div className="flex flex-col md:flex-row border border-gray-200 rounded-md md:shadow-md w-[92%] mx-auto">
           {/* Mobile back button - shown only when content is visible on mobile */}
           {showContentOnMobile && (
             <div className="md:hidden flex items-center p-4 border-b border-gray-200">
@@ -58,4 +65,4 @@ const page = ({ searchParams }: { searchParams: { category?: string } }) => {
   );
 };
 
-export default page;
+export default AccountPage;

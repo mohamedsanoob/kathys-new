@@ -1,3 +1,4 @@
+"use client";
 interface Variant {
   optionValue: string[];
   optionName: string;

@@ -1,3 +1,4 @@
+"use client";
 const Description = ({ description }: { description: string }) => {
   // const sizes = ["M - 38", "L - 40", "XL - 42", "XXL - 44", "XXXL - 46"];
 

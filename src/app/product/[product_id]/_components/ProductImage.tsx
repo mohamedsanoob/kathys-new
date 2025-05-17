@@ -18,6 +18,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
   const [zoom, setZoom] = useState(false);
   const [position, setPosition] = useState({ x: 50, y: 50 });
   const [isMobile, setIsMobile] = useState(false);
+  const [loadedImages, setLoadedImages] = useState<{[key: number]: boolean}>({});
   const imageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,6 +46,10 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
     });
   };
 
+  const handleImageLoad = (index: number) => {
+    setLoadedImages(prev => ({...prev, [index]: true}));
+  };
+
   return (
     <div className="w-[90%] md:w-[40%] flex flex-col m-auto gap-4">
       <Swiper
@@ -65,6 +70,9 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
               onMouseLeave={() => !isMobile && setZoom(false)}
               onMouseMove={handleMouseMove}
             >
+              {!loadedImages[index] && (
+                <div className="absolute inset-0 bg-gray-200 animate-pulse"></div>
+              )}
               <Image
                 src={image}
                 alt="product-image"
@@ -74,7 +82,10 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
                 style={{
                   transform: !isMobile && zoom ? "scale(2.4)" : "scale(1)",
                   transformOrigin: `${position.x}% ${position.y}%`,
+                  opacity: loadedImages[index] ? 1 : 0,
+                  transition: 'opacity 0.3s ease-in-out'
                 }}
+                onLoadingComplete={() => handleImageLoad(index)}
               />
             </div>
           </SwiperSlide>
@@ -95,7 +106,19 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
               className="relative overflow-hidden border border-gray-300 cursor-pointer"
               style={{ width: 75, height: 75 }}
             >
-              <Image src={image} alt={`product-thumbnail-${index + 1}`} fill />
+              {!loadedImages[index] && (
+                <div className="absolute inset-0 bg-gray-200 animate-pulse"></div>
+              )}
+              <Image 
+                src={image} 
+                alt={`product-thumbnail-${index + 1}`} 
+                fill
+                style={{
+                  opacity: loadedImages[index] ? 1 : 0,
+                  transition: 'opacity 0.3s ease-in-out'
+                }}
+                onLoadingComplete={() => handleImageLoad(index)}
+              />
             </div>
           </SwiperSlide>
         ))}
