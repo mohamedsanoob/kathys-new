@@ -79,23 +79,24 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
                 {!loadedImages[idx] && (
                   <div className="absolute inset-0 bg-gray-200 animate-pulse z-0" />
                 )}
-                <Image
-                  src={src}
-                  alt={`product-image-${idx + 1}`}
-                  width={800}  // Reduced from 1000 for faster loading
-                  height={800}
-                  className="object-cover lg:object-contain z-10"
-                  style={{
-                    transform: isActive && !isMobile && zoom ? "scale(2.4)" : "scale(1)",
-                    transformOrigin: `${position.x}% ${position.y}%`,
-                    transition: "transform 0.1s ease-out, opacity 0.3s ease-in-out",
-                    opacity: loadedImages[idx] ? 1 : 0,
-                  }}
-                  priority={idx === 0} // Only first image is high priority
-                  loading={idx > 2 ? "lazy" : "eager"} // Lazy load images beyond the first 3
-                  quality={85} // Slightly reduced quality for faster loading
-                  onLoadingComplete={() => handleImageLoad(idx)}
-                />
+              <Image
+  src={src}
+  alt={`product-image-${idx + 1}`}
+  width={0}  // Let the image take natural width
+  height={0} // Let the image take natural height
+  sizes="(max-width: 768px) 100vw, 50vw" // Responsive sizing
+  className="w-full h-auto max-h-[80vh] object-contain z-10" // Full width, constrained height
+  style={{
+    transform: isActive && !isMobile && zoom ? "scale(2.4)" : "scale(1)",
+    transformOrigin: `${position.x}% ${position.y}%`,
+    transition: "transform 0.1s ease-out, opacity 0.3s ease-in-out",
+    opacity: loadedImages[idx] ? 1 : 0,
+  }}
+  priority={idx === 0}
+  loading={idx > 2 ? "lazy" : "eager"}
+  quality={75} // Balanced quality
+  onLoadingComplete={() => handleImageLoad(idx)}
+/>
               </div>
             </SwiperSlide>
           );
