@@ -82,8 +82,8 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
                 <Image
                   src={src}
                   alt={`product-image-${idx + 1}`}
-                  width={1000}
-                  height={1000}
+                  width={800}  // Reduced from 1000 for faster loading
+                  height={800}
                   className="object-cover lg:object-contain z-10"
                   style={{
                     transform: isActive && !isMobile && zoom ? "scale(2.4)" : "scale(1)",
@@ -91,6 +91,9 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
                     transition: "transform 0.1s ease-out, opacity 0.3s ease-in-out",
                     opacity: loadedImages[idx] ? 1 : 0,
                   }}
+                  priority={idx === 0} // Only first image is high priority
+                  loading={idx > 2 ? "lazy" : "eager"} // Lazy load images beyond the first 3
+                  quality={85} // Slightly reduced quality for faster loading
                   onLoadingComplete={() => handleImageLoad(idx)}
                 />
               </div>
