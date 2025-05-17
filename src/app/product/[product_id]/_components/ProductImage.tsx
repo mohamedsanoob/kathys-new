@@ -79,13 +79,13 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
                 {!loadedImages[idx] && (
                   <div className="absolute inset-0 bg-gray-200 animate-pulse z-0" />
                 )}
-              <Image
+          <Image
   src={src}
   alt={`product-image-${idx + 1}`}
-  width={0}  // Let the image take natural width
-  height={0} // Let the image take natural height
-  sizes="(max-width: 768px) 100vw, 50vw" // Responsive sizing
-  className="w-full h-auto max-h-[80vh] object-contain z-10" // Full width, constrained height
+  width={800}  // Optimal max width for high-res displays
+  height={1400}  // Base height that maintains aspect ratio
+  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px" // Responsive breakpoints
+  className="w-full h-auto max-h-[80vh] max-w-full object-contain z-10"
   style={{
     transform: isActive && !isMobile && zoom ? "scale(2.4)" : "scale(1)",
     transformOrigin: `${position.x}% ${position.y}%`,
@@ -94,7 +94,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
   }}
   priority={idx === 0}
   loading={idx > 2 ? "lazy" : "eager"}
-  quality={75} // Balanced quality
+  quality={80}  // Slightly higher quality for zoom capability
   onLoadingComplete={() => handleImageLoad(idx)}
 />
               </div>

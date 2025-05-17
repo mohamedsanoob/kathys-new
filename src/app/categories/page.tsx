@@ -71,6 +71,7 @@ export default function CategoriesList() {
                   className="object-contain group-hover:scale-105 transition-transform duration-300"
                   sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
                   priority={true}
+                  quality={50}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gray-200">
