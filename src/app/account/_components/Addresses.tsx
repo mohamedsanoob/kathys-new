@@ -62,6 +62,7 @@ const commonTextFieldStyles = {
   "& .MuiInputBase-root": {
     height: "3rem",
     fontSize: "14px",
+    fontFamily: "Jost",
   },
   "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": {
     borderColor: "#000",
@@ -69,7 +70,9 @@ const commonTextFieldStyles = {
   "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
     borderColor: "#000",
   },
-  "& .MuiFormHelperText-root": {},
+  "& .MuiFormHelperText-root": {
+    fontFamily: "Jost",
+  },
 };
 
 const states = [
@@ -373,7 +376,7 @@ const Addresses = () => {
                       }}
                     >
                       {states.map((state) => (
-                        <MenuItem key={state} value={state}>
+                        <MenuItem key={state} value={state} sx={{fontFamily: "Jost"}}>
                           {state}
                         </MenuItem>
                       ))}
@@ -390,7 +393,7 @@ const Addresses = () => {
                 sx={{
                   textTransform: "none",
                   borderRadius: "0.5rem",
-                  fontFamily: "Poppins",
+                  fontFamily: "Jost",
                   background: "black",
                   width: { xs: "100%", sm: "40%" },
                   padding: "0.5rem 0",

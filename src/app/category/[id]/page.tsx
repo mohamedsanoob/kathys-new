@@ -43,9 +43,10 @@ const Page = () => {
 
         // Fetch all subcategory details
         if (productsData.categories?.subCategories?.length) {
-          const subCategoriesPromises = productsData.categories.subCategories.map(
-            (subCategoryId: string) => getCategoryById(subCategoryId)
-          );
+          const subCategoriesPromises =
+            productsData.categories.subCategories.map((subCategoryId: string) =>
+              getCategoryById(subCategoryId)
+            );
           const subCategories = await Promise.all(subCategoriesPromises);
           setSubCategoriesDetails(subCategories.filter(Boolean));
         }
@@ -58,7 +59,6 @@ const Page = () => {
 
     fetchData();
   }, [id]);
-
 
   if (loading) {
     return (
@@ -86,16 +86,9 @@ const Page = () => {
 
   const initialProducts = data.products.map((product) => ({
     ...product,
-    createdDate: product.createdDate
-      ? product.createdDate.toMillis()
-      : null,
-    updatedDate: product.updatedDate
-      ? product.updatedDate.toMillis()
-      : null,
+    createdDate: product.createdDate ? product.createdDate.toMillis() : null,
+    updatedDate: product.updatedDate ? product.updatedDate.toMillis() : null,
   }));
-
-
-
 
   return (
     <div className="flex flex-col max-w-[1290px] mx-auto md:mt-[1rem] p-1">
@@ -110,19 +103,18 @@ const Page = () => {
               >
                 {subCategory.images?.[0] && (
                   <div className="absolute inset-0">
-                <Image
-  src={subCategory.images[0]}
-  alt={subCategory.categoryName}
-  fill
-  className="object-cover transition-transform duration-200 group-hover:scale-105"
-  sizes="(max-width: 640px) 100px, (max-width: 768px) 80px, 70px"
-  // 1) Let off-screen images lazy-load (default in Next.js), only critical ones use eager.
-  loading="lazy"
-  // 2) Drop quality to 65 for ~30% smaller files without visible artifacts.
-  quality={65}
-  // 3) Show a tiny blurred SVG while the full image loads.
-
-/>
+                    <Image
+                      src={subCategory.images[0]}
+                      alt={subCategory.categoryName}
+                      fill
+                      className="object-cover transition-transform duration-200 group-hover:scale-105"
+                      sizes="(max-width: 640px) 100px, (max-width: 768px) 80px, 70px"
+                      // 1) Let off-screen images lazy-load (default in Next.js), only critical ones use eager.
+                      loading="lazy"
+                      // 2) Drop quality to 65 for ~30% smaller files without visible artifacts.
+                      quality={65}
+                      // 3) Show a tiny blurred SVG while the full image loads.
+                    />
                     <div className="absolute inset-0 bg-opacity-25 group-hover:bg-opacity-15 transition-all duration-150" />
                   </div>
                 )}
