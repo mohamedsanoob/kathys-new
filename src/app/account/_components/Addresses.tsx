@@ -192,15 +192,19 @@ const Addresses = () => {
 
   const handleDelete = (address: AddressType) => {
     if (address.id && currentUser?.uid) {
-      deleteUserAddressById(currentUser?.uid, address.id).then(()=>{
-              fetchAddresses(currentUser.uid);
-      })
+      deleteUserAddressById(currentUser?.uid, address.id).then(() => {
+        fetchAddresses(currentUser.uid);
+      });
     }
   };
 
   return (
     <div className="flex flex-wrap gap-4 w-full">
-      {userAddresses.length === 0 && <p className="text-center text-gray-500 w-full py-4">No addresses found</p>}
+      {userAddresses.length === 0 && (
+        <p className="text-center text-gray-500 w-full py-4">
+          No addresses found
+        </p>
+      )}
       {userAddresses.map((address) => (
         <div
           key={address.id}
