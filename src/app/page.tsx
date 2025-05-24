@@ -20,7 +20,6 @@ export default function Home() {
       <Rating />
       <Help />
       <Footer />
-      <div></div>
     </div>
   );
 }

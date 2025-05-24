@@ -33,7 +33,7 @@ const Footer = () => {
             <h3 className="text-lg font-semibold mb-2 text-white">
               Secure Payments
             </h3>
-            <p>100% secure payment options</p>
+            <p>100% secure payment via Razorpay</p>
           </div>
 
           {/* Customer Support */}
@@ -83,6 +83,22 @@ const Footer = () => {
                   My Account
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/terms-conditions"
+                  className="hover:text-white transition-colors"
+                >
+                  Terms & Conditions
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/privacy-policy"
+                  className="hover:text-white transition-colors"
+                >
+                  Privacy Policy
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
@@ -97,6 +113,8 @@ const Footer = () => {
               <Link
                 href="https://www.facebook.com/kathysclothingstore/"
                 aria-label="Facebook"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <Facebook className="h-5 w-5 hover:text-white transition-colors" />
               </Link>
@@ -104,12 +122,16 @@ const Footer = () => {
               <Link
                 href="https://www.instagram.com/Kathysclothingstore"
                 aria-label="Instagram"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <Instagram className="h-5 w-5 hover:text-white transition-colors" />
               </Link>
               <Link
                 href="https://www.youtube.com/Kathysclothingstore"
                 aria-label="LinkedIn"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <Youtube className="h-5 w-5 hover:text-white transition-colors" />
               </Link>
