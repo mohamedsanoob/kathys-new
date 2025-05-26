@@ -5,7 +5,11 @@ import { X } from "lucide-react";
 import OtpInput from "react-otp-input";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
+import {
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult,
+} from "firebase/auth";
 import { auth, db } from "@/firebase/config";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
@@ -19,20 +23,28 @@ interface PhoneAuthModalProps {
 
 const generateUserId = () =>
   Array.from({ length: 5 }, () =>
-    "abcdefghijklmnopqrstuvwxyz0123456789".charAt(Math.floor(Math.random() * 36))
+    "abcdefghijklmnopqrstuvwxyz0123456789".charAt(
+      Math.floor(Math.random() * 36)
+    )
   ).join("");
 
-const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => {
+const PhoneAuthModal = ({
+  isOpen,
+  onClose,
+  onSuccess,
+}: PhoneAuthModalProps) => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [otp, setOtp] = useState("");
   const [isOTPSent, setIsOTPSent] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [confirmationResult, setConfirmationResult] =
+    useState<ConfirmationResult | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
 
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
+  const baseUrl = process.env.BASE_URL;
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -53,20 +65,20 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && !isOTPSent ) {
+    if (isOpen && !isOTPSent) {
       setupRecaptcha();
     }
   }, [isOpen]);
 
   const setupRecaptcha = () => {
-    console.log(auth,"-jbkjb")
+    console.log(auth, "-jbkjb");
     if (!recaptchaContainerRef.current) {
       toast.error("reCAPTCHA container not found. Please try again.");
       return;
     }
     if (!window.recaptchaVerifier) {
       window.recaptchaVerifier = new RecaptchaVerifier(
-          auth,
+        auth,
         recaptchaContainerRef.current,
         {
           size: "invisible",
@@ -74,8 +86,7 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
           "expired-callback": () => {
             toast.warn("reCAPTCHA expired. Please try again.");
           },
-        },
-      
+        }
       );
     }
   };
@@ -98,7 +109,11 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
       if (!appVerifier) {
         throw new Error("reCAPTCHA verification failed. Please try again.");
       }
-      const result = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+      const result = await signInWithPhoneNumber(
+        auth,
+        formattedPhone,
+        appVerifier
+      );
       setConfirmationResult(result);
       setIsOTPSent(true);
       setTimer(60);
@@ -142,24 +157,16 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
         });
       }
 
+      try {
+        const response = await axios.post(`${baseUrl}/orders/migrate-orders`, {
+          phoneNumber: user.phoneNumber,
+          uid: user.uid,
+        });
 
-      try{
-
-
-      const response = await axios.post(
-        "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api/orders/migrate-orders",
-        {
-             phoneNumber:user.phoneNumber, uid : user.uid
+        if (!response?.data?.success) {
+          throw new Error("Failed to migrate");
         }
-      );
-
-      if (!response?.data?.success) {
-        throw new Error("Failed to migrate");
-      }
-      }catch(error:any){
-
-
-      }
+      } catch (error: any) {}
 
       toast.success("Phone number verified successfully!");
       onSuccess(user.phoneNumber!);
@@ -235,12 +242,16 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
               <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
             </button>
 
-            <h3 className="text-xl font-semibold mb-4 text-center mt-2">Login with OTP</h3>
+            <h3 className="text-xl font-semibold mb-4 text-center mt-2">
+              Login with OTP
+            </h3>
 
             {!isOTPSent ? (
               <>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Phone Number</label>
+                  <label className="block text-sm font-medium mb-1">
+                    Phone Number
+                  </label>
                   <div className="flex">
                     <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">
                       +91
@@ -248,7 +259,11 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
                     <input
                       type="tel"
                       value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      onChange={(e) =>
+                        setPhoneNumber(
+                          e.target.value.replace(/\D/g, "").slice(0, 10)
+                        )
+                      }
                       className="flex-1 block px-3 py-2 rounded-none rounded-r-md border border-gray-300 focus:ring-2 focus:ring-black focus:border-black outline-none"
                       placeholder="Enter your phone number"
                       aria-label="Phone number"
@@ -295,7 +310,9 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
             ) : (
               <>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Enter OTP</label>
+                  <label className="block text-sm font-medium mb-1">
+                    Enter OTP
+                  </label>
                   <OtpInput
                     value={otp}
                     onChange={setOtp}
@@ -324,7 +341,9 @@ const PhoneAuthModal = ({ isOpen, onClose, onSuccess }: PhoneAuthModalProps) => 
                       Resend OTP
                     </button>
                   ) : (
-                    <span className="text-gray-500 text-sm">Resend OTP in {timer}s</span>
+                    <span className="text-gray-500 text-sm">
+                      Resend OTP in {timer}s
+                    </span>
                   )}
                 </div>
 

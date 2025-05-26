@@ -40,7 +40,7 @@ declare global {
   }
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+const BASE_URL = process.env.BASE_URL;
 const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 
 const PaymentLoader = () => (
