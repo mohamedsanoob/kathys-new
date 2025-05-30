@@ -40,6 +40,9 @@ declare global {
   }
 }
 
+const BASE_URL = process.env.BASE_URL;
+const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+
 const PaymentLoader = () => (
   <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm">
     <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center w-[90%]">
@@ -168,7 +171,9 @@ const CheckoutPage = () => {
   };
 
   const total = cartProductsWithDetails.reduce((sum, product) => {
-    const price = product?.variantDetails?.discountedPrice || product?.variantDetails?.price;
+    const price =
+      product?.variantDetails?.discountedPrice ||
+      product?.variantDetails?.price;
     return sum + price * product.quantity;
   }, 0);
 
@@ -291,15 +296,10 @@ const CheckoutPage = () => {
 
       if (paymentMode === "cod") {
         try {
-          const response = await axios.post(
-            "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api/payment/cod",
-            {
-              orderData: orderObject,
-              authenticatedId: currentUser ? currentUser?.uid : undefined,
-            }
-          );
-
-     
+          const response = await axios.post(`${BASE_URL}/payment/cod`, {
+            orderData: orderObject,
+            authenticatedId: currentUser ? currentUser?.uid : undefined,
+          });
 
           setOrderDetails({
             id: response.data.orderId,
@@ -331,10 +331,8 @@ const CheckoutPage = () => {
         throw new Error("Razorpay SDK failed to load");
       }
 
-
-
       const orderResponse = await axios.post<OrderResponse>(
-        "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api/payment/orders",
+        `${BASE_URL}/payment/orders`,
         {
           amount: grandTotal,
           currency: "INR",
@@ -356,7 +354,7 @@ const CheckoutPage = () => {
       });
 
       const paymentOptions: RazorpayOptions = {
-        key: process.env.RAZORPAY_KEY_ID || "rzp_test_N6VzhsIMdUpe3s",
+        key: RAZORPAY_KEY_ID || "rzp_test_N6VzhsIMdUpe3s",
         amount: grandTotal.toString(),
         currency,
         name: "Kathy's Clothing Store",
@@ -368,7 +366,7 @@ const CheckoutPage = () => {
             setIsProcessingPayment(true);
             const verificationResponse =
               await axios.post<PaymentSuccessResponse>(
-                "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api/payment/success",
+                `${BASE_URL}/payment/success`,
                 {
                   orderCreationId: order_id,
                   razorpayPaymentId: response.razorpay_payment_id,
@@ -412,14 +410,11 @@ const CheckoutPage = () => {
           ondismiss: async () => {
             try {
               setIsProcessingPayment(true);
-              await axios.post(
-                "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api/payment/cancel",
-                {
-                  orderId: order_id,
-                  authenticatedId: currentUser ? currentUser?.uid : undefined,
-                  reason: "User closed payment window",
-                }
-              );
+              await axios.post(`${BASE_URL}/payment/cancel`, {
+                orderId: order_id,
+                authenticatedId: currentUser ? currentUser?.uid : undefined,
+                reason: "User closed payment window",
+              });
               setPaymentStatus("failed");
               setPaymentError("Payment was cancelled. Please try again.");
               setIsProcessingPayment(false);
@@ -498,10 +493,7 @@ const CheckoutPage = () => {
         </div>
       }
     >
-      <div
-        className="flex flex-col  bg-gray-50"
-        style={{ height: "100%" }}
-      >
+      <div className="flex flex-col  bg-gray-50" style={{ height: "100%" }}>
         {isProcessingPayment && <PaymentLoader />}
 
         <div className="bg-white border-b border-gray-200 py-4 px-4 flex items-center">
@@ -577,12 +569,13 @@ const CheckoutPage = () => {
         <div className=" bg-white border-t border-gray-200 py-3 px-4 md:hidden">
           <div className="container mx-auto flex md:flex-row items-center justify-between gap-4">
             <div className="text-center md:text-left w-50">
-         <p className="font-semibold">
-  Total: ₹{Number(grandTotal).toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}
-</p>
+              <p className="font-semibold">
+                Total: ₹
+                {Number(grandTotal).toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </p>
             </div>
             <button
               onClick={handleOrderButtonClick}
