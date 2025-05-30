@@ -61,6 +61,9 @@ const CartItems: React.FC<CartItemsProps> = ({
     return loadingStates[key] || false;
   };
 
+
+
+
   return (
     <table className="w-full">
       <thead>
@@ -77,6 +80,8 @@ const CartItems: React.FC<CartItemsProps> = ({
           const { isOutOfStock, inventory } = getStockStatus(product);
           const variantCombination = product.variantDetails?.combination || [];
           const itemKey = `${product.id}-${product.variantDetails?.sku || 'no-variant'}`;
+
+
           
           return (
             <tr 

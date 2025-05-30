@@ -420,7 +420,7 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
                 {variant.optionValue.map((value) => {
                   const valueObj =
                     typeof value === "string" ? { name: value } : value;
-                  return variant.optionName === "color" ? (
+                  return variant.optionName?.toLowerCase() === "color" ? (
                     <div
                       key={valueObj.name}
                       className="flex flex-col items-center"

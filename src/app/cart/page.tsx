@@ -156,7 +156,7 @@ const CartPage = () => {
                   <Link href={`/product/${product.id}`} passHref>
                     <p className="font-semibold text-sm hover:text-[#1e6553] cursor-pointer">
                       {product.productName}
-                      {product.variantDetails?.combination && (
+                      {product.variantDetails?.combination?.length >0 && (
                         <>
                           {" - "}
                           {product.variantDetails.combination
@@ -268,7 +268,7 @@ const CartPage = () => {
                         <Link href={`/product/${product.id}`} passHref>
                           <p className="font-semibold text-[1rem] hover:text-[#1e6553] cursor-pointer">
                             {product.productName}
-                            {product.variantDetails?.combination && (
+                            {product.variantDetails?.combination?.length>0 && (
                               <>
                                 {" - "}
                                 {product.variantDetails.combination
