@@ -578,12 +578,16 @@ export const getProductsByCategory = async (
       let sizeMatch = true;
 
       // Check color filter
-      if (colorFilter) {
-        colorMatch = product.variantDetails?.some(variant => 
-          variant.combination?.some(combo => 
-            combo.name === "color" && combo.value === colorFilter
-          )
-        ) || false;
+  if (colorFilter) {
+  colorMatch = product.variantDetails?.some(variant => 
+    variant.combination?.some(combo => {
+      if (combo.name?.toLowerCase() === "color" && combo.value) {
+        // Compare color names case-insensitively
+        return combo.value?.toLowerCase() === colorFilter?.toLowerCase();
+      }
+      return false;
+    })
+  ) || false;
       }
 
       // Check size filter
@@ -996,7 +1000,7 @@ export const updateCartItem = async (
 
 export const getColorsByCategory = async (
   categoryId: string
-): Promise<{ color: string; count: number }[]> => {
+): Promise<{ color: { name: string; hex: string }; count: number }[]> => {
   try {
     // First, get the category document
     const categoryQuery = query(
@@ -1021,7 +1025,7 @@ export const getColorsByCategory = async (
       getDocs(query(
         collection(db, "products"),
         where("categories", "array-contains", categoryId),
-             where("active", "==", true),
+        where("active", "==", true),
       ))
     );
 
@@ -1036,12 +1040,33 @@ export const getColorsByCategory = async (
     // Remove duplicates (in case a product belongs to multiple subcategories)
     const uniqueProducts = [...new Map(allProducts.map(item => [item.id, item])).values()];
 
-    // Create a map to count occurrences of each color
-    const colorCounts = new Map<string, number>();
+    // Create a map to track color counts and first encountered hex value
+    const colorCounts = new Map<string, {
+      color: { name: string; hex: string };
+      count: number;
+    }>();
 
     uniqueProducts.forEach((product) => {
-      // Track colors we've already counted for this product to avoid double-counting
-      const productColors = new Set<string>();
+      const productColorNames = new Set<string>();
+
+      // Helper function to process color objects
+      const processColor = (colorObj: { name: string; hex: string }) => {
+        if (!colorObj?.name) return;
+        
+        const colorName = colorObj.name.toLowerCase();
+        productColorNames.add(colorName);
+        
+        // Store the first encountered hex for this color name
+        if (!colorCounts.has(colorName)) {
+          colorCounts.set(colorName, {
+            color: {
+              name: colorObj.name,
+              hex: colorObj.hex || '#000000' // default if hex missing
+            },
+            count: 0
+          });
+        }
+      };
 
       // Check variants for colors
       product.variants?.forEach((variant) => {
@@ -1049,40 +1074,29 @@ export const getColorsByCategory = async (
           variant.optionName?.toLowerCase() === "color" &&
           Array.isArray(variant.optionValue)
         ) {
-          variant.optionValue.forEach((colorValue) => {
-            if(
-            colorValue?.name){
-   productColors.add(colorValue);
-            }
-           
-            
-          });
+          variant.optionValue.forEach(processColor);
         }
       });
 
       // Check variantDetails for colors
       product.variantDetails?.forEach((detail) => {
         detail.combination?.forEach((combo) => {
-          if (
-            combo.name?.toLowerCase() === "color"  &&
-            combo?.value?.name
-          ) {
-            productColors.add(combo.value);
+          if (combo.name?.toLowerCase() === "color" && combo?.value) {
+            processColor(combo.value);
           }
         });
       });
 
-      // Update counts for each unique color in this product
-      productColors.forEach(color => {
-        colorCounts.set(color, (colorCounts.get(color) || 0) + 1);
+      // Increment counts for each unique color name in this product
+      productColorNames.forEach(colorName => {
+        const colorData = colorCounts.get(colorName);
+        if (colorData) colorData.count++;
       });
     });
 
-    // Convert the map to an array of objects
-    return Array.from(colorCounts.entries()).map(([color, count]) => ({
-      color,
-      count
-    }));
+    // Convert the map to an array of objects sorted by count (descending)
+    return Array.from(colorCounts.values())
+      .sort((a, b) => b.count - a.count);
   } catch (error) {
     console.error("Error fetching colors by category:", error);
     return [];
