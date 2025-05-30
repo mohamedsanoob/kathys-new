@@ -338,7 +338,7 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
                           <motion.button
                             key={index}
                             whileTap={{ scale: 0.98 }}
-                            onClick={() => handleColorFilter(color?.color?.hex)}
+                            onClick={() => handleColorFilter(color?.color?.name)}
                             className="flex items-center justify-between p-1 rounded hover:bg-gray-50 transition-colors"
                           >
                             <div className="flex items-center gap-2">
@@ -348,7 +348,9 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
                                 aria-label={getColorNamesFromHex(color?.color?.hex)}
                               />
                               <span className="text-sm text-gray-700">
-                                {getColorNamesFromHex(color?.color?.hex)}
+                            <span className="text-sm text-gray-700">
+                        {color?.color?.name}
+                      </span>
                               </span>
                             </div>
                             <span className="text-xs text-gray-500">
