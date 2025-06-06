@@ -121,7 +121,9 @@ const Collections = () => {
 
   return (
     <div className="max-w-[1290px] mx-auto px-4">
-      {categoriesWithProducts?.map((category) => (
+  {categoriesWithProducts
+  ?.filter((category) => !category?.isSubcategory)
+  .map((category) => (
         <div key={category.id} className="mb-16 last:mb-8">
           {/* Header Section */}
           <div className="flex flex-col md:flex-row justify-between py-8 md:py-12">

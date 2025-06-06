@@ -259,8 +259,7 @@ export const getCollectionsWithProducts = async (): Promise<
      const categoriesQuery = query(
       collection(db, "categories"),
       where("active", "==", true),  // Only active categories
-      orderBy("order", "asc"),      // Sort by order in ascending order
-      limit(5)                      // Limit to 5 results
+      orderBy("order", "asc"),      // Sort by order in ascending order                // Limit to 5 results
     );
     const categoriesSnapshot = await getDocs(categoriesQuery);
     const categories: Category[] = categoriesSnapshot.docs.map((doc) => {
@@ -314,9 +313,15 @@ export const getCollectionsWithProducts = async (): Promise<
         });
 
         return {
-          id: category.id,
-          categoryName: category.categoryName,
-          description: category.description,
+          id: category?.id,
+          categoryName: category?.categoryName,
+          description: category?.description,
+               active: category?.active,
+        desktopBanner: category?.desktopBanner,
+        images: category?.images || [], // Default to empty array if missing
+        isSubcategory: category?.isSubcategory,
+        slug: category?.slug,
+        mobileBanner: category?.mobileBanner,
           products: products,
         };
       })

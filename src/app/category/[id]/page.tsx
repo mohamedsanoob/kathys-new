@@ -8,12 +8,13 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { getProductsByCategory, getCategoryById } from "@/actions/actions";
+import { useRouter } from "next/navigation";
 
 const ITEMS_PER_PAGE = 10;
 
 const Page = () => {
   const { id } = useParams<{ id: string }>();
-
+const router = useRouter();
   const [data, setData] = useState<{
     products: any[];
     totalCount: number;
@@ -92,22 +93,30 @@ const Page = () => {
 
   return (
     <div className="flex flex-col max-w-[1290px] mx-auto md:mt-[1rem] p-1">
+      <div className="mb-3 px-2 md:px-0  mt-3 ">
+  <button
+    onClick={() => router.back()}
+    className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-100 transition"
+  >
+    ← Back
+  </button>
+</div>
       {subCategoriesDetails.length > 0 && (
-        <div className="mb-5 mt-3 px-2 md:px-0">
+        <div className="mb-5 px-2 md:px-0">
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-10">
             {subCategoriesDetails.map((subCategory) => (
               <Link
                 key={subCategory.id}
                 href={`/category/${subCategory.id}`}
-                className="group relative overflow-hidden rounded-md aspect-square hover:shadow-md transition-all duration-200"
+                className="group relative overflow-hidden rounded-md aspect-square hover:shadow-md transition-all duration-200 bg-gray-500 ml-2"
               >
                 {subCategory.images?.[0] && (
-                  <div className="absolute inset-0">
+                  <div className="absolute inset-0" >
                     <Image
                       src={subCategory.images[0]}
                       alt={subCategory.categoryName}
                       fill
-                      className="object-cover transition-transform duration-200 group-hover:scale-105"
+                      className="object-cover transition-transform duration-200 group-hover:scale-105 bg-black"
                       sizes="(max-width: 640px) 100px, (max-width: 768px) 80px, 70px"
                       // 1) Let off-screen images lazy-load (default in Next.js), only critical ones use eager.
                       loading="lazy"
@@ -115,7 +124,7 @@ const Page = () => {
                       quality={65}
                       // 3) Show a tiny blurred SVG while the full image loads.
                     />
-                    <div className="absolute inset-0 bg-opacity-25 group-hover:bg-opacity-15 transition-all duration-150" />
+                    <div className="absolute inset-0 bg-opacity-25 group-hover:bg-opacity-15 transition-all duration-150 bg-black" />
                   </div>
                 )}
                 <div className="relative h-full flex items-end p-2">
