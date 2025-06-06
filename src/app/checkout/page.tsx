@@ -40,7 +40,7 @@ declare global {
   }
 }
 
-const BASE_URL = process.env.BASE_URL;
+const BASE_URL = process.env.SERVER_URL;
 const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 
 const PaymentLoader = () => (
@@ -354,7 +354,7 @@ const CheckoutPage = () => {
       });
 
       const paymentOptions: RazorpayOptions = {
-        key: RAZORPAY_KEY_ID || "rzp_test_N6VzhsIMdUpe3s",
+        key: RAZORPAY_KEY_ID ,
         amount: grandTotal.toString(),
         currency,
         name: "Kathy's Clothing Store",
