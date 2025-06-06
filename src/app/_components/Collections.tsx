@@ -111,6 +111,8 @@ const Collections = () => {
     );
   }
 
+  console.log("dummy")
+
   if (error) {
     return (
       <div className="max-w-[1290px] mx-auto px-4 py-8 text-center text-red-500">

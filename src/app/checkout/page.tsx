@@ -240,6 +240,9 @@ const CheckoutPage = () => {
     }
   };
 
+
+
+
   const onSubmit = async (data: FormData) => {
     setIsProcessingPayment(true);
 
