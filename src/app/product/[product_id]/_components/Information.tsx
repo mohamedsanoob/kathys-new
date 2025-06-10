@@ -5,6 +5,7 @@ interface Variant {
 }
 
 const Information = ({ variants }: { variants: Variant[] }) => {
+  console.log(variants)
   return (
     <div className="space-y-2">
       <h2 className="text-xl sm:text-2xl font-semibold">

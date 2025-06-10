@@ -30,12 +30,19 @@ const ProductGridItem = ({ product }: { product: Product }) => {
         className={`w-full h-75 aspect-square relative bg-gray-50 overflow-hidden ${outOfStock ? 'cursor-not-allowed' : ''}`}
         aria-disabled={outOfStock}
       >
+         {product?.images?.[0] ? (
         <Image
           src={product.images[0]}
-          alt={product.productName}
-          fill
-          className={`object-cover ${outOfStock ? 'opacity-80' : ''}`}
+          alt={product.productName || 'Product image'}
+          width={600}
+          height={600}
+          className="object-cover w-full h-full"
         />
+      ) : (
+        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+          <span>No image available</span>
+        </div>
+      )}
         {outOfStock && (
           <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-medium">
             Out of Stock

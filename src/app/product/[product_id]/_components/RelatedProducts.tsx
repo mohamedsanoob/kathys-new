@@ -95,13 +95,26 @@ const RelatedProducts = ({ categories }: { categories: string[] }) => {
                 className="flex flex-col gap-2"
               >
                 <div className="relative">
-                  <Image
-                    src={product.images[0]}
-                    alt={product.productName}
-                    width={250}
-                    height={250}
-                    className="w-full h-[250px] md:h-[440px] object-cover shadow-md"
-                  />
+             <div className="relative w-full h-[250px] md:h-[440px] shadow-md">
+  {product?.images?.[0] ? (
+    <Image
+      src={product.images[0]}
+      alt={product.productName || 'Product image'}
+      fill
+      className="object-cover"
+      sizes="(max-width: 768px) 100vw, 50vw"
+      quality={80}
+      priority={false} // Set to true if above the fold
+      onError={(e) => {
+        e.currentTarget.src = '/placeholder-product.jpg';
+      }}
+    />
+  ) : (
+    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+      <span className="text-gray-500">No image available</span>
+    </div>
+  )}
+</div>
                   {outOfStock && (
                     <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-medium">
                       Out of Stock

@@ -30,11 +30,10 @@ export async function searchProducts(queryStr: string): Promise<Product[]> {
     // Using array-contains for categories if needed
     const q = query(
       productsRef,
-      where("productName", ">=", searchTerm),
-      where("productName", "<=", searchTerm + "\uf8ff"),
+      where("productNameLower", ">=", searchTerm),
+      where("productNameLower", "<=", searchTerm + "\uf8ff"),
     //   where("active", "==", true), // Only search active products
-      orderBy("productName"), // Improves performance of range queries
-      limit(20)
+      orderBy("productNameLower")
     );
 
     const querySnapshot = await getDocs(q);

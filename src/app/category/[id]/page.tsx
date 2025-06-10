@@ -92,43 +92,54 @@ const router = useRouter();
   }));
 
   return (
-    <div className="flex flex-col max-w-[1290px] mx-auto md:mt-[1rem] p-1">
-      <div className="mb-3 px-2 md:px-0  mt-3 ">
-  <button
-    onClick={() => router.back()}
-    className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-100 transition"
-  >
-    ← Back
-  </button>
-</div>
-      {subCategoriesDetails.length > 0 && (
-        <div className="mb-5 px-2 md:px-0">
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-10">
+  <div className="flex flex-col max-w-[1290px] mx-auto md:mt-[1rem] p-1">
+  {/* Back Button - Made more mobile-friendly */}
+  <div className="mb-3 px-2 mt-3 md:px-0">
+    <button
+      onClick={() => router.back()}
+      className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition md:px-4 md:py-2"
+    >
+      ← Back
+    </button>
+  </div>
+
+  {/* Subcategories Scrollable Section - Enhanced for mobile */}
+  {subCategoriesDetails.length > 0 && (
+    <div className="mb-5 px-2 md:px-0">
+      <div className="relative">
+        {/* Scrollable container with mobile touch-friendly padding */}
+        <div className="overflow-x-auto pb-4 -mx-2 px-2 md:-mx-4 md:px-4 touch-pan-x">
+          <div className="inline-flex gap-2 w-max min-w-full md:gap-3">
             {subCategoriesDetails.map((subCategory) => (
               <Link
                 key={subCategory.id}
                 href={`/category/${subCategory.id}`}
-                className="group relative overflow-hidden rounded-md aspect-square hover:shadow-md transition-all duration-200 bg-gray-500 ml-2"
+                className="group relative flex-shrink-0 overflow-hidden rounded-lg hover:shadow-lg transition-all duration-200 bg-gray-500"
+                style={{ 
+                  width: '120px', 
+                  height: '120px',
+                  '@media (minWidth: 768px)': {
+                    width: '160px',
+                    height: '160px'
+                  }
+                }}
               >
                 {subCategory.images?.[0] && (
-                  <div className="absolute inset-0" >
+                  <div className="absolute inset-0">
                     <Image
-                      src={subCategory.images[0]}
-                      alt={subCategory.categoryName}
+                      src={subCategory?.images[0]}
+                      alt={subCategory?.categoryName}
                       fill
-                      className="object-cover transition-transform duration-200 group-hover:scale-105 bg-black"
-                      sizes="(max-width: 640px) 100px, (max-width: 768px) 80px, 70px"
-                      // 1) Let off-screen images lazy-load (default in Next.js), only critical ones use eager.
+                      className="object-cover transition-transform duration-200 group-hover:scale-105 md:group-hover:scale-110"
+                      sizes="(max-width: 640px) 120px, 160px"
                       loading="lazy"
-                      // 2) Drop quality to 65 for ~30% smaller files without visible artifacts.
-                      quality={65}
-                      // 3) Show a tiny blurred SVG while the full image loads.
+                      quality={70}
                     />
-                    <div className="absolute inset-0 bg-opacity-25 group-hover:bg-opacity-15 transition-all duration-150 bg-black" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-black/20 group-hover:from-black/40 group-hover:to-black/10 transition-all duration-300" />
                   </div>
                 )}
-                <div className="relative h-full flex items-end p-2">
-                  <span className="text-white font-medium text-sm drop-shadow-sm line-clamp-2">
+                <div className="relative h-full flex items-end p-2 md:p-3">
+                  <span className="text-white font-semibold text-xs md:text-sm drop-shadow-lg line-clamp-2 text-left">
                     {subCategory.categoryName}
                   </span>
                 </div>
@@ -136,20 +147,27 @@ const router = useRouter();
             ))}
           </div>
         </div>
-      )}
 
-      <div className="flex flex-col md:flex-row">
-        <FilterSection categoryName={id} />
-        <ProductsSection
-          initialProducts={initialProducts}
-          totalProducts={data.totalCount}
-          itemsPerPage={ITEMS_PER_PAGE}
-          categoryName={id}
-          categoryImageDesktop={currentCategory?.desktopBanner}
-          categoryImageMobile={currentCategory?.mobileBanner}
-        />
       </div>
     </div>
+  )}
+
+  {/* Main Content - Improved mobile layout */}
+  <div className="flex flex-col md:flex-row">
+    {/* Filter Section - Consider adding mobile filter drawer/off-canvas */}
+    <FilterSection categoryName={id} />
+    
+    {/* Products Section */}
+    <ProductsSection
+      initialProducts={initialProducts}
+      totalProducts={data.totalCount}
+      itemsPerPage={ITEMS_PER_PAGE}
+      categoryName={id}
+      categoryImageDesktop={currentCategory?.desktopBanner}
+      categoryImageMobile={currentCategory?.mobileBanner}
+    />
+  </div>
+</div>
   );
 };
 

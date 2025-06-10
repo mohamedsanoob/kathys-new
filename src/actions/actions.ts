@@ -16,6 +16,7 @@ import {
   DocumentSnapshot,
   serverTimestamp,
 } from "firebase/firestore";
+import { CodeSquare } from "lucide-react";
 
 interface DocumentInterface extends DocumentData {
   id: string;
@@ -521,7 +522,7 @@ export const getProductsByCategory = async (
 
     // Since Firestore doesn't support array-contains-any with more than 10 items,
     // we need to split into chunks if there are more than 10 subcategories
-    const chunkSize = 10;
+    const chunkSize = 10
     const queryPromises = [];
 
     for (let i = 0; i < allCategoryIds.length; i += chunkSize) {
@@ -583,17 +584,29 @@ export const getProductsByCategory = async (
       let sizeMatch = true;
 
       // Check color filter
-  if (colorFilter) {
+if (colorFilter) {
+
   colorMatch = product.variantDetails?.some(variant => 
     variant.combination?.some(combo => {
-      if (combo.name?.toLowerCase() === "color" && combo.value) {
-        // Compare color names case-insensitively
-        return combo.value?.toLowerCase() === colorFilter?.toLowerCase();
+      // Check if combo exists and has the required properties
+      if (!combo || !combo.name || !combo.value) return false;
+
+      // Case-insensitive comparison for color attribute
+      if (combo.name.toLowerCase().trim() === "color") {
+  
+        const filterValue = colorFilter?.toLowerCase().trim() || '';
+        const variantValue = combo.value?.toLowerCase().trim() || '';
+
+
+        
+        // Check for exact match or partial match
+        return variantValue === filterValue || 
+               variantValue.includes(filterValue);
       }
       return false;
     })
-  ) || false;
-      }
+  ) ?? false; // Use nullish coalescing for undefined cases
+}
 
       // Check size filter
       if (sizeFilter?.length>0) {

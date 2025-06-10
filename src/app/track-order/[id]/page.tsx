@@ -184,18 +184,23 @@ const Page = () => {
         <div className="space-y-4">
           {order.quantity_each.map((item: any) => (
             <div
-              key={item.product_id}
+              key={item.id}
               className="flex flex-row items-center gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <div className="w-[6rem] h-[6rem] flex-shrink-0 relative">
-                <Image
-                  src={item.images[0]}
-                  alt={item.product_name}
-                  fill
-                  className="object-contain rounded-md border border-gray-200"
-                  quality={50}
-                />
-              </div>
+            <Link href={`/product/${item.id}`} passHref>
+  <div className="w-[6rem] h-[6rem] flex-shrink-0 relative cursor-pointer group">
+    <Image
+      src={item.images[0]}
+      alt={item.product_name}
+      fill
+      className="object-contain rounded-md border border-gray-200 group-hover:border-gray-400 transition-all duration-200"
+      quality={50}
+      sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 25vw"
+    />
+    {/* Optional hover overlay effect */}
+    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-5 transition-all duration-200 rounded-md" />
+  </div>
+</Link>
               <div className="flex-1">
                 <h3 className="font-medium text-gray-900">
                   {item.product_name}
