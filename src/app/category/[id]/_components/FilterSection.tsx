@@ -77,6 +77,7 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
     const newParams = new URLSearchParams(window.location.search);
     newParams.set("minPrice", value[0].toString());
     newParams.set("maxPrice", value[1].toString());
+    newParams.set("filter", "");
     router.push(`?${newParams.toString()}`);
   }, [value, router]);
 
