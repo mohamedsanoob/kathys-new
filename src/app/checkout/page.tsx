@@ -240,8 +240,7 @@ const CheckoutPage = () => {
     }
   };
 
-
-
+  console.log("test")
 
   const onSubmit = async (data: FormData) => {
     setIsProcessingPayment(true);
