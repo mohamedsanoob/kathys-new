@@ -20,8 +20,8 @@ interface BillingDetailsProps {
   saveNewAddress: (data: any) => Promise<void>;
   handleSubmit: any;
   getValues: any;
-  paymentMode?: "online" | "cod";
-  setPaymentMode?: (mode: "online" | "cod") => void;
+  paymentMode?: "online" | "cod" | "cof";
+  setPaymentMode?: (mode: "online" | "cod" | "cof") => void;
   showPaymentMode: boolean; // new prop
 }
 

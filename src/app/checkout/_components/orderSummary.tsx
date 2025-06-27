@@ -16,7 +16,7 @@ const OrderSummary = ({
   paymentModeError
 }: OrderSummaryProps) => {
   // Calculate delivery fee (₹150 for COD, otherwise 0)
-  const deliveryFee = paymentMode === "cod" ? 150 : 75;
+  const deliveryFee =  paymentMode==="cof"?0: paymentMode === "cod" ? 150 : 75;
   const grandTotal = total + deliveryFee;
 
 

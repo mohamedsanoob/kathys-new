@@ -7,7 +7,7 @@ interface PaymentSuccessProps {
   amount: number;
   paymentMethod: string;
   onContinueShopping?: () => void;
-  paymentMode?: "online" | "cod" |"";
+  paymentMode?: "online" | "cod" |"cof" | "";
 }
 
 export const PaymentSuccess = ({
@@ -24,7 +24,7 @@ export const PaymentSuccess = ({
       </div>
 
       <h1 className="text-3xl font-bold text-gray-900 mb-4">
-        {paymentMode === "cod"
+        {(paymentMode === "cod" || paymentMode === "cof")
           ? "Order Placed Successfullly!"
           : "Payment Successful!"}
       </h1>

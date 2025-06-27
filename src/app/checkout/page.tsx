@@ -71,7 +71,7 @@ const CheckoutPage = () => {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [termsError, setTermsError] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(true);
-  const [paymentMode, setPaymentMode] = useState<"online" | "cod" | "">("");
+  const [paymentMode, setPaymentMode] = useState<"online" | "cod" | "cof" |"">("");
   const [showPaymentMode, setShowPaymentMode] = useState(false);
   const [paymentModeError, setPaymentModeError] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<
@@ -177,7 +177,7 @@ const CheckoutPage = () => {
     return sum + price * product.quantity;
   }, 0);
 
-  const deliveryFee = paymentMode === "cod" ? 150 : 75;
+  const deliveryFee =  paymentMode === "cof" ? 0: paymentMode === "cod" ? 150 : 75
   const grandTotal = total + deliveryFee;
 
   const loadScript = (src: string): Promise<boolean> => {
@@ -249,9 +249,9 @@ const CheckoutPage = () => {
     try {
       const orderObject = {
         cartId: localStorage.getItem("guestCartId") || `cart_${Date.now()}`,
-        payment_mode: paymentMode === "cod" ? "COD" : "Razorpay",
+        payment_mode: paymentMode === "cof" ? "Collect from store" :paymentMode === "cod" ? "COD" : "Razorpay",
         items_total: grandTotal,
-        delivery: paymentMode === "cod" ? 150 : 75,
+        delivery: paymentMode === "cof" ? 0: paymentMode === "cod" ? 150 : 75,
         additional_info: data.notes || "",
         channel: "Web",
         orderStatus: "created",
@@ -297,7 +297,7 @@ const CheckoutPage = () => {
       };
 
 
-      if (paymentMode === "cod") {
+      if (paymentMode === "cod" || paymentMode === "cof") {
         try {
           const response = await axios.post(`${BASE_URL}/payment/cod`, {
             orderData: orderObject,
@@ -307,7 +307,7 @@ const CheckoutPage = () => {
           setOrderDetails({
             id: response.data.orderId,
             amount: grandTotal,
-            paymentMethod: "cash on delivery",
+            paymentMethod: paymentMode==="cof" ?"Collect from store" : "cash on delivery",
           });
 
           window.dispatchEvent(new Event("cart-remove-all"));
@@ -320,7 +320,7 @@ const CheckoutPage = () => {
           setPaymentStatus("failed");
           setPaymentError(
             error.response?.data?.error ||
-              "Failed to place COD order. Please try again."
+              `Failed to place ${paymentMode==="cod"?"COD":"Collect from order"} order. Please try again.`
           );
           setIsProcessingPayment(false);
           return;
