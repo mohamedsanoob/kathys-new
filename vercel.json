@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/categories/:path*",
+      "destination": "https://kathysonline.in",
+      "permanent": true
+    }
+  ]
+}
