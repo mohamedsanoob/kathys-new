@@ -69,6 +69,7 @@ const CheckoutPage = () => {
     string | null | undefined
   >(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
+   const [isKerala, setIsKerala] = useState(false);
   const [termsError, setTermsError] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(true);
   const [paymentMode, setPaymentMode] = useState<"online" | "cod" | "cof" |"">("");
@@ -90,6 +91,7 @@ const CheckoutPage = () => {
     handleSubmit,
     setValue,
     getValues,
+    watch,
     formState: { errors, isValid },
   } = useForm<FormData>({
     mode: "onChange",
@@ -138,6 +140,24 @@ const CheckoutPage = () => {
     }
   };
 
+
+  useEffect(() =>{
+      const isKeralaPincode = (pincode: string): boolean => {
+  const firstTwoDigits = parseInt(pincode.substring(0, 2));
+  return firstTwoDigits >= 67 && firstTwoDigits <= 69;
+};
+    if(currentUser?.uid){
+       const address = savedAddresses.find(
+          (addr) => addr.id === selectedAddress
+        );
+      
+        setIsKerala(isKeralaPincode(address?.pinCode|| ""))
+    }else{
+      setIsKerala(isKeralaPincode(watch("pinCode")))
+    }
+  
+  },[watch("pinCode"),currentUser,selectedAddress])
+
   const saveNewAddress = async (
     data: Omit<FormData, "id" | "created_at" | "user_id" | "is_default">
   ) => {
@@ -177,7 +197,7 @@ const CheckoutPage = () => {
     return sum + price * product.quantity;
   }, 0);
 
-  const deliveryFee =  paymentMode === "cof" ? 0: paymentMode === "cod" ? 150 : 75
+  const deliveryFee =  paymentMode === "cof" ? 0: paymentMode === "cod" ? 150 : isKerala? 75:100
   const grandTotal = total + deliveryFee;
 
   const loadScript = (src: string): Promise<boolean> => {
@@ -240,7 +260,7 @@ const CheckoutPage = () => {
     }
   };
 
-  console.log("test")
+
 
   const onSubmit = async (data: FormData) => {
     setIsProcessingPayment(true);
@@ -250,7 +270,7 @@ const CheckoutPage = () => {
         cartId: localStorage.getItem("guestCartId") || `cart_${Date.now()}`,
         payment_mode: paymentMode === "cof" ? "Collect from store" :paymentMode === "cod" ? "COD" : "Razorpay",
         items_total: grandTotal,
-        delivery: paymentMode === "cof" ? 0: paymentMode === "cod" ? 150 : 75,
+        delivery: paymentMode === "cof" ? 0: paymentMode === "cod" ? 150 : isKerala? 75:100,
         additional_info: data.notes || "",
         channel: "Web",
         orderStatus: "created",
@@ -560,6 +580,7 @@ const CheckoutPage = () => {
             setPaymentModeError={setPaymentModeError}
             paymentModeError={paymentModeError}
             showAddressForm={showAddressForm}
+            isKerala={isKerala}
           />
         </div>
 
