@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/categories/:id+",  
+      "destination": "https://kathysonline.in",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "!www.kathysonline.in"  
+        }
+      ]
+    }
+  ]
+}
