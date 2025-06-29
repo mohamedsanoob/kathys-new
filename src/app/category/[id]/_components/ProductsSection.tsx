@@ -184,7 +184,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
     [searchParams, router]
   );
 
-  console.log(searchParams.size, "adsa");
+
 
   const clearAllFilters = useCallback(() => {
     router.push(window.location.pathname);
@@ -200,7 +200,9 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
     if (isGridView) {
       return (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-          {products.map((product) => (
+          {products.sort(
+                    (a, b) => (a.position || 0) - (b.position || 0)
+                  ).map((product) => (
             <ProductGridItem key={product.id} product={product} />
           ))}
         </div>
@@ -208,7 +210,9 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
     }
     return (
       <div className="space-y-6">
-        {products.map((product) => (
+        {products.sort(
+                    (a, b) => (a.position || 0) - (b.position || 0)
+                  ).map((product) => (
           <ProductListItem
             key={product.id}
             product={product}
@@ -220,7 +224,6 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   }, [isGridView, products, categoryName]);
 
 
-  console.log(products,"----------->products")
 
   return (
     <div className="flex-1 w-full overflow-hidden px-2 md:px-0">
@@ -373,23 +376,23 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
       )}
 
       {/* Loading state for initial load */}
-      {loading && (
+      {/* {loading && (
         <div className="flex justify-center items-center h-64">
      <Loader2 className="animate-spin rounded-full h-12 w-12 text-green-700" />
         </div>
-      )}
+      )} */}
 
       {/* Products Grid/List */}
       {!loading && productList}
 
       {/* Load More */}
       <div ref={loaderRef} className="mt-8 flex justify-center items-center">
-        {loadingMore ? (
+        {(loadingMore  && !loading)? (
           <div className="flex items-center space-x-2">
   <Loader2 className="animate-spin rounded-full h-12 w-12 text-green-700" />
             <span className="text-gray-600">Loading more...</span>
           </div>
-        ) : hasMore ? (
+        ) : hasMore && !loading? (
           <button
             onClick={fetchMoreProducts}
             className="px-4 py-2 border rounded bg-gray-50 hover:bg-gray-100 transition-colors"

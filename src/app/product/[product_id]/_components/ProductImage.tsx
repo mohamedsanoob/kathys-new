@@ -65,7 +65,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
           setPosition({ x: 50, y: 50 });
         }}
       >
-        {images.map((src, idx) => {
+        {images?.map((src, idx) => {
           const isActive = idx === activeIndex;
           return (
             <SwiperSlide key={idx}>
@@ -113,7 +113,7 @@ const ProductImage: React.FC<ProductImageProps> = ({ images }) => {
         modules={[FreeMode, Navigation, Thumbs]}
         className="mySwiper"
       >
-        {images.map((src, idx) => (
+        {images?.map((src, idx) => (
           <SwiperSlide key={idx} className="w-10">
             <div
               className="relative overflow-hidden border border-gray-300 cursor-pointer"

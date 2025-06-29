@@ -227,6 +227,7 @@ interface Product {
   
   outOfStock?: boolean;
   description: string;
+  position : number;
   quantity: number;
   active: boolean;
   productDiscountedPrice: number;
@@ -285,6 +286,7 @@ export const getCollectionsWithProducts = async (): Promise<
           collection(db, "products"),
           where("categories", "array-contains", category.id),
            where("active", "==", true),
+            orderBy("position", "asc"),    
           limit(4)
         );
         const productsSnapshot = await getDocs(productsQuery);
@@ -306,6 +308,7 @@ export const getCollectionsWithProducts = async (): Promise<
             images: data.images || [],
             taxRate: data.taxRate,
             categories: data.categories || [],
+            position : data?.position,
             shippingCost: data.shippingCost,
             skuId: data.skuId,
             createdDate: data.createdDate,
@@ -531,6 +534,7 @@ export const getProductsByCategory = async (
         collection(db, "products"),
         where("categories", "array-contains-any", chunk),
              where("active", "==", true),
+                     orderBy("position", "asc"),    
       );
 
       // Apply price filters if provided
@@ -651,6 +655,7 @@ if (colorFilter) {
           collection(db, "products"),
           where("categories", "array-contains-any", chunk),
                where("active", "==", true),
+                       orderBy("position", "asc"),    
         );
 
         if (minPrice !== undefined && maxPrice !== undefined) {
@@ -707,13 +712,15 @@ export const getRelatedProducts = async (
       return []; // Return empty array if no categories are provided
     }
 
-    console.log(categoryValues, "categoryValues");
+  
 
     const productsCollection = collection(db, "products");
     const q = query(
       productsCollection,
       where("categories", "array-contains-any", categoryValues),
       where("active", "==", true),
+       limit(8),
+              orderBy("position", "asc"),    
     );
 
     const querySnapshot = await getDocs(q);
@@ -778,9 +785,6 @@ export const addProductToCart = async ({
 
 
 
-
-
-    console.log(existingProductIndex, "existingProductIndex");
 
     let newQuantity;
     if (existingProductIndex >= 0) {
@@ -983,20 +987,18 @@ export const updateCartItem = async (
         p
       ])
     );
-     console.log(updates,existingProducts,"-------->VARIANT")
+    
     updates.forEach(({ productId, variantSku , quantity }) => {
      
       const lookupKey = `${productId}-${variantSku   || 'no-variant'}`;
-      console.log(lookupKey,"=======>lookupKey")
+ 
       const existingProduct = productMap.get(lookupKey);
 
       if (existingProduct) {
         // Update quantity if product exists
         existingProduct.quantity = quantity;
       } else {
-        console.warn(
-          `Product not found in cart - ID: ${productId}, SKU: ${variantSku || 'none'}`
-        );
+      
       }
     });
 
@@ -1162,7 +1164,6 @@ export const getSizesByCategory = async (
       snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
     );
 
-    console.log(allProducts)
 
  
     
@@ -1176,10 +1177,9 @@ export const getSizesByCategory = async (
       // Track sizes we've already counted for this product to avoid double-counting
       const productSizes = new Set<string>();
 
-         console.log(product,"------->Variant")
       // Check variants for sizes
       product.variants?.forEach((variant) => {
-        console.log(variant,"------->Variant")
+      
         if (
           variant.optionName?.toLowerCase() === "size" &&
           Array.isArray(variant.optionValue)

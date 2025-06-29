@@ -175,7 +175,7 @@ const ProductPage = () => {
         <p className="mt-2 mb-1">{product.productName}</p>
       </div>
       <div className="flex flex-col md:flex-row gap-10">
-        <ProductImage images={product.images} />
+        <ProductImage images={product?.images} />
         <ProductDetails product={simpleProduct} />
       </div>
       <ProductDescription
