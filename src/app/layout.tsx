@@ -33,6 +33,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full">
+      <head>
+      <link rel="icon" href="/favicon.ico" sizes="any" />
+      </head>
       <body className={`${jost.className} antialiased flex flex-col h-full`}>
         <AuthProvider>
           <div className="flex flex-col h-full">
