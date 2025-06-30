@@ -49,26 +49,7 @@ const Footer = () => {
         </div>
 
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 justify-center md:grid-cols-2 lg:grid-cols-2 gap-8 mb-8">
-          {/* Store Info */}
-          <div>
-            <h3 className="text-xl font-bold mb-4 text-white">
-              KATHYS CLOTHING STORE
-            </h3>
-            <address className="not-italic mb-4">
-              Alappuzha,Kerala
-              <br />
-              India - 560001
-            </address>
-            <p className="mb-1">
-              <span className="font-medium">Phone:</span> +91 9876543210
-            </p>
-            <p>
-              <span className="font-medium">Email:</span>
-              customercare@kathysonline.in
-            </p>
-          </div>
-
+        <div className="grid grid-cols-1 justify-center md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
           {/* Customer Service */}
           <div>
             <h3 className="text-xl font-bold mb-4 text-white">
@@ -101,6 +82,47 @@ const Footer = () => {
               </li>
             </ul>
           </div>
+
+          {/* Alappuzha Branch */}
+          <div>
+            <h3 className="text-xl font-bold mb-4 text-white">Alappuzha Branch</h3>
+            <address className="not-italic mb-4">
+              Kathy's Clothing Store<br />
+              Kiran complex<br />
+              Vazhichery, Near premier supermarket<br />
+              Alappuzha
+            </address>
+            <Link 
+              href="https://maps.app.goo.gl/rY8hqpswuh7i3u6cA?g_st=ic" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-green-400 hover:text-white transition-colors"
+            >
+              View on Google Maps
+            </Link>
+          </div>
+
+          {/* Kochi Branch */}
+          <div>
+            <h3 className="text-xl font-bold mb-4 text-white">Kochi Branch</h3>
+            <address className="not-italic mb-4">
+              Kathy's Clothing Store<br />
+              Thirunilath Building<br />
+              Geethanjali Junction<br />
+              Vyttila - Palarivattom Bypass stretch
+            </address>
+            <p className="mb-2">
+              <span className="font-medium">Contact:</span> 7736491677 / 9074912348
+            </p>
+            <Link 
+              href="https://maps.app.goo.gl/Yh3jGaKwR92BF4EB8?g_st=icd" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-green-400 hover:text-white transition-colors"
+            >
+              View on Google Maps
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -120,7 +142,7 @@ const Footer = () => {
               </Link>
 
               <Link
-                href="https://www.instagram.com/Kathysclothingstore"
+                href="https://www.instagram.com/kathysclothingstore?igsh=MXNja2k0dmQ5Zm9t&utm_source=qr"
                 aria-label="Instagram"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -128,8 +150,8 @@ const Footer = () => {
                 <Instagram className="h-5 w-5 hover:text-white transition-colors" />
               </Link>
               <Link
-                href="https://www.youtube.com/Kathysclothingstore"
-                aria-label="LinkedIn"
+                href="https://youtube.com/@kathysclothingstore?si=5clxLQ75zch_hdnu"
+                aria-label="YouTube"
                 target="_blank"
                 rel="noopener noreferrer"
               >
