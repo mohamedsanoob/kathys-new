@@ -291,19 +291,20 @@ const CheckoutPage = () => {
             }, {} as Record<string, string>) || {},
           product_description: "",
         })),
-        customer_details: {
-          name: `${data.firstName} ${data.lastName}`,
-          address:
-            data.streetAddress1 +
-            (data.streetAddress2 ? `, ${data.streetAddress2}` : ""),
-          locality_area: data.city,
-          landmark: "",
-          city: data.city,
-          state: data.state,
-          pincode: data.pinCode,
-          mobile_number: `+91${data.mobileNumber}`,
-          email: data.email,
-        },
+         customer_details: {
+    name: `${data.firstName} ${data.lastName}`,
+    name_lower: `${data.firstName} ${data.lastName}`.toLowerCase(), // Add this line
+    address:
+      data.streetAddress1 +
+      (data.streetAddress2 ? `, ${data.streetAddress2}` : ""),
+    locality_area: data.city,
+    landmark: "",
+    city: data.city,
+    state: data.state,
+    pincode: data.pinCode,
+    mobile_number: `+91${data.mobileNumber}`,
+    email: data.email,
+  },
         coupon_discount: 0,
         timestamp: {
           seconds: Math.floor(Date.now() / 1000),
