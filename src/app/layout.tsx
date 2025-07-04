@@ -8,6 +8,7 @@ import Navbar from "./_components/Navbar";
 import FooterNav from "./_components/FooterNav";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
+import { WhatsApp } from "./_components/whatsapp-icon";
 
 
 export const metadata: Metadata = {
@@ -64,6 +65,7 @@ export default function RootLayout({
             pauseOnHover
           />
         </AuthProvider>
+        <WhatsApp/>
       </body>
     </html>
   );
