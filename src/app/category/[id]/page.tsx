@@ -139,7 +139,7 @@ const router = useRouter();
                   </div>
                 )}
                 <div className="relative h-full flex items-end p-2 md:p-3">
-                  <span className="text-white font-semibold text-xs md:text-sm drop-shadow-lg line-clamp-2 text-left">
+                  <span className="text-white font-semibold text-xs md:text-sm drop-shadow-lg line-clamp-2 text-left" style={{position:'absolute'}}>
                     {subCategory.categoryName}
                   </span>
                 </div>
