@@ -263,7 +263,7 @@ const CheckoutPage = () => {
 
 
   const onSubmit = async (data: FormData) => {
-    if(cartProductsWithDetails.length === 0) {
+    if(cartProductsWithDetails?.length === 0) {
       toast.error("No items in cart");
       setPaymentStatus("no-items");
       setPaymentError(
