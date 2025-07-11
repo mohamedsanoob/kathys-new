@@ -76,7 +76,7 @@ const CheckoutPage = () => {
   const [showPaymentMode, setShowPaymentMode] = useState(false);
   const [paymentModeError, setPaymentModeError] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<
-    "pending" | "success" | "failed"
+    "pending" | "success" | "failed" | "no-items"
   >("pending");
   const [orderDetails, setOrderDetails] = useState<{
     id: string;
@@ -263,6 +263,14 @@ const CheckoutPage = () => {
 
 
   const onSubmit = async (data: FormData) => {
+    if(cartProductsWithDetails.length === 0) {
+      toast.error("No items in cart");
+      setPaymentStatus("no-items");
+      setPaymentError(
+        "No items in cart. Please add items to your cart before proceeding."
+      );
+      return;
+    }
     setIsProcessingPayment(true);
 
     try {
@@ -505,7 +513,18 @@ const CheckoutPage = () => {
           setPaymentError(null);
         }}
       />
-    );
+    );}
+
+    if (paymentStatus === "no-items") {
+      return (
+        <PaymentRejected
+          errorMessage={paymentError || undefined}
+          orderId={orderDetails?.id}
+          onRetry={() => {
+            window.location.href = "/";
+          }}
+        />
+      );
   }
 
   return (
