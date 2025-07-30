@@ -1,5 +1,4 @@
 "use client";
-"use client";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { getCartProducts, getBuyNowCartProducts } from "@/actions/actions";
@@ -76,7 +75,7 @@ const CheckoutPageContent = () => {
    const [isKerala, setIsKerala] = useState(false);
   const [termsError, setTermsError] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(true);
-  const [paymentMode, setPaymentMode] = useState<"online" | "cod" | "cof" | undefined>();
+  const [paymentMode, setPaymentMode] = useState<"online" | "cod" | "cof" |"">("");
   const [showPaymentMode, setShowPaymentMode] = useState(false);
   const [paymentModeError, setPaymentModeError] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<
@@ -235,7 +234,7 @@ const CheckoutPageContent = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (!paymentMode) {
+    if (paymentMode === "") {
       setShowPaymentMode(true);
       window.scrollTo(0, 0);
       setPaymentModeError(true);
@@ -390,10 +389,6 @@ const CheckoutPageContent = () => {
         paymentMethod: "razorpay",
       });
 
-      if (!RAZORPAY_KEY_ID) {
-        throw new Error("Razorpay Key ID is not defined");
-      }
-
       const paymentOptions: RazorpayOptions = {
         key: RAZORPAY_KEY_ID,
         amount: grandTotal.toString(),
@@ -409,24 +404,28 @@ const CheckoutPageContent = () => {
               await axios.post<PaymentSuccessResponse>(
                 `${BASE_URL}/payment/success`,
                 {
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_signature: response.razorpay_signature,
-                  orderId: order_id, // Use order_id from the outer scope
+                  orderCreationId: order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpaySignature: response.razorpay_signature,
+                  orderData: orderObject,
+                  authenticatedId: currentUser ? currentUser?.uid : undefined,
                 }
               );
 
-            if (verificationResponse.data.msg === "success") {
+            setOrderDetails({
+              id: verificationResponse.data.orderId,
+              amount: grandTotal,
+              paymentMethod: "razorpay",
+            });
               setPaymentStatus("success");
               localStorage.removeItem("guestCartId");
-            } else {
-              setPaymentStatus("failed");
-              setPaymentError("Payment verification failed");
-            }
           } catch (error) {
             console.error("Payment verification error:", error);
             setPaymentStatus("failed");
-            setPaymentError("An error occurred during payment verification.");
+            setPaymentError(
+              "Payment verification failed. Please contact support."
+            );
           } finally {
             setIsProcessingPayment(false);
           }
@@ -482,7 +481,7 @@ const CheckoutPageContent = () => {
   };
 
   const handleOrderButtonClick = () => {
-    if (showPaymentMode && !paymentMode) {
+    if (showPaymentMode && paymentMode === "") {
       setPaymentModeError(true);
       return;
     }
@@ -549,12 +548,8 @@ const CheckoutPageContent = () => {
             <button
               style={{ cursor: "pointer" }}
               onClick={() => {
-                if (!paymentMode) {
-                  setShowPaymentMode(true);
-                  window.scrollTo(0, 0);
-                } else {
-                  handlePlaceOrder();
-                }
+                setShowPaymentMode(false);
+                setPaymentMode("");
               }}
               className="mr-4 flex items-center gap-1"
             >
