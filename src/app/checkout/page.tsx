@@ -1,7 +1,9 @@
 "use client";
+"use client";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { getCartProducts } from "@/actions/actions";
+import { getCartProducts, getBuyNowCartProducts } from "@/actions/actions";
+import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { db } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
@@ -57,7 +59,9 @@ const PaymentLoader = () => (
   </div>
 );
 
-const CheckoutPage = () => {
+const CheckoutPageContent = () => {
+    const searchParams = useSearchParams();
+  const isBuyNow = searchParams.get("buyNow") === "true";
   const { currentUser } = useAuth();
   const [cartProductsWithDetails, setCartProductsWithDetails] = useState<
     CartProduct[]
@@ -72,7 +76,7 @@ const CheckoutPage = () => {
    const [isKerala, setIsKerala] = useState(false);
   const [termsError, setTermsError] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(true);
-  const [paymentMode, setPaymentMode] = useState<"online" | "cod" | "cof" |"">("");
+  const [paymentMode, setPaymentMode] = useState<"online" | "cod" | "cof" | undefined>();
   const [showPaymentMode, setShowPaymentMode] = useState(false);
   const [paymentModeError, setPaymentModeError] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<
@@ -97,11 +101,13 @@ const CheckoutPage = () => {
     mode: "onChange",
   });
 
-  useEffect(() => {
+    useEffect(() => {
     const fetchCartDetails = async () => {
       setIsLoading(true);
       try {
-        const cartItems = await getCartProducts();
+        const cartItems = isBuyNow
+          ? await getBuyNowCartProducts()
+          : await getCartProducts();
         setCartProductsWithDetails(cartItems.filter(Boolean));
       } catch (err) {
         console.error("Failed to fetch checkout cart details", err);
@@ -111,7 +117,7 @@ const CheckoutPage = () => {
     };
 
     fetchCartDetails();
-  }, []);
+  }, [isBuyNow]);
 
   useEffect(() => {
     if (currentUser) {
@@ -229,7 +235,7 @@ const CheckoutPage = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (paymentMode === "") {
+    if (!paymentMode) {
       setShowPaymentMode(true);
       window.scrollTo(0, 0);
       setPaymentModeError(true);
@@ -384,8 +390,12 @@ const CheckoutPage = () => {
         paymentMethod: "razorpay",
       });
 
+      if (!RAZORPAY_KEY_ID) {
+        throw new Error("Razorpay Key ID is not defined");
+      }
+
       const paymentOptions: RazorpayOptions = {
-        key: RAZORPAY_KEY_ID ,
+        key: RAZORPAY_KEY_ID,
         amount: grandTotal.toString(),
         currency,
         name: "Kathy's Clothing Store",
@@ -399,28 +409,24 @@ const CheckoutPage = () => {
               await axios.post<PaymentSuccessResponse>(
                 `${BASE_URL}/payment/success`,
                 {
-                  orderCreationId: order_id,
-                  razorpayPaymentId: response.razorpay_payment_id,
-                  razorpayOrderId: response.razorpay_order_id,
-                  razorpaySignature: response.razorpay_signature,
-                  orderData: orderObject,
-                  authenticatedId: currentUser ? currentUser?.uid : undefined,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                  orderId: order_id, // Use order_id from the outer scope
                 }
               );
 
-            setOrderDetails({
-              id: verificationResponse.data.orderId,
-              amount: grandTotal,
-              paymentMethod: "razorpay",
-            });
-            setPaymentStatus("success");
-            localStorage.removeItem("guestCartId");
+            if (verificationResponse.data.msg === "success") {
+              setPaymentStatus("success");
+              localStorage.removeItem("guestCartId");
+            } else {
+              setPaymentStatus("failed");
+              setPaymentError("Payment verification failed");
+            }
           } catch (error) {
-            console.error("Payment verification failed:", error);
+            console.error("Payment verification error:", error);
             setPaymentStatus("failed");
-            setPaymentError(
-              "Payment verification failed. Please contact support."
-            );
+            setPaymentError("An error occurred during payment verification.");
           } finally {
             setIsProcessingPayment(false);
           }
@@ -476,7 +482,7 @@ const CheckoutPage = () => {
   };
 
   const handleOrderButtonClick = () => {
-    if (showPaymentMode && paymentMode === "") {
+    if (showPaymentMode && !paymentMode) {
       setPaymentModeError(true);
       return;
     }
@@ -543,8 +549,12 @@ const CheckoutPage = () => {
             <button
               style={{ cursor: "pointer" }}
               onClick={() => {
-                setShowPaymentMode(false);
-                setPaymentMode("");
+                if (!paymentMode) {
+                  setShowPaymentMode(true);
+                  window.scrollTo(0, 0);
+                } else {
+                  handlePlaceOrder();
+                }
               }}
               className="mr-4 flex items-center gap-1"
             >
@@ -656,5 +666,11 @@ const CheckoutPage = () => {
     </Suspense>
   );
 };
+
+const CheckoutPage = () => (
+  <Suspense fallback={<div>Loading...</div>}>
+    <CheckoutPageContent />
+  </Suspense>
+);
 
 export default CheckoutPage;

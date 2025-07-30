@@ -64,7 +64,7 @@ export interface RazorpayOptions {
   currency: string;
   name: string;
   description: string;
-  image: string;
+  image?: string;
   order_id: string;
   handler: (response: RazorpayResponse) => Promise<void>;
   prefill: {
@@ -105,4 +105,5 @@ export interface OrderResponse {
 
 export interface PaymentSuccessResponse {
   msg: string;
+  orderId: string;
 }

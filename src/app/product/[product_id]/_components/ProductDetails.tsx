@@ -1,7 +1,8 @@
 "use client";
 import { Heart, Share, X, Loader2 } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
-import { addProductToCart, getCartProducts } from "@/actions/actions";
+import { addProductToCart, getCartProducts, addProductToBuyNowCart } from "@/actions/actions";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/context/AuthContext";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
@@ -88,12 +89,14 @@ const ProductDetails = ({ product }: { product: Product }) => {
   const [productCount, setProductCount] = useState(1);
   const [existingCartQty, setExistingCartQty] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
 const [showPhoneAuth, setShowPhoneAuth] = useState(false);
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const { currentUser } = useAuth();
+  const router = useRouter();
   console.log(currentUser, "currentUser");
 
   const areCombinationsEqual = useCallback(
@@ -274,6 +277,28 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
       setIsLoading(false);
     }
   }, [product, selectedVariant, productCount, hasVariants, refreshCart]);
+
+  const handleBuyNow = useCallback(async () => {
+    if (hasVariants && !selectedVariant) return;
+
+    setIsBuyNowLoading(true);
+    try {
+      await addProductToBuyNowCart({
+        productId: product.id,
+        variantDetails:
+          hasVariants && selectedVariant ? selectedVariant : undefined,
+        quantity: productCount,
+      });
+
+      router.push('/checkout?buyNow=true');
+
+    } catch (error) {
+      console.error("Failed to add to buy now cart:", error);
+      toast.error("Failed to proceed to buy now.");
+    } finally {
+      setIsBuyNowLoading(false);
+    }
+  }, [product, selectedVariant, productCount, hasVariants, router]);
 
   const handlePhoneVerified = (phoneNumber: string) => {
     console.log("Verified phone number:", phoneNumber);
@@ -477,27 +502,26 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
       )}
 
       {selectedVariant && (
-        <div
-          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mb-6 ${
-            selectedVariant.inventory > 0
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
-          }`}
-        >
-          {selectedVariant.inventory > 0 ? "In Stock" : "Out of Stock"}
-          {selectedVariant.inventory > 0 && (
-            <span className="ml-1">
-              ({selectedVariant.inventory} available)
-            </span>
-          )}
-        </div>
-      )}
+        <div className="mb-6">
+          <div
+            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+              selectedVariant.inventory > 0
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {selectedVariant.inventory > 0 ? "In Stock" : "Out of Stock"}
+            {selectedVariant.inventory > 0 && (
+              <span className="ml-1">
+                ({selectedVariant.inventory} available)
+              </span>
+            )}
+          </div>
 
-      <div className="w-full bg-white md:bg-transparent p-4 md:p-0 shadow-lg md:shadow-none fixed md:static bottom-0 left-0 right-0 z-10 md:border-none">
-        <div className="flex flex-col md:flex-row gap-4 max-w-4xl mx-auto">
-          <div className="flex flex-row items-center w-full gap-4">
-            <div className="flex-1 md:flex-none md:w-40">
-              <div className="flex items-center border border-gray-300 overflow-hidden h-12 justify-center">
+          {selectedVariant.inventory > 0 && (
+            <div className="mt-4">
+              <span className="font-medium text-gray-900">Quantity:</span>
+              <div className="flex items-center border border-gray-300 overflow-hidden h-12 justify-center w-fit mt-2">
                 <button
                   onClick={decrease}
                   disabled={productCount <= 1}
@@ -511,7 +535,6 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
                 <button
                   onClick={increase}
                   disabled={
-                    !selectedVariant ||
                     productCount + existingCartQty >= selectedVariant.inventory
                   }
                   className="w-12 h-full flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -520,73 +543,71 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
                 </button>
               </div>
             </div>
-
-            <button
-              onClick={handleAddToCart}
-              disabled={
-                !selectedVariant ||
-                productCount + existingCartQty > selectedVariant.inventory ||
-                isLoading ||
-                productCount === 0
-              }
-              className={`w-full md:w-full h-12 rounded-none font-medium flex items-center justify-center gap-2 transition-colors ${
-                !selectedVariant ||
-                productCount + existingCartQty > selectedVariant.inventory ||
-                isLoading ||
-                productCount === 0
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-black text-white hover:bg-gray-800"
-              }`}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="animate-spin w-5 h-5" />
-                  <span>Adding...</span>
-                </>
-              ) : (
-                <span>Add to Cart</span>
-              )}
-              {existingCartQty > 0 && (
-                <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                  {existingCartQty} in cart
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex gap-6 mb-6 mt-6">
-        <button
-          className="flex items-center gap-2 transition-colors"
-          onClick={handleAddToWishlist}
-          disabled={isWishlistLoading}
-        >
-          {isWishlistLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Heart
-              className={`w-5 h-5 ${
-                isInWishlist ? "fill-[#1e6553] text-[#1e6553]" : "text-gray-600"
-              }`}
-            />
           )}
-          <span
-            className={`text-sm ${
-              isInWishlist ? "text-[#1e6553]" : "text-gray-600"
+        </div>
+      )}
+
+      <div className="w-full bg-white md:bg-transparent p-4 md:p-0 shadow-lg md:shadow-none fixed md:static bottom-0 left-0 right-0 z-10 md:border-none">
+        <div className="flex gap-4 max-w-4xl mx-auto">
+          <button
+            onClick={handleAddToCart}
+            disabled={
+              !selectedVariant ||
+              productCount + existingCartQty > selectedVariant.inventory ||
+              isLoading || isBuyNowLoading ||
+              productCount === 0
+            }
+            className={`w-full h-12 font-medium flex items-center justify-center gap-2 transition-colors ${
+              !selectedVariant ||
+              productCount + existingCartQty > selectedVariant.inventory ||
+              isLoading || isBuyNowLoading ||
+              productCount === 0
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-black text-white hover:bg-gray-800"
             }`}
           >
-            {isInWishlist ? "In Wishlist" : "Add to Wishlist"}
-          </span>
-        </button>
+            {isLoading ? (
+              <>
+                <Loader2 className="animate-spin w-5 h-5" />
+                <span>Adding...</span>
+              </>
+            ) : (
+              <span>Add to Cart</span>
+            )}
+            {existingCartQty > 0 && (
+              <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                {existingCartQty} in cart
+              </span>
+            )}
+          </button>
 
-     <button 
-          onClick={handleShare}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <Share className="w-5 h-5" />
-          <span className="text-sm">Share</span>
-        </button>
+          <button
+            onClick={handleBuyNow}
+            disabled={
+              !selectedVariant ||
+              productCount + existingCartQty > selectedVariant.inventory ||
+              isLoading || isBuyNowLoading ||
+              productCount === 0
+            }
+            className={`w-full h-12 font-medium flex items-center justify-center gap-2 transition-colors ${
+              !selectedVariant ||
+              productCount + existingCartQty > selectedVariant.inventory ||
+              isLoading || isBuyNowLoading ||
+              productCount === 0
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-[#1e6553] text-white hover:bg-[#1e6553]/90"
+            }`}
+          >
+            {isBuyNowLoading ? (
+              <>
+                <Loader2 className="animate-spin w-5 h-5" />
+                <span>Processing...</span>
+              </>
+            ) : (
+              <span>Buy Now</span>
+            )}
+          </button>
+        </div>
       </div>
 
       <hr className="border-t border-gray-200 my-4" />

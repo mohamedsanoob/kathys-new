@@ -814,6 +814,131 @@ export const addProductToCart = async ({
   }
 };
 
+export const addProductToBuyNowCart = async ({
+  productId,
+  variantDetails,
+  quantity,
+}: {
+  productId: string;
+  variantDetails?: VariantDetail;
+  quantity: number;
+}): Promise<void> => {
+  try {
+    const user = auth.currentUser;
+    const isLoggedIn = user && !user.isAnonymous;
+
+    const cartId = isLoggedIn
+      ? user.uid
+      : localStorage.getItem("guestBuyNowCartId") || crypto.randomUUID();
+
+    if (!isLoggedIn) {
+      localStorage.setItem("guestBuyNowCartId", cartId);
+    }
+
+    const cartRef = doc(db, `${isLoggedIn ? "" : "guest-"}buyNowCarts`, cartId);
+
+    const productData = variantDetails !== undefined 
+      ? { productId, quantity, variantDetails } 
+      : { productId, quantity };
+
+    await setDoc(cartRef, {
+      userId: isLoggedIn ? cartId : null,
+      products: [productData],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+  } catch (error) {
+    console.error("Error managing buy now cart:", error);
+    throw error;
+  }
+};
+
+export const getBuyNowCartProducts = async (): Promise<CartReturn[]> => {
+  try {
+    const user = auth.currentUser;
+    const isLoggedIn = user && !user.isAnonymous;
+    let cartId: string | null = null;
+
+    if (isLoggedIn) {
+      cartId = user.uid;
+    } else {
+      cartId = localStorage.getItem("guestBuyNowCartId");
+    }
+
+    if (!cartId) {
+      return [];
+    }
+
+    const cartRef = doc(db, `${isLoggedIn ? "" : "guest-"}buyNowCarts`, cartId);
+    const cartSnapshot = await getDoc(cartRef);
+
+    if (!cartSnapshot.exists()) {
+      return [];
+    }
+
+    const { products: cartProducts } = cartSnapshot.data() as CartData;
+    
+    if (!cartProducts || cartProducts.length === 0) {
+      return [];
+    }
+
+    const productDetailsPromises = cartProducts.map(async (cartProduct) => {
+      const productDoc = await getDoc(doc(db, "products", cartProduct.productId));
+      if (!productDoc.exists()) {
+        return null;
+      }
+      const productData = { ...productDoc.data(), id: productDoc.id } as Product;
+
+      // Handle products without variants
+      if (!productData.variantDetails || productData.variantDetails.length === 0) {
+        const currentInventory = productData.quantity ?? 0;
+        const outOfStock = currentInventory < cartProduct.quantity;
+
+        return {
+          ...productData,
+          quantity: cartProduct.quantity,
+          currentInventory,
+          outOfStock,
+          variantDetails: {
+            price: productData.productPrice,
+            discountedPrice: productData.productDiscountedPrice,
+            inventory: productData.quantity,
+            sku: productData.skuId,
+            combination: [],
+          },
+        };
+      }
+
+      // Handle products with variants
+      const variant = productData.variantDetails.find(
+        (v) => v.sku === cartProduct.variantDetails?.sku
+      );
+
+      const currentInventory = variant?.inventory ?? 0;
+      const outOfStock = currentInventory < cartProduct.quantity;
+
+      return {
+        ...productData,
+        quantity: cartProduct.quantity,
+        variantDetails: {
+          ...(variant || cartProduct.variantDetails),
+          combination: variant?.combination || cartProduct.variantDetails?.combination || [],
+        },
+        currentInventory,
+        outOfStock,
+      };
+    });
+
+    const resolvedProducts = await Promise.all(productDetailsPromises);
+    return resolvedProducts.filter((p) => p !== null) as CartReturn[];
+
+  } catch (error) {
+    console.error("Error fetching buy now cart products:", error);
+    throw error;
+  }
+};
+
 export async function getCartProducts() {
   const user = auth.currentUser;
   const cartId = user?.uid || localStorage.getItem("guestCartId");
