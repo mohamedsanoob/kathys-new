@@ -501,6 +501,40 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
         </div>
       )}
 
+
+      <div className="flex gap-6 mb-6 mt-6">
+  <button
+          className="flex items-center gap-2 transition-colors"
+          onClick={handleAddToWishlist}
+          disabled={isWishlistLoading}
+        >
+          {isWishlistLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Heart
+              className={`w-5 h-5 ${
+                isInWishlist ? "fill-[#1e6553] text-[#1e6553]" : "text-gray-600"
+              }`}
+            />
+          )}
+          <span
+            className={`text-sm ${
+              isInWishlist ? "text-[#1e6553]" : "text-gray-600"     }`}
+          >
+            {isInWishlist ? "In Wishlist" : "Add to Wishlist"}
+          </span>
+        </button>
+
+     <button 
+          onClick={handleShare}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <Share className="w-5 h-5" />
+          <span className="text-sm">Share</span>
+        </button></div>
+
+
+
       {selectedVariant && (
         <div className="mb-6">
           <div
