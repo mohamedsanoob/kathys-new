@@ -381,28 +381,103 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
   }, [currentUser, product, selectedVariant]);
 
 
-    const handleShare = async () => {
-    const productUrl = `${window.location.origin}/products/${product.id}`;
-    const shareText = `Check out ${product.productName} on our store!`;
+// Update the handleShare function to include WhatsApp sharing with photo
+const handleShare = async () => {
+  const productUrl = `${window.location.origin}/products/${product.id}`;
+  const shareText = `Check out ${product.productName} on our store! ${productUrl}`;
+  const imageUrl = product.images[0]; // Using the first product image
 
-    try {
-      if (navigator.share) {
-        // Use native share API if available (mobile devices)
-        await navigator.share({
-          title: product.productName,
-          text: shareText,
-          url: productUrl,
-        });
-      } else {
-        // Fallback to custom share modal
-        setShowShareModal(true);
-      }
-    } catch (err) {
-      // User cancelled the share
-      console.log('Share cancelled:', err);
+  try {
+    if (navigator.share) {
+      // Use native share API if available (mobile devices)
+      await navigator.share({
+        title: product.productName,
+        text: shareText,
+        url: productUrl,
+      });
+    } else if (navigator.userAgent.match(/WhatsApp/i)) {
+      // Special handling for WhatsApp web
+      window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + imageUrl)}`, '_blank');
+    } else {
+      // Fallback for desktop and other browsers
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const whatsappUrl = isMobile 
+        ? `whatsapp://send?text=${encodeURIComponent(shareText + ' ' + imageUrl)}`
+        : `https://web.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + imageUrl)}`;
+      
+      window.open(whatsappUrl, '_blank');
     }
+  } catch (err) {
+    // User cancelled the share or it failed - show the share modal as fallback
+    setShowShareModal(true);
+  }
+};
+
+// Update the ShowShareModal component to include WhatsApp sharing option
+const ShowShareModal = ({ product, setShowShareModal }: { product: Product, setShowShareModal: (show: boolean) => void }) => {
+  const shareOnWhatsApp = () => {
+    const productUrl = `${window.location.origin}/products/${product.id}`;
+    const shareText = `Check out ${product.productName} on our store! ${productUrl}`;
+    const imageUrl = product.images[0];
+    
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const whatsappUrl = isMobile 
+      ? `whatsapp://send?text=${encodeURIComponent(shareText + ' ' + imageUrl)}`
+      : `https://web.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + imageUrl)}`;
+    
+    window.open(whatsappUrl, '_blank');
+    setShowShareModal(false);
   };
 
+  return (
+    <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Share Product</h3>
+          <button onClick={() => setShowShareModal(false)}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="space-y-4">
+          <button
+            onClick={shareOnWhatsApp}
+            className="w-full flex items-center justify-center gap-2 bg-[#1e6553] text-white py-2 px-4 rounded  transition-colors"
+          >
+   
+            Share via WhatsApp
+          </button>
+          
+          {/* Other share options can be added here */}
+          <div className="flex justify-center gap-4">
+            {/* Facebook, Twitter, etc. */}
+          </div>
+          
+          <div className="mt-4">
+            <p className="text-sm text-gray-600 mb-2">Or copy link:</p>
+            <div className="flex">
+              <input
+                type="text"
+                readOnly
+                value={`${window.location.origin}/products/${product.id}`}
+                className="flex-1 border border-gray-300 rounded-l px-3 py-2 text-sm"
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/products/${product.id}`);
+                  toast.success("Link copied to clipboard!");
+                }}
+                className="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded-r text-sm transition-colors"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 
 
