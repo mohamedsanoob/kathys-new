@@ -9,6 +9,7 @@ import RelatedProducts from "./_components/RelatedProducts";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { getProductById } from "@/actions/actions";
+import { useRouter } from "next/navigation";
 
 interface Product {
   skuId: string;
@@ -51,6 +52,7 @@ interface Product {
 }
 
 const ProductPage = () => {
+    const router = useRouter();
   const params = useParams();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,7 +133,7 @@ const ProductPage = () => {
               className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Home
+              Back 
             </Link>
             <Link 
               href="/products" 
@@ -165,13 +167,13 @@ const ProductPage = () => {
   return (
     <div className="flex flex-col gap-8 md:gap-16 max-w-[1290px] m-auto">
       <div className="w-[90%] md:w-full m-auto mt-4 md:mt-6 mb-[-1rem] md:mb-[-2.4rem]">
-        <Link 
-          href="/" 
-          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to products
-        </Link>
+       <button
+        onClick={() => router.back()}
+        className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back
+      </button>
         <p className="mt-2 mb-1">{product.productName}</p>
       </div>
       <div className="flex flex-col md:flex-row gap-10">

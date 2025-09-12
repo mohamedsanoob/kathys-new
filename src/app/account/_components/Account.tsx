@@ -6,8 +6,6 @@ const Account = () => {
       const { currentUser } = useAuth();
 
       
-
-      console.log(currentUser,"----------->user")
   return (
     <div className="container mx-auto flex w-[90%] justify-between py-4">
           <p className="text-xl font-medium">Account</p>

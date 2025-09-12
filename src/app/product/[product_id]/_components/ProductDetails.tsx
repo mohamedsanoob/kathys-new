@@ -97,7 +97,7 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const { currentUser } = useAuth();
   const router = useRouter();
-  console.log(currentUser, "currentUser");
+
 
   const areCombinationsEqual = useCallback(
     (comb1: Combination[], comb2: Combination[]): boolean => {

@@ -727,7 +727,7 @@ export const getRelatedProducts = async (
 
     return querySnapshot.docs.map((doc) => {
       const productData = doc.data() as Product;
-      console.log(productData, "product data");
+   
       return { ...productData, id: doc.id };
     });
   } catch (error) {

@@ -1,303 +1,213 @@
 "use client";
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { getProductsByCategory } from "@/actions/actions";
-import { Product } from "@/types/product";
+
+import { useEffect, useRef, useState, useMemo } from "react";
 import Image from "next/image";
-import { LayoutGrid, List, ListFilter, Loader2, X } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
-import namer from "color-namer";
+import { LayoutGrid, List, Loader2 } from "lucide-react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import ProductListItem from "./ProductListItem";
 import ProductGridItem from "./ProductGridItem";
+import { useCategoryContext } from "@/context/CategoryContext";
 
-interface ProductsSectionProps {
-  initialProducts: Product[];
-  totalProducts: number;
-  itemsPerPage: number;
-  categoryName: string;
-  categoryImageDesktop: string;
-  categoryImageMobile : string;
-}
-
-const ProductsSection: React.FC<ProductsSectionProps> = ({
-  initialProducts,
-  totalProducts,
-  itemsPerPage,
-  categoryName,
-  categoryImageDesktop,
-  categoryImageMobile
-}) => {
-  const [isGridView, setIsGridView] = useState(true);
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [lastDoc, setLastDoc] = useState<null | undefined | any>(null);
-  const [sortBy, setSortBy] = useState("latest");
-  const [hasMore, setHasMore] = useState(
-    initialProducts.length === itemsPerPage
-  );
-  const loaderRef = useRef<HTMLDivElement>(null);
-
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  // Memoize params to avoid unnecessary recalculations
-  const { minPriceParam, maxPriceParam, colorParam, sizesParam } =
-    useMemo(() => {
-      const minPrice = searchParams.get("minPrice");
-      const maxPrice = searchParams.get("maxPrice");
-      const color = searchParams.get("color");
-      const sizes = searchParams.get("sizes");
-      return {
-        minPriceParam: minPrice ? parseInt(minPrice) : undefined,
-        maxPriceParam: maxPrice ? parseInt(maxPrice) : undefined,
-        colorParam: color ? `${color}` : "",
-        sizesParam: sizes ? sizes.split(",") : [],
-      };
-    }, [searchParams]);
-
-  const toggleFilter = useCallback(() => {
-    const params = new URLSearchParams(searchParams);
-    params.set("filter", "open");
-    router.replace(`?${params.toString()}`);
-  }, [searchParams, router]);
-
-  const fetchProducts = useCallback(async () => {
-    console.log(sizesParam, "dsc");
-    setLoading(true);
-    try {
-      const { products: initialFetchProducts, lastVisible } =
-        await getProductsByCategory(
-          categoryName,
-          itemsPerPage,
-          null,
-          sortBy,
-          minPriceParam,
-          maxPriceParam,
-          colorParam,
-          sizesParam // Pass sizes as string
-        );
-
-      setProducts(initialFetchProducts);
-      setLastDoc(lastVisible);
-      setHasMore(initialFetchProducts.length === itemsPerPage);
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    categoryName,
-    itemsPerPage,
-    sortBy,
-    minPriceParam,
-    maxPriceParam,
-    colorParam,
-    sizesParam,
-  ]);
-
-  const fetchMoreProducts = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
-
-    setLoadingMore(true);
-    try {
-      const { products: newProducts, lastVisible } =
-        await getProductsByCategory(
-          categoryName,
-          itemsPerPage,
-          lastDoc,
-          sortBy,
-          minPriceParam,
-          maxPriceParam,
-          colorParam,
-          sizesParam.join(",")
-        );
-
-      setProducts((prev) => {
-        const existingIds = new Set(prev.map((p) => p.id));
-        const uniqueNewProducts = newProducts.filter(
-          (p) => !existingIds.has(p.id)
-        );
-        return [...prev, ...uniqueNewProducts];
-      });
-
-      setLastDoc(lastVisible);
-      setHasMore(newProducts.length === itemsPerPage);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [
-    categoryName,
-    itemsPerPage,
-    lastDoc,
-    sortBy,
+const ProductsSection: React.FC = () => {
+  const {
+    products,
+    totalCount,
+    currentCategory,
+    loading,
     loadingMore,
     hasMore,
-    minPriceParam,
-    maxPriceParam,
-    colorParam,
-    sizesParam,
-  ]);
+    loadMoreProducts,
+    scrollPosition,
+    setScrollPosition,
+    scrollContainerRef
+  } = useCategoryContext();
 
-  // Initial load and filter changes
+  const [isGridView, setIsGridView] = useState(true);
+  const [scrollRestored, setScrollRestored] = useState(false);
+
+  const loaderRef = useRef<HTMLDivElement>(null);
+  const isRestoringRef = useRef(false);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const sortBy = searchParams.get("sortBy") || "latest";
+
+  // Save scroll position
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    if (loading || isRestoringRef.current) return;
+    const container = scrollContainerRef.current;
+  
+    if (!container) return;
 
-  // Infinite scroll setup
+    let throttleTimeout: NodeJS.Timeout | null = null;
+
+    const handleScroll = () => {
+
+      if (throttleTimeout === null && !isRestoringRef.current) {
+        throttleTimeout = setTimeout(() => {
+          const scrollPos = container.scrollTop;
+          if (scrollPos > 10 && setScrollPosition) {
+            setScrollPosition(scrollPos);
+            console.log("Scroll position saved:", scrollPos);
+          }
+          throttleTimeout = null;
+        }, 200);
+      }
+    };
+
+    // Save initial scroll if already scrolled
+    if (container.scrollTop > 10 && !scrollRestored && setScrollPosition) {
+      setScrollPosition(container.scrollTop);
+    }
+
+    container.addEventListener("scroll", handleScroll);
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      if (throttleTimeout) clearTimeout(throttleTimeout);
+    };
+  }, [loading, scrollRestored, setScrollPosition]);
+
+  // Restore scroll position
+  useEffect(() => {
+    if (loading || scrollRestored || !scrollPosition) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+
+    isRestoringRef.current = true;
+
+    const restoreScroll = () => {
+      if (container.scrollHeight > container.clientHeight && container.scrollHeight > scrollPosition) {
+        container.scrollTo({
+          top: scrollPosition,
+          behavior: "instant",
+        });
+      
+        setScrollRestored(true);
+
+        setTimeout(() => {
+          isRestoringRef.current = false;
+        }, 100);
+      } else {
+        requestAnimationFrame(restoreScroll);
+      }
+    };
+
+    setTimeout(restoreScroll, 100);
+  }, [loading,  scrollRestored]);
+
+  // Reset scroll restore flag on navigation
+  useEffect(() => {
+    setScrollRestored(false);
+    isRestoringRef.current = false;
+  }, [pathname, searchParams]);
+
+  // Infinite scroll
   useEffect(() => {
     if (!hasMore) return;
+    const container = scrollContainerRef.current;
+    if (!container || !loaderRef.current) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loadingMore) {
-          fetchMoreProducts();
+        if (entries[0].isIntersecting && !loadingMore && !isRestoringRef.current) {
+          loadMoreProducts();
         }
       },
-      { threshold: 0.1 }
+      {
+        root: container, // important: observe inside container
+        threshold: 0.1,
+      }
     );
 
-    const currentLoader = loaderRef.current;
-    if (currentLoader) observer.observe(currentLoader);
+    observer.observe(loaderRef.current);
 
     return () => {
-      if (currentLoader) observer.unobserve(currentLoader);
+      if (loaderRef.current) observer.unobserve(loaderRef.current);
     };
-  }, [fetchMoreProducts, hasMore, loadingMore]);
+  }, [loadMoreProducts, hasMore, loadingMore]);
 
-  const handleSortChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const newSort = e.target.value;
-      setSortBy(newSort);
-    },
-    []
-  );
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSortBy = e.target.value;
+    const current = new URLSearchParams(Array.from(searchParams.entries()));
 
-  const clearSingleFilter = useCallback(
-    (key: string) => {
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.delete(key);
+    if (newSortBy === "latest") {
+      current.delete("sortBy");
+    } else {
+      current.set("sortBy", newSortBy);
+    }
 
-      if (searchParams.size === 2) {
-        router.push(window.location.pathname);
-      } else {
-        router.push(`?${newParams.toString()}`);
-      }
-    },
-    [searchParams, router]
-  );
+    const search = current.toString();
+    const query = search ? `?${search}` : "";
 
+    if (setScrollPosition) setScrollPosition(0); // reset scroll on sort
 
+    router.push(`${pathname}${query}`);
+  };
 
-  const clearAllFilters = useCallback(() => {
-    router.push(window.location.pathname);
-  }, [router]);
-
-  const getColorNamesFromHex = useCallback((hexColor: string) => {
-    const result = namer(hexColor);
-    return result.ntc[0].name;
-  }, []);
-
-  // Memoize product list rendering
   const productList = useMemo(() => {
+    const isDefaultSort = !searchParams.toString().includes("sortBy");
+    const productsToRender = isDefaultSort
+      ? [...products].sort((a, b) => (a.position || 0) - (b.position || 0))
+      : products;
+
     if (isGridView) {
       return (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-          {products.sort(
-                    (a, b) => (a.position || 0) - (b.position || 0)
-                  ).map((product) => (
-            <ProductGridItem key={product.id} product={product} />
+          {productsToRender.map((p) => (
+            <ProductGridItem key={p.id} product={p} />
           ))}
         </div>
       );
     }
     return (
       <div className="space-y-6">
-        {products.sort(
-                    (a, b) => (a.position || 0) - (b.position || 0)
-                  ).map((product) => (
-          <ProductListItem
-            key={product.id}
-            product={product}
-            categoryName={categoryName}
-          />
+        {productsToRender.map((p) => (
+          <ProductListItem key={p.id} product={p} categoryName={currentCategory?.name} />
         ))}
       </div>
     );
-  }, [isGridView, products, categoryName]);
-
-
+  }, [isGridView, products, currentCategory?.name, searchParams]);
 
   return (
-    <div className="flex-1 w-full overflow-hidden px-2 md:px-0">
-      {/* Banner Image */}
-  {(categoryImageMobile || categoryImageDesktop) && (
+    <div
+ 
+      className="flex-1 w-full  px-2 md:px-0 h-screen" // full scrollable container
+    >
+      {(currentCategory?.imageMobile || currentCategory?.imageDesktop) && (
         <div className="w-full relative aspect-[4/1] mb-4">
-          {/* Mobile Image - shown on small screens */}
           <div className="md:hidden w-full h-full">
-            {categoryImageMobile && (
-              <Image
-                src={categoryImageMobile}
-                alt={`${categoryName} banner`}
-                fill
-                className="object-cover rounded"
-                priority
-              />
+            {currentCategory?.imageMobile && (
+              <Image src={currentCategory.imageMobile} alt="banner" fill className="object-cover rounded" />
             )}
           </div>
-          
-          {/* Desktop Image - shown on medium screens and up */}
           <div className="hidden md:block w-full h-full">
-            {categoryImageDesktop && (
-              <Image
-                src={categoryImageDesktop}
-                alt={`${categoryName} banner`}
-                fill
-                className="object-cover rounded"
-                priority
-              />
+            {currentCategory?.imageDesktop && (
+              <Image src={currentCategory.imageDesktop} alt="banner" fill className="object-cover rounded" />
             )}
           </div>
         </div>
       )}
-   
 
-      {/* Controls Bar */}
       <div className="flex justify-between items-center my-4">
-        <div className="md:flex gap-4 hidden">
+        <div className="hidden md:flex items-center gap-4">
           <LayoutGrid
             onClick={() => setIsGridView(true)}
-            className={`cursor-pointer w-5 h-5 ${
-              isGridView ? "text-green-900" : "text-gray-400"
-            }`}
+            className={`cursor-pointer w-5 h-5 ${isGridView ? "text-green-900" : "text-gray-400"}`}
           />
           <List
             onClick={() => setIsGridView(false)}
-            className={`cursor-pointer w-5 h-5 ${
-              !isGridView ? "text-green-900" : "text-gray-400"
-            }`}
+            className={`cursor-pointer w-5 h-5 ${!isGridView ? "text-green-900" : "text-gray-400"}`}
           />
           <p className="text-sm">
-            Showing 1–{products.length} of {totalProducts} results
+            Showing 1–{products.length} of {totalCount} results
           </p>
         </div>
-
-        <button
-          onClick={toggleFilter}
-          className="flex items-center gap-2 md:hidden bg-gray-100 px-3 py-1.5 rounded"
-        >
-          <ListFilter className="w-4 h-4" />
-          <span className="text-sm">Filter</span>
-        </button>
-
         <div className="flex items-center space-x-2">
-          <label className="text-sm" htmlFor="sort">
-            Sort By:
-          </label>
-          <select
-            id="sort"
-            value={sortBy}
-            onChange={handleSortChange}
-            className="py-1 px-2 text-sm"
-            disabled={loading}
-          >
+          <label className="text-sm">Sort By:</label>
+          <select value={sortBy} onChange={handleSortChange} className="py-1 px-2 text-sm">
             <option value="latest">Latest</option>
             <option value="price-low">Price: Low to High</option>
             <option value="price-high">Price: High to Low</option>
@@ -305,105 +215,12 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
         </div>
       </div>
 
-      {/* Active Filters */}
-      {searchParams.size > 0 && (
-        <div className="flex gap-4 mb-4 flex-wrap">
-          <button
-            onClick={clearAllFilters}
-            className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
-          >
-            <X className="font-bold text-bold w-4 h-4" />
-            Clear All
-          </button>
+      {products.length > 0 ? productList : <p>No products found for the selected criteria.</p>}
 
-          {colorParam && (
-            <button
-              onClick={() => clearSingleFilter("color")}
-              className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
-            >
-              <X className="font-bold text-bold w-4 h-4" />
-              {colorParam}
-            </button>
-          )}
-
-          {minPriceParam && (
-            <button
-              onClick={() => clearSingleFilter("minPrice")}
-              className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
-            >
-              <X className="font-bold text-bold w-4 h-4" />
-              Min: ₹{minPriceParam}
-            </button>
-          )}
-
-          {maxPriceParam && (
-            <button
-              onClick={() => clearSingleFilter("maxPrice")}
-              className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
-            >
-              <X className="font-bold text-bold w-4 h-4" />
-              Max: ₹{maxPriceParam}
-            </button>
-          )}
-
-          {sizesParam.length > 0 &&
-            sizesParam.map((size) => (
-              <button
-                key={size}
-                onClick={() => {
-                  const newSizes = sizesParam.filter((s) => s !== size);
-                  const newParams = new URLSearchParams(
-                    searchParams.toString()
-                  );
-                  if (newSizes.length > 0) {
-                    newParams.set("sizes", newSizes.join(","));
-                  } else {
-                    newParams.delete("sizes");
-                  }
-                  if (searchParams.size === 2) {
-                    router.push(window.location.pathname);
-                  } else {
-                    router.push(`?${newParams.toString()}`);
-                  }
-                }}
-                className="text-sm flex items-center gap-2 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
-              >
-                <X className="font-bold text-bold w-4 h-4" />
-                Size: {size}
-              </button>
-            ))}
-        </div>
-      )}
-
-      {/* Loading state for initial load */}
-      {/* {loading && (
-        <div className="flex justify-center items-center h-64">
-     <Loader2 className="animate-spin rounded-full h-12 w-12 text-green-700" />
-        </div>
-      )} */}
-
-      {/* Products Grid/List */}
-      {!loading && productList}
-
-      {/* Load More */}
-      <div ref={loaderRef} className="mt-8 flex justify-center items-center">
-        {(loadingMore  && !loading)? (
-          <div className="flex items-center space-x-2">
-  <Loader2 className="animate-spin rounded-full h-12 w-12 text-green-700" />
-            <span className="text-gray-600">Loading more...</span>
-          </div>
-        ) : hasMore && !loading? (
-          <button
-            onClick={fetchMoreProducts}
-            className="px-4 py-2 border rounded bg-gray-50 hover:bg-gray-100 transition-colors"
-            disabled={loadingMore}
-          >
-            Load More
-          </button>
-        ) : (
-          products.length > 0 && (
-            <p className="text-gray-500 text-sm">No more products to show</p>
-          )
+      <div ref={loaderRef} className="mt-8 flex justify-center items-center h-20">
+        {loadingMore && <Loader2 className="animate-spin h-12 w-12 text-green-700" />}
+        {!loadingMore && !hasMore && products.length > 0 && (
+          <p className="text-gray-500 text-sm">No more products</p>
         )}
       </div>
     </div>

@@ -1,3 +1,4 @@
+"use client";
 import type { Metadata } from "next";
 import { Jost } from "next/font/google";
 import "./globals.css";
@@ -5,21 +6,15 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Navbar from "./_components/Navbar";
+import Main from "./Main";
 import FooterNav from "./_components/FooterNav";
 import { Suspense } from "react";
-import { Loader2 } from "lucide-react";
+import { Cat, Loader2 } from "lucide-react";
 import { WhatsApp } from "./_components/whatsapp-icon";
+import { CategoryProvider} from "@/context/CategoryContext";
 
 
-export const metadata: Metadata = {
-  title: "Kathys Clothing Store",
-  description: "Your one-stop shopping destination",
-  icons: {
-    icon: "/kathys-logo.webp", // Remove the ../../public prefix - Next.js automatically looks in public folder
-    shortcut: "/kathys-logo.webp",
-    apple: "/kathys-logo.webp",
-  },
-};
+
 
 const jost = Jost({
   variable: "--font-jost",
@@ -32,6 +27,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+    
   return (
     <html lang="en" className="h-full">
       <head>
@@ -39,19 +35,10 @@ export default function RootLayout({
       </head>
       <body className={`${jost.className} antialiased flex flex-col h-full`}>
         <AuthProvider>
+          <CategoryProvider>
           <div className="flex flex-col h-full">
             <Navbar />
-            <main className="flex-1 overflow-y-auto">
-              <Suspense
-                fallback={
-                  <div className="flex justify-center items-center h-full">
-                    <Loader2 className="animate-spin rounded-full h-12 w-12 text-green-700" />
-                  </div>
-                }
-              >
-                {children}
-              </Suspense>
-            </main>
+            <Main children={children} />
             <FooterNav />
           </div>
           <ToastContainer
@@ -64,6 +51,7 @@ export default function RootLayout({
             draggable
             pauseOnHover
           />
+          </CategoryProvider>
         </AuthProvider>
         <WhatsApp/>
       </body>
