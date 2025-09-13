@@ -642,36 +642,42 @@ if (colorFilter) {
 
     // Get total count considering filters
     let totalCount = 0;
-    if (colorFilter || sizeFilter) {
-      // For filtered results, we need to count the filtered unique products
-      totalCount = uniqueProducts.length;
-    } else {
-      // For unfiltered results, use the original count query
-      const countPromises = [];
-      
-      for (let i = 0; i < allCategoryIds.length; i += chunkSize) {
-        const chunk = allCategoryIds.slice(i, i + chunkSize);
-        let countQuery = query(
-          collection(db, "products"),
-          where("categories", "array-contains-any", chunk),
-               where("active", "==", true),
-                       orderBy("position", "asc"),    
+ 
+         // Always get total count from server (deduped)
+    const countPromises = [];
+
+    for (let i = 0; i < allCategoryIds.length; i += chunkSize) {
+      const chunk = allCategoryIds.slice(i, i + chunkSize);
+      let countQuery = query(
+        collection(db, "products"),
+        where("categories", "array-contains-any", chunk),
+        where("active", "==", true)
+      );
+
+      if (minPrice !== undefined && maxPrice !== undefined) {
+        countQuery = query(
+          countQuery,
+          where("productDiscountedPrice", ">=", minPrice),
+          where("productDiscountedPrice", "<=", maxPrice)
         );
-
-        if (minPrice !== undefined && maxPrice !== undefined) {
-          countQuery = query(
-            countQuery,
-            where("productDiscountedPrice", ">=", minPrice),
-            where("productDiscountedPrice", "<=", maxPrice)
-          );
-        }
-
-        countPromises.push(getCountFromServer(countQuery));
       }
 
-      const countResults = await Promise.all(countPromises);
-      totalCount = countResults.reduce((sum, result) => sum + result.data().count, 0);
+      // Instead of summing raw counts, we fetch product IDs
+      countPromises.push(getDocs(countQuery));
     }
+
+    const countSnapshots = await Promise.all(countPromises);
+
+    // Deduplicate IDs across chunks
+    const allIds = new Set<string>();
+    countSnapshots.forEach(snapshot => {
+      snapshot.docs.forEach(doc => {
+        allIds.add(doc.id);
+      });
+    });
+
+     totalCount = allIds.size;
+    
 
     return {
       products,
