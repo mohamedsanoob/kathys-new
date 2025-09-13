@@ -38,7 +38,7 @@ const ProductsSection: React.FC = () => {
     if (loading || isRestoringRef.current) return;
     const container = scrollContainerRef.current;
   
-saZXz    if (!container) return;
+    if (!container) return;
 
     let throttleTimeout: NodeJS.Timeout | null = null;
 
