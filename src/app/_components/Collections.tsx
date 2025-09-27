@@ -247,8 +247,17 @@ const Collections = () => {
         </div>
       )}
     
+    
+    
     </div>
   ))}
+      <div className="bg-black mb-5">
+              <AdBanner
+                dataAdFormat="auto"
+                dataFullWidthResponsive={true}
+                dataAdSlot="9638943294"
+              />
+            </div>
      
     </div>
   );

@@ -18,7 +18,6 @@ export default function Home() {
       {/* <ImageSwiper /> */}
       {/* <Community /> */}
       <Collections />
-    
       <Rating />
       <Help />
       <Footer />
