@@ -7,6 +7,7 @@ import Image from "next/image";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/hooks/useCart";
+import AdBanner from "../_components/AdBanner";
 
 interface CartProduct {
   id: string;
@@ -346,7 +347,9 @@ const CartPage = () => {
               ))}
             </tbody>
           </table>
+       
         </div>
+        
 
         {/* Checkout Section */}
         <div className="w-full lg:w-[30%]">
@@ -356,6 +359,8 @@ const CartPage = () => {
           />
         </div>
       </div>
+
+      
 
       {/* Mobile Checkout Bar */}
       <div className="bg-white border-t border-gray-200 py-3 px-4 md:hidden">

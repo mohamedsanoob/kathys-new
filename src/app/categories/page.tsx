@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { getAllCategories } from "@/actions/actions";
+import AdBanner from "../_components/AdBanner";
 
 interface Category {
   id: string;
@@ -92,6 +93,11 @@ export default function CategoriesList() {
 ))}
 
       </div>
+        <AdBanner
+                  dataAdFormat="auto"
+                  dataFullWidthResponsive={true}
+                  dataAdSlot="8557247171" // Use a different ad slot ID for each placement if possible
+                />
     </div>
   );
 }

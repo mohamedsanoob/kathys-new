@@ -10,6 +10,7 @@ import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { getProductById } from "@/actions/actions";
 import { useRouter } from "next/navigation";
+import AdBanner from "@/app/_components/AdBanner";
 
 interface Product {
   skuId: string;
@@ -180,6 +181,11 @@ const ProductPage = () => {
         <ProductImage images={product?.images} />
         <ProductDetails product={simpleProduct} />
       </div>
+          <AdBanner
+                  dataAdFormat="auto"
+                  dataFullWidthResponsive={true}
+                  dataAdSlot="8557247171" // Use a different ad slot ID for each placement if possible
+                />
       <ProductDescription
         description={product.description}
         variants={product?.variants || []}

@@ -7,6 +7,7 @@ import FilterSection from "./_components/FilterSection";
 import ProductsSection from "./_components/ProductsSection";
 import { useRouter } from "next/navigation";
 import { useCategoryContext } from "@/context/CategoryContext";
+import AdBanner from "@/app/_components/AdBanner";
 
 const Page = () => {
   const router = useRouter();
@@ -53,6 +54,11 @@ const Page = () => {
       ← Back
     </button>
   </div>
+    <AdBanner
+                  dataAdFormat="auto"
+                  dataFullWidthResponsive={true}
+                  dataAdSlot="9638943294" // Use a different ad slot ID for each placement if possible
+                />
 
   {/* Subcategories Scrollable Section - Enhanced for mobile */}
   {subCategoriesDetails.length > 0 && (
