@@ -54,11 +54,7 @@ const Page = () => {
       ← Back
     </button>
   </div>
-    <AdBanner
-                  dataAdFormat="auto"
-                  dataFullWidthResponsive={true}
-                  dataAdSlot="9638943294" // Use a different ad slot ID for each placement if possible
-                />
+   
 
   {/* Subcategories Scrollable Section - Enhanced for mobile */}
   {subCategoriesDetails.length > 0 && (
