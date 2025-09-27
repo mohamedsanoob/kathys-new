@@ -130,7 +130,7 @@ const Collections = () => {
     <div className="max-w-[1290px] mx-auto px-4">
 {categoriesWithProducts
   ?.filter((category) => !category?.isSubcategory)
-  .map((category) => (
+  .map((category,index) => (
     <div key={category.id} className="mb-16 last:mb-8">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between py-8 md:py-12">
@@ -230,7 +230,9 @@ const Collections = () => {
                 </div>
               </Link>
             );
+            
           })}
+
       </div>
 
       {/* View More Button */}
@@ -245,18 +247,27 @@ const Collections = () => {
             <ArrowRight size={18} />
           </Link>
         </div>
+
+        
+        
       )}
+
+        {(index + 1) % 3 === 0 && (
+              <div className="w-full min-h-[90px] flex justify-center items-center my-16">
+                <AdBanner
+                  dataAdFormat="auto"
+                  dataFullWidthResponsive={true}
+                  dataAdSlot="9638943294" // Use a different ad slot ID for each placement if possible
+                />
+              </div>
+            )}
      
     
     </div>
+
+    
   ))}
-         <div className="w-full min-h-[90px] flex justify-center items-center">
-   <AdBanner
-                dataAdFormat="auto"
-                dataFullWidthResponsive={true}
-                dataAdSlot="9638943294"
-              />
-              </div>
+        
      
     </div>
   );
