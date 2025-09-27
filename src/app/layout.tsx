@@ -33,13 +33,14 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <head>
       <link rel="icon" href="/favicon.ico" sizes="any" />
+
         <AdSense pId="ca-pub-8258677943197720" />
+
       </head>
       <body className={`${jost.className} antialiased flex flex-col h-full`}>
         <AuthProvider>
           <CategoryProvider>
-     
-<div className="flex flex-col !h-full">
+          <div className="flex flex-col !h-auto !min-h-0">
             <Navbar />
             <Main children={children} />
             <FooterNav />
