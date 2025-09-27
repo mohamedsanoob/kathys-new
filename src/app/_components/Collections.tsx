@@ -257,7 +257,7 @@ const Collections = () => {
    <AdBanner
                 dataAdFormat="auto"
                 dataFullWidthResponsive={true}
-                dataAdSlot="9638943294"
+                dataAdSlot="3608172824"
               />
   </div>
      
