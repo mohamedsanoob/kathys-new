@@ -40,7 +40,7 @@ export default function RootLayout({
       <body className={`${jost.className} antialiased flex flex-col h-full`}>
         <AuthProvider>
           <CategoryProvider>
-          <div className="flex flex-col !h-auto !min-h-0">
+          <div className="flex flex-col !h-full">
             <Navbar />
             <Main children={children} />
             <FooterNav />
