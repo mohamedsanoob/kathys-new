@@ -39,7 +39,7 @@ export default function RootLayout({
         <AuthProvider>
           <CategoryProvider>
      
-<div className="flex flex-col !min-h-screen !h-full">
+<div className="flex flex-col  !h-auto !min-h-0">
             <Navbar />
             <Main children={children} />
             <FooterNav />
