@@ -16,7 +16,7 @@ export default function Main({children}) {
     } = useCategoryContext();
 
   return (
-   <main className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
+   <main className="flex-1" ref={scrollContainerRef}>
                 <Suspense
                   fallback={
                     <div className="flex justify-center items-center h-full">
