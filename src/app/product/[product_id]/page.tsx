@@ -180,12 +180,16 @@ const ProductPage = () => {
       <div className="flex flex-col md:flex-row gap-10">
         <ProductImage images={product?.images} />
         <ProductDetails product={simpleProduct} />
-         <AdBanner
+     
+      </div>
+                 <div className="w-full min-h-[90px] flex justify-center items-center my-16">
+                     <AdBanner
                   dataAdFormat="auto"
                   dataFullWidthResponsive={true}
                   dataAdSlot="8557247171" // Use a different ad slot ID for each placement if possible
                 />
-      </div>
+                 </div>
+       
          
       <ProductDescription
         description={product.description}
