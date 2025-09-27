@@ -1,4 +1,5 @@
 
+import AdBanner from "./_components/AdBanner";
 import Collections from "./_components/Collections";
 // import Community from "./_components/Community";
 import Footer from "./_components/Footer";
@@ -17,6 +18,11 @@ export default function Home() {
       {/* <ImageSwiper /> */}
       {/* <Community /> */}
       <Collections />
+        <AdBanner
+                dataAdFormat="auto"
+                dataFullWidthResponsive={true}
+                dataAdSlot="9638943294"
+              />
       <Rating />
       <Help />
       <Footer />

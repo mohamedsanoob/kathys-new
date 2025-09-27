@@ -12,6 +12,7 @@ import { Suspense } from "react";
 import { Cat, Loader2 } from "lucide-react";
 import { WhatsApp } from "./_components/whatsapp-icon";
 import { CategoryProvider} from "@/context/CategoryContext";
+import AdSense from "./_components/AdSense";
 
 
 
@@ -32,6 +33,7 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <head>
       <link rel="icon" href="/favicon.ico" sizes="any" />
+        <AdSense pId="ca-pub-8258677943197720" />
       </head>
       <body className={`${jost.className} antialiased flex flex-col h-full`}>
         <AuthProvider>

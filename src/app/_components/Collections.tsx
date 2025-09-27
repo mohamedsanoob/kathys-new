@@ -5,6 +5,7 @@ import { ArrowRight, Loader2, ShoppingBag } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { getCollectionsWithProducts } from "@/actions/actions";
+import AdBanner from "./AdBanner";
 
 interface VariantCombination {
   value: string;
@@ -245,8 +246,10 @@ const Collections = () => {
           </Link>
         </div>
       )}
+    
     </div>
   ))}
+     
     </div>
   );
 };
