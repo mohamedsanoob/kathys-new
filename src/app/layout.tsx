@@ -38,7 +38,8 @@ export default function RootLayout({
       <body className={`${jost.className} antialiased flex flex-col h-full`}>
         <AuthProvider>
           <CategoryProvider>
-          <div className="flex flex-col h-full">
+     
+<div className="flex flex-col !min-h-screen">
             <Navbar />
             <Main children={children} />
             <FooterNav />
