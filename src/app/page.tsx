@@ -18,11 +18,7 @@ export default function Home() {
       {/* <ImageSwiper /> */}
       {/* <Community /> */}
       <Collections />
-        <AdBanner
-                dataAdFormat="auto"
-                dataFullWidthResponsive={true}
-                dataAdSlot="9638943294"
-              />
+    
       <Rating />
       <Help />
       <Footer />
