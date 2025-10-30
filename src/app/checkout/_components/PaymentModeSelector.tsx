@@ -29,28 +29,6 @@ const PaymentModeSelector = ({ onPaymentModeChange, currentMode }: PaymentModePr
           </div>
         </div>
       </div>
-      
-      <div 
-        className={`flex items-center p-4 cursor-pointer border-l-4 ${
-          currentMode === 'cod' ? 'border-[#1e6553] bg-gray-50' : 'border-transparent'
-        }`}
-        onClick={() => onPaymentModeChange('cod')}
-      >
-        <div className="mr-3">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <div className="flex-1">
-          <h3 className="font-medium">Cash on delivery</h3>
-          <p className="text-sm text-gray-500">Pay when your order is delivered.</p>
-        </div>
-        <div className="ml-2">
-          <div className={`w-5 h-5 rounded-full border ${currentMode === 'cod' ? 'border-[#1e6553]' : 'border-gray-300'} flex items-center justify-center`}>
-            {currentMode === 'cod' && <div className="w-3 h-3 rounded-full bg-[#1e6553]"></div>}
-          </div>
-        </div>
-      </div>
 
       <div 
         className={`flex items-center p-4 cursor-pointer border-l-4 ${
