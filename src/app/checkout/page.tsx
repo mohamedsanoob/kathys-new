@@ -405,7 +405,7 @@ const CheckoutPageContent = () => {
       const orderResponse = await axios.post<PhonePeOrderResponse>(
         `${BASE_URL}/payment/phonepe-orders`,
         {
-          amount: 2, // Send amount in Rupees
+          amount: grandTotal, // Send amount in Rupees
           orderData: orderObject,
           authenticatedId: currentUser ? currentUser?.uid : undefined,
         }
@@ -417,7 +417,7 @@ const CheckoutPageContent = () => {
 
       setOrderDetails({
         id: orderResponse.data.merchantOrderId,
-        amount: 2,
+        amount: grandTotal,
         paymentMethod: "PhonePe",
       });
 
