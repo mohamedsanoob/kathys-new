@@ -18,10 +18,7 @@ import { v4 as uuidv4 } from "uuid";
 import {
   FormData,
   CartProduct,
-  RazorpayResponse,
-  OrderResponse,
-  PaymentSuccessResponse,
-  RazorpayOptions,
+  // Removed Razorpay types
 } from "@/types/checkout";
 import OrderSummary from "./_components/orderSummary";
 import BillingDetails from "./_components/BillingDetails";
@@ -32,11 +29,18 @@ import { PaymentSuccess } from "../_components/PaymentSuccess";
 import { PaymentRejected } from "../_components/PaymentRejected";
 import PhoneAuthModal from "../_components/PhoneAuthModal";
 
+// --- Define new type for PhonePe Order Response ---
+interface PhonePeOrderResponse {
+  success: boolean;
+  paymentUrl: string;
+  merchantOrderId: string;
+  firestoreId: string;
+}
+
+// --- Remove Razorpay from window global type ---
 declare global {
   interface Window {
-    Razorpay: new (options: RazorpayOptions) => {
-      open: () => void;
-    };
+    // Razorpay: ... (removed)
     recaptchaVerifier: any;
   }
 }
@@ -49,17 +53,17 @@ const PaymentLoader = () => (
     <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center w-[90%]">
       <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-[#1e6553] mx-auto mb-4"></div>
       <h2 className="text-xl font-semibold text-gray-800 mb-2">
-        Processing Payment
+        Redirecting to Payment
       </h2>
       <p className="text-gray-600">
-        Please wait while we process your payment...
+        Please wait, you are being redirected to our secure payment page...
       </p>
     </div>
   </div>
 );
 
 const CheckoutPageContent = () => {
-    const searchParams = useSearchParams();
+  const searchParams = useSearchParams();
   const isBuyNow = searchParams.get("buyNow") === "true";
   const { currentUser } = useAuth();
   const [cartProductsWithDetails, setCartProductsWithDetails] = useState<
@@ -72,15 +76,20 @@ const CheckoutPageContent = () => {
     string | null | undefined
   >(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
-   const [isKerala, setIsKerala] = useState(false);
+  const [isKerala, setIsKerala] = useState(false);
   const [termsError, setTermsError] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(true);
-  const [paymentMode, setPaymentMode] = useState<"online" | "cod" | "cof" |"">("");
+  const [paymentMode, setPaymentMode] = useState<"online" | "cod" | "cof" | "">(
+    ""
+  );
   const [showPaymentMode, setShowPaymentMode] = useState(false);
   const [paymentModeError, setPaymentModeError] = useState(false);
+  
+  // This state now controls the view
   const [paymentStatus, setPaymentStatus] = useState<
     "pending" | "success" | "failed" | "no-items"
   >("pending");
+  
   const [orderDetails, setOrderDetails] = useState<{
     id: string;
     amount: number;
@@ -100,7 +109,41 @@ const CheckoutPageContent = () => {
     mode: "onChange",
   });
 
-    useEffect(() => {
+  // --- NEW: Effect to handle payment status from URL ---
+  useEffect(() => {
+    const status = searchParams.get("status");
+    const orderId = searchParams.get("orderId");
+    const message = searchParams.get("message");
+    const amount = searchParams.get("amount");
+
+    if (status === "success" && orderId && amount) {
+      setPaymentStatus("success");
+      setOrderDetails({
+        id: orderId,
+        amount: Number(amount),
+        paymentMethod: "PhonePe",
+      });
+      // Clear the cart *only* on success
+      window.dispatchEvent(new Event("cart-remove-all"));
+      localStorage.removeItem("guestCartId");
+      
+      // Optional: Clear URL params
+      // window.history.replaceState(null, '', window.location.pathname);
+    } else if (status === "failed") {
+      setPaymentStatus("failed");
+      setPaymentError(message || "Your payment failed. Please try again.");
+      setOrderDetails({
+        id: orderId || "N/A",
+        amount: Number(amount) || 0,
+        paymentMethod: "PhonePe",
+      });
+      // Optional: Clear URL params
+      // window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [searchParams]);
+
+  // Effect to fetch cart details
+  useEffect(() => {
     const fetchCartDetails = async () => {
       setIsLoading(true);
       try {
@@ -114,10 +157,10 @@ const CheckoutPageContent = () => {
         setIsLoading(false);
       }
     };
-
     fetchCartDetails();
   }, [isBuyNow]);
 
+  // Effect to fetch user addresses
   useEffect(() => {
     if (currentUser) {
       fetchUserAddresses();
@@ -127,7 +170,6 @@ const CheckoutPageContent = () => {
   const fetchUserAddresses = async () => {
     try {
       if (!currentUser?.uid) return;
-
       const addressesRef = collection(db, `users/${currentUser.uid}/addresses`);
       const snapshot = await getDocs(addressesRef);
       const addresses = snapshot.docs.map((doc) => ({
@@ -145,30 +187,28 @@ const CheckoutPageContent = () => {
     }
   };
 
-
-  useEffect(() =>{
-      const isKeralaPincode = (pincode: string): boolean => {
-  const firstTwoDigits = parseInt(pincode.substring(0, 2));
-  return firstTwoDigits >= 67 && firstTwoDigits <= 69;
-};
-    if(currentUser?.uid){
-       const address = savedAddresses.find(
-          (addr) => addr.id === selectedAddress
-        );
-      
-        setIsKerala(isKeralaPincode(address?.pinCode|| ""))
-    }else{
-      setIsKerala(isKeralaPincode(watch("pinCode")))
+  // Effect to watch pincode for delivery fee
+  useEffect(() => {
+    const isKeralaPincode = (pincode: string): boolean => {
+      if (!pincode || pincode.length < 2) return false;
+      const firstTwoDigits = parseInt(pincode.substring(0, 2));
+      return firstTwoDigits >= 67 && firstTwoDigits <= 69;
+    };
+    if (currentUser?.uid) {
+      const address = savedAddresses.find(
+        (addr) => addr.id === selectedAddress
+      );
+      setIsKerala(isKeralaPincode(address?.pinCode || ""));
+    } else {
+      setIsKerala(isKeralaPincode(watch("pinCode")));
     }
-  
-  },[watch("pinCode"),currentUser,selectedAddress])
+  }, [watch("pinCode"), currentUser, selectedAddress, savedAddresses]);
 
   const saveNewAddress = async (
     data: Omit<FormData, "id" | "created_at" | "user_id" | "is_default">
   ) => {
     try {
       if (!currentUser?.uid) return;
-
       const addressId = uuidv4();
       const newAddress: FormData = {
         ...data,
@@ -198,29 +238,27 @@ const CheckoutPageContent = () => {
   const total = cartProductsWithDetails.reduce((sum, product) => {
     const price =
       product?.variantDetails?.discountedPrice ||
-      product?.variantDetails?.price;
+      product?.variantDetails?.price ||
+      product?.productDiscountedPrice ||
+      product?.productPrice;
     return sum + price * product.quantity;
   }, 0);
 
-  const deliveryFee =  paymentMode === "cof" ? 0: paymentMode === "cod" ? 150 : isKerala? 75:100
+  const deliveryFee =
+    paymentMode === "cof"
+      ? 0
+      : paymentMode === "cod"
+      ? 150
+      : isKerala
+      ? 75
+      : 100;
   const grandTotal = total + deliveryFee;
-
-  const loadScript = (src: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-      const script = document.createElement("script");
-      script.src = src;
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
 
   const validateCheckout = () => {
     if (!termsAgreed) {
       setTermsError(true);
       return false;
     }
-
     if (currentUser) {
       if (!selectedAddress) {
         toast.error("Please select an address or add a new one");
@@ -229,7 +267,6 @@ const CheckoutPageContent = () => {
     } else {
       if (!isValid) return false;
     }
-
     return true;
   };
 
@@ -242,12 +279,10 @@ const CheckoutPageContent = () => {
     } else {
       setPaymentModeError(false);
     }
-
     if (!validateCheckout()) return;
 
     try {
       let orderData;
-
       if (currentUser) {
         const address = savedAddresses.find(
           (addr) => addr.id === selectedAddress
@@ -257,7 +292,6 @@ const CheckoutPageContent = () => {
       } else {
         orderData = getValues();
       }
-
       await onSubmit(orderData);
     } catch (error) {
       console.error("Checkout error:", error);
@@ -265,10 +299,9 @@ const CheckoutPageContent = () => {
     }
   };
 
-
-
+  // --- REFACTORED onSubmit ---
   const onSubmit = async (data: FormData) => {
-    if(cartProductsWithDetails?.length === 0) {
+    if (cartProductsWithDetails?.length === 0) {
       toast.error("No items in cart");
       setPaymentStatus("no-items");
       setPaymentError(
@@ -281,9 +314,14 @@ const CheckoutPageContent = () => {
     try {
       const orderObject = {
         cartId: localStorage.getItem("guestCartId") || `cart_${Date.now()}`,
-        payment_mode: paymentMode === "cof" ? "Collect from store" :paymentMode === "cod" ? "COD" : "Razorpay",
+        payment_mode:
+          paymentMode === "cof"
+            ? "Collect from store"
+            : paymentMode === "cod"
+            ? "COD"
+            : "PhonePe",
         items_total: grandTotal,
-        delivery: paymentMode === "cof" ? 0: paymentMode === "cod" ? 150 : isKerala? 75:100,
+        delivery: deliveryFee,
         additional_info: data.notes || "",
         channel: "Web",
         orderStatus: "created",
@@ -304,20 +342,20 @@ const CheckoutPageContent = () => {
             }, {} as Record<string, string>) || {},
           product_description: "",
         })),
-         customer_details: {
-    name: `${data.firstName} ${data.lastName}`,
-    name_lower: `${data.firstName} ${data.lastName}`.toLowerCase(), // Add this line
-    address:
-      data.streetAddress1 +
-      (data.streetAddress2 ? `, ${data.streetAddress2}` : ""),
-    locality_area: data.city,
-    landmark: "",
-    city: data.city,
-    state: data.state,
-    pincode: data.pinCode,
-    mobile_number: `+91${data.mobileNumber}`,
-    email: data.email,
-  },
+        customer_details: {
+          name: `${data.firstName} ${data.lastName}`,
+          name_lower: `${data.firstName} ${data.lastName}`.toLowerCase(),
+          address:
+            data.streetAddress1 +
+            (data.streetAddress2 ? `, ${data.streetAddress2}` : ""),
+          locality_area: data.city,
+          landmark: "",
+          city: data.city,
+          state: data.state,
+          pincode: data.pinCode,
+          mobile_number: `+91${data.mobileNumber}`,
+          email: data.email,
+        },
         coupon_discount: 0,
         timestamp: {
           seconds: Math.floor(Date.now() / 1000),
@@ -329,10 +367,10 @@ const CheckoutPageContent = () => {
         },
       };
 
-
+      // --- COD/COF logic (unchanged) ---
       if (paymentMode === "cod" || paymentMode === "cof") {
         try {
-          const response = await axios.post(`${BASE_URL}/payment/cod`, {
+          const response = await axios.post(`${BASE_URL}/payment/cod`, { // Assuming you have a /cod route
             orderData: orderObject,
             authenticatedId: currentUser ? currentUser?.uid : undefined,
           });
@@ -340,7 +378,8 @@ const CheckoutPageContent = () => {
           setOrderDetails({
             id: response.data.orderId,
             amount: grandTotal,
-            paymentMethod: paymentMode==="cof" ?"Collect from store" : "cash on delivery",
+            paymentMethod:
+              paymentMode === "cof" ? "Collect from store" : "cash on delivery",
           });
 
           window.dispatchEvent(new Event("cart-remove-all"));
@@ -353,121 +392,38 @@ const CheckoutPageContent = () => {
           setPaymentStatus("failed");
           setPaymentError(
             error.response?.data?.error ||
-              `Failed to place ${paymentMode==="cod"?"COD":"Collect from order"} order. Please try again.`
+              `Failed to place ${
+                paymentMode === "cod" ? "COD" : "Collect from order"
+              } order. Please try again.`
           );
           setIsProcessingPayment(false);
           return;
         }
       }
 
-      const razorpayLoaded = await loadScript(
-        "https://checkout.razorpay.com/v1/checkout.js"
-      );
-      if (!razorpayLoaded) {
-        throw new Error("Razorpay SDK failed to load");
-      }
-
-      const orderResponse = await axios.post<OrderResponse>(
-        `${BASE_URL}/payment/orders`,
+      // --- PHONEPE LOGIC ---
+      const orderResponse = await axios.post<PhonePeOrderResponse>(
+        `${BASE_URL}/payment/phonepe-orders`,
         {
-          amount: grandTotal,
-          currency: "INR",
+          amount: 2, // Send amount in Rupees
           orderData: orderObject,
           authenticatedId: currentUser ? currentUser?.uid : undefined,
         }
       );
 
-      if (!orderResponse.data?.order) {
-        throw new Error("Failed to create payment order");
+      if (!orderResponse.data?.paymentUrl) {
+        throw new Error("Failed to create payment link. Please try again.");
       }
 
-      const { id: order_id, currency } = orderResponse.data.order;
-
       setOrderDetails({
-        id: order_id,
-        amount: grandTotal,
-        paymentMethod: "razorpay",
+        id: orderResponse.data.merchantOrderId,
+        amount: 2,
+        paymentMethod: "PhonePe",
       });
 
-      const paymentOptions: RazorpayOptions = {
-        key: RAZORPAY_KEY_ID,
-        amount: grandTotal.toString(),
-        currency,
-        name: "Kathy's Clothing Store",
-        description: "Order Payment",
-        order_id,
-        handler: async (response: RazorpayResponse) => {
-          try {
-            window.dispatchEvent(new Event("cart-remove-all"));
-            setIsProcessingPayment(true);
-            const verificationResponse =
-              await axios.post<PaymentSuccessResponse>(
-                `${BASE_URL}/payment/success`,
-                {
-                  orderCreationId: order_id,
-                  razorpayPaymentId: response.razorpay_payment_id,
-                  razorpayOrderId: response.razorpay_order_id,
-                  razorpaySignature: response.razorpay_signature,
-                  orderData: orderObject,
-                  authenticatedId: currentUser ? currentUser?.uid : undefined,
-                }
-              );
+      // Redirect user to PhonePe
+      window.location.href = orderResponse.data.paymentUrl;
 
-            setOrderDetails({
-              id: verificationResponse.data.orderId,
-              amount: grandTotal,
-              paymentMethod: "razorpay",
-            });
-              setPaymentStatus("success");
-              localStorage.removeItem("guestCartId");
-          } catch (error) {
-            console.error("Payment verification error:", error);
-            setPaymentStatus("failed");
-            setPaymentError(
-              "Payment verification failed. Please contact support."
-            );
-          } finally {
-            setIsProcessingPayment(false);
-          }
-        },
-        prefill: {
-          name: `${data.firstName} ${data.lastName}`,
-          email: data.email,
-          contact: data.mobileNumber,
-        },
-        notes: {
-          address: orderObject.customer_details.address,
-          orderId: order_id,
-        },
-        theme: {
-          color: "#1e6b5d",
-        },
-        modal: {
-          ondismiss: async () => {
-            try {
-              setIsProcessingPayment(true);
-              await axios.post(`${BASE_URL}/payment/cancel`, {
-                orderId: order_id,
-                authenticatedId: currentUser ? currentUser?.uid : undefined,
-                reason: "User closed payment window",
-              });
-              setPaymentStatus("failed");
-              setPaymentError("Payment was cancelled. Please try again.");
-              setIsProcessingPayment(false);
-            } catch (cancelError) {
-              setIsProcessingPayment(false);
-              setPaymentStatus("failed");
-              setPaymentError(
-                "Payment was cancelled but there was an error updating your order."
-              );
-            }
-          },
-        },
-      };
-
-      const paymentObject = new window.Razorpay(paymentOptions);
-      paymentObject.open();
-      setIsProcessingPayment(false);
     } catch (error: any) {
       console.error("Checkout error:", error);
       setPaymentStatus("failed");
@@ -496,6 +452,8 @@ const CheckoutPageContent = () => {
     console.log("Verified phone number:", phoneNumber);
   };
 
+  // --- RENDER LOGIC ---
+  // This now works because the new useEffect sets paymentStatus
   if (paymentStatus === "success" && orderDetails) {
     return (
       <PaymentSuccess
@@ -503,7 +461,7 @@ const CheckoutPageContent = () => {
         amount={orderDetails.amount}
         paymentMethod={orderDetails.paymentMethod}
         onContinueShopping={() => (window.location.href = "/")}
-        paymentMode={paymentMode}
+        paymentMode={paymentMode || "online"}
       />
     );
   }
@@ -514,24 +472,26 @@ const CheckoutPageContent = () => {
         errorMessage={paymentError || undefined}
         orderId={orderDetails?.id}
         onRetry={() => {
-          setPaymentStatus("pending");
-          setPaymentError(null);
+          // Send user back to a clean checkout page
+          window.location.href = "/checkout"; 
         }}
       />
-    );}
-
-    if (paymentStatus === "no-items") {
-      return (
-        <PaymentRejected
-          errorMessage={paymentError || undefined}
-          orderId={orderDetails?.id}
-          onRetry={() => {
-            window.location.href = "/";
-          }}
-        />
-      );
+    );
   }
 
+  if (paymentStatus === "no-items") {
+    return (
+      <PaymentRejected
+        errorMessage={paymentError || undefined}
+        orderId={orderDetails?.id}
+        onRetry={() => {
+          window.location.href = "/";
+        }}
+      />
+    );
+  }
+
+  // --- Default checkout form render ---
   return (
     <Suspense
       fallback={
