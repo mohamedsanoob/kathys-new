@@ -259,7 +259,7 @@ const Collections = () => {
                 <AdBanner
                   dataAdFormat="auto"
                   dataFullWidthResponsive={true}
-                  dataAdSlot="9638943294" // Use a different ad slot ID for each placement if possible
+                  dataAdSlot="7193104083" // Use a different ad slot ID for each placement if possible
                 />
               </div>
             )}

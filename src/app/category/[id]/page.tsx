@@ -7,7 +7,7 @@ import FilterSection from "./_components/FilterSection";
 import ProductsSection from "./_components/ProductsSection";
 import { useRouter } from "next/navigation";
 import { useCategoryContext } from "@/context/CategoryContext";
-import AdBanner from "@/app/_components/AdBanner";
+
 
 const Page = () => {
   const router = useRouter();

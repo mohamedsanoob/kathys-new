@@ -97,7 +97,7 @@ export default function CategoriesList() {
      <AdBanner
                   dataAdFormat="auto"
                   dataFullWidthResponsive={true}
-                  dataAdSlot="8557247171" // Use a different ad slot ID for each placement if possible
+                  dataAdSlot="8608034205" // Use a different ad slot ID for each placement if possible
                 />
     </div>
   );

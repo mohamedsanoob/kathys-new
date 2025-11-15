@@ -1,5 +1,3 @@
-
-import AdBanner from "./_components/AdBanner";
 import Collections from "./_components/Collections";
 // import Community from "./_components/Community";
 import Footer from "./_components/Footer";

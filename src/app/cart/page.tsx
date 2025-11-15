@@ -7,7 +7,7 @@ import Image from "next/image";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/hooks/useCart";
-import AdBanner from "../_components/AdBanner";
+
 
 interface CartProduct {
   id: string;
