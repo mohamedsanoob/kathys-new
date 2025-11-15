@@ -86,6 +86,8 @@ const Collections = () => {
     fetchData();
   }, []);
 
+  console.log("test");
+
   const isOutOfStock = (product: Product): boolean => {
     // If product has variants but no variantDetails, it's out of stock
     if (
