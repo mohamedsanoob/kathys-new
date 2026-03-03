@@ -7,11 +7,10 @@ const PaymentModeSelector = ({ onPaymentModeChange, currentMode }: PaymentModePr
   return (
     <div className="mb-6 border rounded-md overflow-hidden">
       <h2 className="text-lg font-semibold mb-2 px-4 pt-4">Choose payment mode</h2>
-      
-      <div 
-        className={`flex items-center p-4 cursor-pointer border-l-4 ${
-          currentMode === 'online' ? 'border-[#1e6553] bg-gray-50' : 'border-transparent'
-        }`}
+
+      <div
+        className={`flex items-center p-4 cursor-pointer border-l-4 ${currentMode === 'online' ? 'border-[#1e6553] bg-gray-50' : 'border-transparent'
+          }`}
         onClick={() => onPaymentModeChange('online')}
       >
         <div className="mr-3">
@@ -30,10 +29,9 @@ const PaymentModeSelector = ({ onPaymentModeChange, currentMode }: PaymentModePr
         </div>
       </div>
 
-      <div 
-        className={`flex items-center p-4 cursor-pointer border-l-4 ${
-          currentMode === 'cof' ? 'border-[#1e6553] bg-gray-50' : 'border-transparent'
-        }`}
+      <div
+        className={`flex items-center p-4 cursor-pointer border-l-4 ${currentMode === 'cof' ? 'border-[#1e6553] bg-gray-50' : 'border-transparent'
+          }`}
         onClick={() => onPaymentModeChange('cof')}
       >
         <div className="mr-3">
@@ -43,7 +41,7 @@ const PaymentModeSelector = ({ onPaymentModeChange, currentMode }: PaymentModePr
         </div>
         <div className="flex-1">
           <h3 className="font-medium">Collect from store</h3>
-          <p className="text-sm text-gray-500">Pay when you collect your order from the store.</p>
+          <p className="text-sm text-gray-500">Pay now and collect your order from the store.</p>
         </div>
         <div className="ml-2">
           <div className={`w-5 h-5 rounded-full border ${currentMode === 'cof' ? 'border-[#1e6553]' : 'border-gray-300'} flex items-center justify-center`}>

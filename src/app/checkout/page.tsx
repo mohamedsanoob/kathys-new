@@ -45,7 +45,7 @@ declare global {
   }
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL;
+const BASE_URL = "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api";
 const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 
 const PaymentLoader = () => (
@@ -84,12 +84,12 @@ const CheckoutPageContent = () => {
   );
   const [showPaymentMode, setShowPaymentMode] = useState(false);
   const [paymentModeError, setPaymentModeError] = useState(false);
-  
+
   // This state now controls the view
   const [paymentStatus, setPaymentStatus] = useState<
     "pending" | "success" | "failed" | "no-items"
   >("pending");
-  
+
   const [orderDetails, setOrderDetails] = useState<{
     id: string;
     amount: number;
@@ -126,7 +126,7 @@ const CheckoutPageContent = () => {
       // Clear the cart *only* on success
       window.dispatchEvent(new Event("cart-remove-all"));
       localStorage.removeItem("guestCartId");
-      
+
       // Optional: Clear URL params
       // window.history.replaceState(null, '', window.location.pathname);
     } else if (status === "failed") {
@@ -248,10 +248,10 @@ const CheckoutPageContent = () => {
     paymentMode === "cof"
       ? 0
       : paymentMode === "cod"
-      ? 150
-      : isKerala
-      ? 75
-      : 100;
+        ? 150
+        : isKerala
+          ? 75
+          : 100;
   const grandTotal = total + deliveryFee;
 
   const validateCheckout = () => {
@@ -318,8 +318,8 @@ const CheckoutPageContent = () => {
           paymentMode === "cof"
             ? "Collect from store"
             : paymentMode === "cod"
-            ? "COD"
-            : "PhonePe",
+              ? "COD"
+              : "PhonePe",
         items_total: grandTotal,
         delivery: deliveryFee,
         additional_info: data.notes || "",
@@ -367,8 +367,8 @@ const CheckoutPageContent = () => {
         },
       };
 
-      // --- COD/COF logic (unchanged) ---
-      if (paymentMode === "cod" || paymentMode === "cof") {
+      // --- COD logic ---
+      if (paymentMode === "cod") {
         try {
           const response = await axios.post(`${BASE_URL}/payment/cod`, { // Assuming you have a /cod route
             orderData: orderObject,
@@ -378,8 +378,7 @@ const CheckoutPageContent = () => {
           setOrderDetails({
             id: response.data.orderId,
             amount: grandTotal,
-            paymentMethod:
-              paymentMode === "cof" ? "Collect from store" : "cash on delivery",
+            paymentMethod: "cash on delivery",
           });
 
           window.dispatchEvent(new Event("cart-remove-all"));
@@ -391,10 +390,7 @@ const CheckoutPageContent = () => {
           console.error("COD order error:", error);
           setPaymentStatus("failed");
           setPaymentError(
-            error.response?.data?.error ||
-              `Failed to place ${
-                paymentMode === "cod" ? "COD" : "Collect from order"
-              } order. Please try again.`
+            error.response?.data?.error || "Failed to place COD order. Please try again."
           );
           setIsProcessingPayment(false);
           return;
@@ -429,8 +425,8 @@ const CheckoutPageContent = () => {
       setPaymentStatus("failed");
       setPaymentError(
         error.response?.data?.error ||
-          error.message ||
-          "Checkout failed. Please try again."
+        error.message ||
+        "Checkout failed. Please try again."
       );
       setIsProcessingPayment(false);
     }
@@ -473,7 +469,7 @@ const CheckoutPageContent = () => {
         orderId={orderDetails?.id}
         onRetry={() => {
           // Send user back to a clean checkout page
-          window.location.href = "/checkout"; 
+          window.location.href = "/checkout";
         }}
       />
     );
@@ -518,8 +514,8 @@ const CheckoutPageContent = () => {
                 {showPaymentMode
                   ? "Choose Payment method"
                   : currentUser
-                  ? "Choose address"
-                  : "Add address"}
+                    ? "Choose address"
+                    : "Add address"}
               </span>
             </button>
           </Link>
@@ -592,28 +588,27 @@ const CheckoutPageContent = () => {
                   ? !selectedAddress || !termsAgreed || showAddressForm
                   : !isValid || !termsAgreed) || isProcessingPayment
               }
-              className={`w-full py-3 rounded-md text-white font-semibold ${
-                (
-                  currentUser
-                    ? selectedAddress &&
-                      termsAgreed &&
-                      !showAddressForm &&
-                      (!showPaymentMode || paymentMode)
-                    : isValid &&
-                      termsAgreed &&
-                      (!showPaymentMode || paymentMode)
-                )
-                  ? "bg-[#1e6553] hover:bg-[#1e6553]"
-                  : "bg-gray-400 cursor-not-allowed"
-              } transition-colors`}
+              className={`w-full py-3 rounded-md text-white font-semibold ${(
+                currentUser
+                  ? selectedAddress &&
+                  termsAgreed &&
+                  !showAddressForm &&
+                  (!showPaymentMode || paymentMode)
+                  : isValid &&
+                  termsAgreed &&
+                  (!showPaymentMode || paymentMode)
+              )
+                ? "bg-[#1e6553] hover:bg-[#1e6553]"
+                : "bg-gray-400 cursor-not-allowed"
+                } transition-colors`}
             >
               {isProcessingPayment
                 ? "Processing..."
                 : showPaymentMode
-                ? paymentMode
-                  ? `Pay ₹${grandTotal.toFixed(2)}`
-                  : "Select Payment Method"
-                : "Continue"}
+                  ? paymentMode
+                    ? `Pay ₹${grandTotal.toFixed(2)}`
+                    : "Select Payment Method"
+                  : "Continue"}
             </button>
           </div>
         </div>
