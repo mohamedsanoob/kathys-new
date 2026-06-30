@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Checkout from "./_components/Checkout";
-import { getCartProducts, updateCartItem, removeCartItem } from "@/actions/actions";
+import { getCartProducts, updateCartItem, removeCartItem, getCartItemSalePrice, getCartItemOriginalPrice, hasProductVariants } from "@/actions/actions";
 import Image from "next/image";
 import { X } from "lucide-react";
 import Link from "next/link";
@@ -100,8 +100,7 @@ const CartPage = () => {
   };
 
   const total = cartProducts.reduce((sum, product) => {
-    const price = product?.variantDetails?.discountedPrice || product?.variantDetails?.price;
-    return sum + (price * product.quantity);
+    return sum + getCartItemSalePrice(product) * product.quantity;
   }, 0);
 
   const hasOutOfStockItems = cartProducts.some(
@@ -117,8 +116,6 @@ const CartPage = () => {
   }
 
 
-
-  console.log(cartProducts,"============>cartProducts")
 
   if (cartProducts.length === 0) {
     return (
@@ -173,14 +170,25 @@ const CartPage = () => {
                     </p>
                   )}
                   <div className="flex justify-between items-center mt-2">
-                    <p className="text-sm font-medium">
-                      ₹{" "}
-                      {(product?.variantDetails?.discountedPrice || product?.variantDetails?.price)
-                        .toLocaleString("en-IN", {
+                    <div className="text-sm font-medium">
+                      {getCartItemOriginalPrice(product) >
+                        getCartItemSalePrice(product) && (
+                        <span className="text-gray-400 line-through mr-2">
+                          ₹
+                          {getCartItemOriginalPrice(product).toLocaleString(
+                            "en-IN",
+                            { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                          )}
+                        </span>
+                      )}
+                      <span>
+                        ₹{" "}
+                        {getCartItemSalePrice(product).toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
-                    </p>
+                      </span>
+                    </div>
                     <button
                       className="text-gray-500 hover:text-red-500"
                       onClick={() => handleRemoveProduct(product.id, product.variantDetails?.sku)}
@@ -196,7 +204,7 @@ const CartPage = () => {
                   <button
                     onClick={() => handleQuantityChange(
                       product.id, 
-                      product.variants?.length>0 ? product.variantDetails?.sku : undefined, 
+                      hasProductVariants(product) ? product.variantDetails?.sku : undefined, 
                       product.quantity - 1
                     )}
                     disabled={product.quantity <= 1}
@@ -210,7 +218,7 @@ const CartPage = () => {
                   <button
                     onClick={() => handleQuantityChange(
                       product.id, 
-                      product.variants?.length>0 ? product.variantDetails?.sku : undefined, 
+                      hasProductVariants(product) ? product.variantDetails?.sku : undefined, 
                       product.quantity + 1
                     )}
                     disabled={
@@ -224,13 +232,13 @@ const CartPage = () => {
                 </div>
                 <p className="text-sm font-medium">
                   ₹{" "}
-                  {(
-                    (product?.variantDetails?.discountedPrice || product?.variantDetails?.price) *
-                    product.quantity
-                  ).toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {(getCartItemSalePrice(product) * product.quantity).toLocaleString(
+                    "en-IN",
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }
+                  )}
                 </p>
               </div>
             </div>
@@ -254,7 +262,7 @@ const CartPage = () => {
                 <tr key={index} className="h-[100px] border-b border-gray-300">
                   <td>
                     <div className="flex items-center gap-4 h-[100%]">
-                      <Link href={`/products/${product.id}`} passHref>
+                      <Link href={`/product/${product.id}`} passHref>
                         {product.images?.[0] && (
                           <Image
                             src={product.images[0]}
@@ -288,18 +296,28 @@ const CartPage = () => {
                     </div>
                   </td>
                   <td className="text-left text-[1rem]">
-                    ₹ {(product.productDiscountedPrice || product.productPrice)
-                      .toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                    {getCartItemOriginalPrice(product) >
+                      getCartItemSalePrice(product) && (
+                      <span className="text-gray-400 line-through mr-2">
+                        ₹{" "}
+                        {getCartItemOriginalPrice(product).toLocaleString(
+                          "en-IN",
+                          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                        )}
+                      </span>
+                    )}
+                    ₹{" "}
+                    {getCartItemSalePrice(product).toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </td>
                   <td className="text-left">
                     <div className="border border-gray-200 text-lg flex items-center gap-2 w-fit rounded-md">
                       <button
                         onClick={() => handleQuantityChange(
                           product.id, 
-                          product.variants?.length>0 ? product.variantDetails?.sku : undefined, 
+                          hasProductVariants(product) ? product.variantDetails?.sku : undefined, 
                           product.quantity - 1
                         )}
                         disabled={product.quantity <= 1}
@@ -313,7 +331,7 @@ const CartPage = () => {
                       <button
                         onClick={() => handleQuantityChange(
                           product.id, 
-                          product.variants?.length>0 ? product.variantDetails?.sku : undefined, 
+                          hasProductVariants(product) ? product.variantDetails?.sku : undefined, 
                           product.quantity + 1
                         )}
                         disabled={
@@ -327,13 +345,14 @@ const CartPage = () => {
                     </div>
                   </td>
                   <td className="text-left text-[1rem]">
-                    ₹ {(
-                      (product.productDiscountedPrice || product.productPrice) * 
-                      product.quantity
-                    ).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                    ₹{" "}
+                    {(getCartItemSalePrice(product) * product.quantity).toLocaleString(
+                      "en-IN",
+                      {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      }
+                    )}
                   </td>
                   <td className="text-center">
                     <button

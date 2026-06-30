@@ -114,6 +114,65 @@ interface CartData {
   updatedAt: Date;
 }
 
+/** Normalize variant option values (string or { name, hex } object). */
+export function normalizeOptionValue(
+  value: string | { name?: string } | null | undefined
+): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "object" && value.name != null) {
+    return String(value.name).trim();
+  }
+  return String(value).trim();
+}
+
+export function variantDetailsRecordFromCombination(
+  combination?: { name: string; value: string | { name?: string } }[]
+): Record<string, string> {
+  if (!Array.isArray(combination)) return {};
+  return combination.reduce<Record<string, string>>((acc, curr) => {
+    if (curr?.name) acc[curr.name] = normalizeOptionValue(curr.value);
+    return acc;
+  }, {});
+}
+
+/** Sale price for a cart line (selected variant when present). */
+export function getCartItemSalePrice(item: {
+  variantDetails?: { discountedPrice?: number; price?: number };
+  productDiscountedPrice?: number;
+  productPrice: number;
+}) {
+  return (
+    item.variantDetails?.discountedPrice ||
+    item.variantDetails?.price ||
+    item.productDiscountedPrice ||
+    item.productPrice ||
+    0
+  );
+}
+
+/** Original/MRP for a cart line (for strikethrough when higher than sale). */
+export function getCartItemOriginalPrice(item: {
+  variantDetails?: { discountedPrice?: number; price?: number };
+  productDiscountedPrice?: number;
+  productPrice: number;
+}) {
+  const sale = getCartItemSalePrice(item);
+  const original =
+    item.variantDetails?.price ||
+    item.productPrice ||
+    sale;
+  return original > sale ? original : sale;
+}
+
+export const hasProductVariants = (item: {
+  variants?: unknown[];
+  variantDetails?: { combination?: unknown[]; sku?: string };
+}) =>
+  (item.variants?.length ?? 0) > 0 ||
+  (item.variantDetails?.combination?.length ?? 0) > 0 ||
+  !!item.variantDetails?.sku;
+
 
 interface Address {
   id: string;
@@ -894,7 +953,10 @@ export const getBuyNowCartProducts = async (): Promise<CartReturn[]> => {
       if (!productDoc.exists()) {
         return null;
       }
-      const productData = { ...productDoc.data(), id: productDoc.id } as Product;
+      const productData = {
+        ...productDoc.data(),
+        id: productDoc.data().id || productDoc.id,
+      } as Product;
 
       // Handle products without variants
       if (!productData.variantDetails || productData.variantDetails.length === 0) {
@@ -918,18 +980,44 @@ export const getBuyNowCartProducts = async (): Promise<CartReturn[]> => {
 
       // Handle products with variants
       const variant = productData.variantDetails.find(
-        (v) => v.sku === cartProduct.variantDetails?.sku
+        (v) =>
+          v.sku === cartProduct.variantDetails?.sku ||
+          (Array.isArray(cartProduct.variantDetails?.combination) &&
+            Array.isArray(v.combination) &&
+            v.combination.every((c) =>
+              cartProduct.variantDetails?.combination?.some(
+                (cc) =>
+                  cc.name === c.name &&
+                  normalizeOptionValue(cc.value) ===
+                    normalizeOptionValue(c.value)
+              )
+            ))
       );
 
       const currentInventory = variant?.inventory ?? 0;
       const outOfStock = currentInventory < cartProduct.quantity;
+      const cartVariant = cartProduct.variantDetails;
+      const resolved = variant || cartVariant;
 
       return {
         ...productData,
         quantity: cartProduct.quantity,
         variantDetails: {
-          ...(variant || cartProduct.variantDetails),
-          combination: variant?.combination || cartProduct.variantDetails?.combination || [],
+          ...(resolved || {}),
+          price:
+            Number(resolved?.price) ||
+            Number(productData.productPrice) ||
+            0,
+          discountedPrice:
+            Number(resolved?.discountedPrice) ||
+            Number(resolved?.price) ||
+            Number(productData.productDiscountedPrice) ||
+            Number(productData.productPrice) ||
+            0,
+          combination:
+            variant?.combination || cartVariant?.combination || [],
+          sku: resolved?.sku || cartVariant?.sku,
+          inventory: variant?.inventory ?? cartVariant?.inventory,
         },
         currentInventory,
         outOfStock,
@@ -969,13 +1057,36 @@ export async function getCartProducts() {
     const productsSnapshot = await getDocs(q);
     
     const productsData = productsSnapshot.docs.map(doc => ({
-      id: doc.id,
+      id: doc.data().id || doc.id,
+      docId: doc.id,
       ...doc.data()
     })) as Product[];
 
+    const variantMatchesCart = (
+      variant: { sku?: string; combination?: { name: string; value: string | { name?: string } }[] },
+      cartVariant?: { sku?: string; combination?: { name: string; value: string | { name?: string } }[] }
+    ) => {
+      if (!cartVariant) return false;
+      if (cartVariant.sku && variant.sku === cartVariant.sku) return true;
+      const cartCombo = cartVariant.combination;
+      if (!Array.isArray(cartCombo) || !cartCombo.length) return false;
+      return (
+        Array.isArray(variant.combination) &&
+        variant.combination.every((c) =>
+          cartCombo.some(
+            (cc) =>
+              cc.name === c.name &&
+              normalizeOptionValue(cc.value) === normalizeOptionValue(c.value)
+          )
+        )
+      );
+    };
+
     // Merge cart items with product data
     const cartProductsWithDetails = cartItems.map(cartItem => {
-      const matchingProduct = productsData.find(p => p.id === cartItem.productId);
+      const matchingProduct = productsData.find(
+        p => p.id === cartItem.productId || p.docId === cartItem.productId
+      );
       
       if (!matchingProduct) return null;
 
@@ -1000,19 +1111,34 @@ export async function getCartProducts() {
       }
 
       // Handle products with variants
-      const variant = matchingProduct.variantDetails.find(v => 
-        v.sku === cartItem.variantDetails?.sku
+      const variant = matchingProduct.variantDetails.find(v =>
+        variantMatchesCart(v, cartItem.variantDetails)
       );
 
       const currentInventory = variant?.inventory ?? 0;
       const outOfStock = currentInventory < cartItem.quantity;
+      const cartVariant = cartItem.variantDetails;
+      const resolved = variant || cartVariant;
 
       return {
         ...matchingProduct,
         quantity: cartItem.quantity,
         variantDetails: {
-          ...(variant || cartItem.variantDetails),
-          combination: variant?.combination || cartItem.variantDetails?.combination || []
+          ...(resolved || {}),
+          price:
+            Number(resolved?.price) ||
+            Number(matchingProduct.productPrice) ||
+            0,
+          discountedPrice:
+            Number(resolved?.discountedPrice) ||
+            Number(resolved?.price) ||
+            Number(matchingProduct.productDiscountedPrice) ||
+            Number(matchingProduct.productPrice) ||
+            0,
+          combination:
+            variant?.combination || cartVariant?.combination || [],
+          sku: resolved?.sku || cartVariant?.sku,
+          inventory: variant?.inventory ?? cartVariant?.inventory,
         },
         currentInventory,
         outOfStock

@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { getCartProducts, getBuyNowCartProducts } from "@/actions/actions";
+import { getCartProducts, getBuyNowCartProducts, variantDetailsRecordFromCombination } from "@/actions/actions";
 import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { db } from "@/firebase/config";
@@ -47,6 +47,7 @@ declare global {
 
 const BASE_URL = "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api";
 const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+const PENDING_PHONEPE_ORDER_KEY = "pendingPhonePeOrderId";
 
 const PaymentLoader = () => (
   <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm">
@@ -84,6 +85,18 @@ const CheckoutPageContent = () => {
   );
   const [showPaymentMode, setShowPaymentMode] = useState(false);
   const [paymentModeError, setPaymentModeError] = useState(false);
+
+  // Coupon
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount: number;
+    message?: string;
+  } | null>(null);
+  const [couponStatus, setCouponStatus] = useState<
+    "idle" | "validating" | "applied" | "error"
+  >("idle");
+  const [couponMessage, setCouponMessage] = useState("");
 
   // This state now controls the view
   const [paymentStatus, setPaymentStatus] = useState<
@@ -126,9 +139,7 @@ const CheckoutPageContent = () => {
       // Clear the cart *only* on success
       window.dispatchEvent(new Event("cart-remove-all"));
       localStorage.removeItem("guestCartId");
-
-      // Optional: Clear URL params
-      // window.history.replaceState(null, '', window.location.pathname);
+      sessionStorage.removeItem(PENDING_PHONEPE_ORDER_KEY);
     } else if (status === "failed") {
       setPaymentStatus("failed");
       setPaymentError(message || "Your payment failed. Please try again.");
@@ -137,9 +148,33 @@ const CheckoutPageContent = () => {
         amount: Number(amount) || 0,
         paymentMethod: "PhonePe",
       });
-      // Optional: Clear URL params
-      // window.history.replaceState(null, '', window.location.pathname);
+      sessionStorage.removeItem(PENDING_PHONEPE_ORDER_KEY);
     }
+  }, [searchParams]);
+
+  // Restock immediately when the user returns via browser back (no PhonePe redirect)
+  useEffect(() => {
+    const releaseAbandonedOrder = async () => {
+      const status = searchParams.get("status");
+      if (status === "success") return;
+
+      const pendingOrderId = sessionStorage.getItem(PENDING_PHONEPE_ORDER_KEY);
+      if (!pendingOrderId) return;
+
+      try {
+        await axios.post(`${BASE_URL}/payment/release-order`, {
+          merchantOrderId: pendingOrderId,
+        });
+      } catch (err) {
+        console.error("Failed to release abandoned order:", err);
+      } finally {
+        sessionStorage.removeItem(PENDING_PHONEPE_ORDER_KEY);
+      }
+    };
+
+    releaseAbandonedOrder();
+    window.addEventListener("pageshow", releaseAbandonedOrder);
+    return () => window.removeEventListener("pageshow", releaseAbandonedOrder);
   }, [searchParams]);
 
   // Effect to fetch cart details
@@ -244,6 +279,7 @@ const CheckoutPageContent = () => {
     return sum + price * product.quantity;
   }, 0);
 
+  const couponDiscount = appliedCoupon?.discount ?? 0;
   const deliveryFee =
     paymentMode === "cof"
       ? 0
@@ -252,7 +288,73 @@ const CheckoutPageContent = () => {
         : isKerala
           ? 75
           : 100;
-  const grandTotal = total + deliveryFee;
+  const grandTotal = Math.max(0, total + deliveryFee - couponDiscount);
+
+  // Clear any applied coupon when the cart changes (eligibility/amount may change).
+  useEffect(() => {
+    setAppliedCoupon(null);
+    setCouponStatus("idle");
+    setCouponMessage("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartProductsWithDetails]);
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code || couponStatus === "validating") return;
+    setCouponStatus("validating");
+    setCouponMessage("");
+    try {
+      const response = await axios.post(`${BASE_URL}/payment/coupon/validate`, {
+        code,
+        items: cartProductsWithDetails.map((p) => ({
+          product_id: p.id,
+          price: p.productPrice,
+          discountedPrice:
+            p.variantDetails?.discountedPrice ||
+            p.variantDetails?.price ||
+            p.productDiscountedPrice ||
+            p.productPrice,
+          quantity: p.quantity,
+          categories: p.categories || [],
+        })),
+        userId: currentUser?.uid,
+      });
+      const data = response.data;
+      if (data.valid && Number(data.discount) > 0) {
+        setAppliedCoupon({
+          code: data.code,
+          discount: data.discount,
+          message: data.message,
+        });
+        setCouponStatus("applied");
+        setCouponMessage(data.message || "Coupon applied successfully");
+      } else if (data.valid) {
+        setAppliedCoupon(null);
+        setCouponStatus("error");
+        setCouponMessage(
+          "This coupon doesn't apply to the items in your cart"
+        );
+      } else {
+        setAppliedCoupon(null);
+        setCouponStatus("error");
+        setCouponMessage(data.message || "Invalid coupon code");
+      }
+    } catch (error: any) {
+      setAppliedCoupon(null);
+      setCouponStatus("error");
+      setCouponMessage(
+        error.response?.data?.message ||
+          "Failed to apply coupon. Please try again."
+      );
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponStatus("idle");
+    setCouponMessage("");
+  };
 
   const validateCheckout = () => {
     if (!termsAgreed) {
@@ -330,16 +432,19 @@ const CheckoutPageContent = () => {
           images: product?.images,
           product_id: product.id,
           product_name: product.productName,
-          product_price: product.productPrice,
+          product_price:
+            product.variantDetails?.price ||
+            product.productPrice,
           discounted_price:
-            product.productDiscountedPrice || product.productPrice,
+            product.variantDetails?.discountedPrice ||
+            product.variantDetails?.price ||
+            product.productDiscountedPrice ||
+            product.productPrice,
           quantity: product.quantity,
           product_sku: product.variantDetails?.sku,
-          variant_details:
-            product.variantDetails?.combination?.reduce((acc, curr) => {
-              acc[curr.name] = curr.value;
-              return acc;
-            }, {} as Record<string, string>) || {},
+          variant_details: variantDetailsRecordFromCombination(
+            product.variantDetails?.combination
+          ),
           product_description: "",
         })),
         customer_details: {
@@ -356,7 +461,9 @@ const CheckoutPageContent = () => {
           mobile_number: `+91${data.mobileNumber}`,
           email: data.email,
         },
-        coupon_discount: 0,
+        couponCode: appliedCoupon?.code || "",
+        coupon_code: appliedCoupon?.code || "",
+        coupon_discount: couponDiscount,
         timestamp: {
           seconds: Math.floor(Date.now() / 1000),
           nanoseconds: 0,
@@ -416,6 +523,11 @@ const CheckoutPageContent = () => {
         amount: grandTotal,
         paymentMethod: "PhonePe",
       });
+
+      sessionStorage.setItem(
+        PENDING_PHONEPE_ORDER_KEY,
+        orderResponse.data.merchantOrderId
+      );
 
       // Redirect user to PhonePe
       window.location.href = orderResponse.data.paymentUrl;
@@ -562,6 +674,13 @@ const CheckoutPageContent = () => {
             paymentModeError={paymentModeError}
             showAddressForm={showAddressForm}
             isKerala={isKerala}
+            couponInput={couponInput}
+            setCouponInput={setCouponInput}
+            appliedCoupon={appliedCoupon}
+            couponStatus={couponStatus}
+            couponMessage={couponMessage}
+            onApplyCoupon={handleApplyCoupon}
+            onRemoveCoupon={handleRemoveCoupon}
           />
         </div>
 

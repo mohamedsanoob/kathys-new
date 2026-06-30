@@ -61,6 +61,7 @@ interface Order {
   delivery: number;
   tax_amount: number;
   coupon_discount: number;
+  coupon_code?: string;
   quantity_each: OrderItem[];
   customer_details: CustomerDetails;
   trackingInfo: TrackingInfo;

@@ -1,6 +1,10 @@
 "use client";
 import Image from "next/image";
 import { X } from "lucide-react";
+import {
+  getCartItemSalePrice,
+  getCartItemOriginalPrice,
+} from "@/actions/actions";
 
 interface VariantDetail {
   combination?: { name: string; value: string }[];
@@ -121,10 +125,18 @@ const CartItems: React.FC<CartItemsProps> = ({
               </td>
               <td className="py-2 text-center">
                 <p className="text-lg">
+                  {getCartItemOriginalPrice(product) >
+                    getCartItemSalePrice(product) && (
+                    <span className="text-gray-400 line-through mr-2 text-base">
+                      ₹{" "}
+                      {getCartItemOriginalPrice(product).toLocaleString(
+                        "en-IN",
+                        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                      )}
+                    </span>
+                  )}
                   ₹{" "}
-                  {(
-                    product.productDiscountedPrice || product.productPrice
-                  ).toLocaleString("en-IN", {
+                  {getCartItemSalePrice(product).toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
@@ -169,13 +181,13 @@ const CartItems: React.FC<CartItemsProps> = ({
               </td>
               <td className={`py-2 text-lg text-center ${isOutOfStock ? 'text-red-500' : ''}`}>
                 ₹{" "}
-                {(
-                  (product.productDiscountedPrice || product.productPrice) *
-                  product.quantity
-                ).toLocaleString("en-IN", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {(getCartItemSalePrice(product) * product.quantity).toLocaleString(
+                  "en-IN",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }
+                )}
               </td>
               <td className="py-2 text-center">
                 <button
