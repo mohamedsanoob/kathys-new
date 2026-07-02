@@ -7,6 +7,9 @@ import Image from "next/image";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/context/AuthContext";
+import { useCartCoupon } from "@/hooks/useCartCoupon";
+import { computeDeliveryFee } from "@/lib/deliveryFee";
 
 
 interface CartProduct {
@@ -43,7 +46,20 @@ interface CartProduct {
 const CartPage = () => {
   const [cartProducts, setCartProducts] = useState<CartProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { refreshCart } = useCart();
+  useCart();
+  const { currentUser } = useAuth();
+
+  const {
+    couponInput,
+    setCouponInput,
+    appliedCoupon,
+    couponStatus,
+    couponMessage,
+    handleApplyCoupon,
+    handleRemoveCoupon,
+    applyCouponByCode,
+    couponDiscount,
+  } = useCartCoupon(cartProducts, !isLoading, currentUser?.uid);
 
   const fetchCartProducts = useCallback(async () => {
     setIsLoading(true);
@@ -102,6 +118,21 @@ const CartPage = () => {
   const total = cartProducts.reduce((sum, product) => {
     return sum + getCartItemSalePrice(product) * product.quantity;
   }, 0);
+
+  // Cart-stage delivery estimate: no address is known yet, so default to the
+  // Kerala online rate. The multiplier (coupon + multiple items) still applies,
+  // matching checkout. The real fee is confirmed at checkout once the pincode
+  // and payment mode are selected.
+  const deliveryFee = computeDeliveryFee({
+    paymentMode: "online",
+    isKerala: true,
+    totalQuantity: cartProducts.reduce(
+      (n, p) => n + (Number(p.quantity) || 0),
+      0
+    ),
+    couponApplied: !!appliedCoupon,
+  });
+  const grandTotal = Math.max(0, total + deliveryFee - couponDiscount);
 
   const hasOutOfStockItems = cartProducts.some(
     product => product.outOfStock
@@ -372,9 +403,21 @@ const CartPage = () => {
 
         {/* Checkout Section */}
         <div className="w-full lg:w-[30%]">
-          <Checkout 
-            total={total} 
-            disabled={hasOutOfStockItems || cartProducts.length === 0} 
+          <Checkout
+            total={total}
+            deliveryFee={deliveryFee}
+            disabled={hasOutOfStockItems || cartProducts.length === 0}
+            cartItems={cartProducts}
+            cartReady={!isLoading}
+            userId={currentUser?.uid}
+            couponInput={couponInput}
+            setCouponInput={setCouponInput}
+            appliedCoupon={appliedCoupon}
+            couponStatus={couponStatus}
+            couponMessage={couponMessage}
+            onApplyCoupon={handleApplyCoupon}
+            onRemoveCoupon={handleRemoveCoupon}
+            onSelectCoupon={applyCouponByCode}
           />
         </div>
       </div>
@@ -385,12 +428,13 @@ const CartPage = () => {
       <div className="bg-white border-t border-gray-200 py-3 px-4 md:hidden">
         <div className="flex items-center justify-between gap-4">
           <div className="text-center w-1/2">
-<p className="font-semibold">
-  Total: ₹{(total + 75).toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}
-</p>
+            <p className="font-semibold">
+              Total: ₹
+              {grandTotal.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </p>
           </div>
           <Link 
             href={(hasOutOfStockItems || cartProducts.length === 0) ? "#" : "/checkout"} 

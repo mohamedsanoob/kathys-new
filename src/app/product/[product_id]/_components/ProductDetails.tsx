@@ -10,6 +10,7 @@ import { db } from "@/firebase/config";
 import { toast } from "react-toastify";
 import PhoneAuthModal from "@/app/_components/PhoneAuthModal";
 import ShowShareModal from "@/app/_components/ShowShareModel";
+import ProductCoupons from "./ProductCoupons";
 
 
 
@@ -577,6 +578,11 @@ const ShowShareModal = ({ product, setShowShareModal }: { product: Product, setS
         </div>
       )}
 
+      <ProductCoupons
+        product={product}
+        selectedVariant={selectedVariant}
+        hasVariants={hasVariants}
+      />
 
       <div className="flex gap-6 mb-6 mt-6">
   <button

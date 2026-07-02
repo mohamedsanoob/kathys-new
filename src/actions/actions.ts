@@ -1051,16 +1051,20 @@ export async function getCartProducts() {
 
     if (productIdsInCart.length === 0) return [];
 
-    // Fetch products
-    const productsRef = collection(db, "products");
-    const q = query(productsRef, where("id", "in", productIdsInCart), where("active", "==", true),);
-    const productsSnapshot = await getDocs(q);
-    
-    const productsData = productsSnapshot.docs.map(doc => ({
-      id: doc.data().id || doc.id,
-      docId: doc.id,
-      ...doc.data()
-    })) as Product[];
+    // Fetch products by document ID (authoritative, works regardless of whether
+    // a redundant `id` field is stored inside the document)
+    const productDocsPromises = productIdsInCart.map((pid) =>
+      getDoc(doc(collection(db, "products"), pid))
+    );
+    const productDocs = await Promise.all(productDocsPromises);
+
+    const productsData = productDocs
+      .filter((d) => d.exists())
+      .map((d) => ({
+        id: d.data()?.id || d.id,
+        docId: d.id,
+        ...d.data(),
+      })) as Product[];
 
     const variantMatchesCart = (
       variant: { sku?: string; combination?: { name: string; value: string | { name?: string } }[] },
@@ -1153,6 +1157,22 @@ export async function getCartProducts() {
   }
 }
 
+/**
+ * Does a stored cart line item correspond to (productId, variantSku)?
+ * Non-variant items are stored without a variant sku, so they match by
+ * productId only; variant items also require the sku to match. Shared by
+ * updateCartItem and removeCartItem so both identify items the same way.
+ */
+const cartItemMatches = (
+  product: { productId?: string; variantDetails?: { sku?: string } },
+  productId: string,
+  variantSku?: string | null
+): boolean => {
+  if (product.productId !== productId) return false;
+  if (!product.variantDetails?.sku) return true;
+  return product.variantDetails.sku === variantSku;
+};
+
 export const removeCartItem = async (productId: string, variantSku?: string | null) => {
   try {
     const user = auth.currentUser;
@@ -1174,20 +1194,10 @@ export const removeCartItem = async (productId: string, variantSku?: string | nu
 
     const { products = [] } = cartSnapshot.data() as CartData;
 
-    // Filter out the item to remove
-    const updatedProducts = products.filter(product => {
-
-    
-      // For non-variant products, only match productId
-      if (!product.variantDetails?.sku) {
-        return product.productId !== productId;
-      }
-      // For variant products, match both productId and variantSku
-      return !(
-        product.productId === productId && 
-        product.variantDetails?.sku === variantSku
-      );
-    });
+    // Keep every item that does NOT match the one being removed.
+    const updatedProducts = products.filter(
+      (product) => !cartItemMatches(product, productId, variantSku)
+    );
 
     if (products.length === updatedProducts.length) {
       console.warn(
@@ -1237,25 +1247,16 @@ export const updateCartItem = async (
     const { products: existingProducts = [] } = cartSnapshot.data() as CartData;
     const updatedProducts = [...existingProducts];
 
-    // Create a map for faster lookups
-    const productMap = new Map(
-      existingProducts.map(p => [
-        `${p.productId}-${p.variantDetails?.sku || 'no-variant'}`,
-        p
-      ])
-    );
-    
-    updates.forEach(({ productId, variantSku , quantity }) => {
-     
-      const lookupKey = `${productId}-${variantSku   || 'no-variant'}`;
- 
-      const existingProduct = productMap.get(lookupKey);
-
-      if (existingProduct) {
-        // Update quantity if product exists
-        existingProduct.quantity = quantity;
+    updates.forEach(({ productId, variantSku, quantity }) => {
+      const target = updatedProducts.find((p) =>
+        cartItemMatches(p, productId, variantSku)
+      );
+      if (target) {
+        target.quantity = quantity;
       } else {
-      
+        console.warn(
+          `Cart item not found for update: productId=${productId}, sku=${variantSku ?? "(none)"}`
+        );
       }
     });
 

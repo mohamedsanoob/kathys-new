@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getAllCategories } from "@/actions/actions";
 import AdBanner from "../_components/AdBanner";
+import CategoryCouponPromo from "../_components/CategoryCouponPromo";
 
 interface Category {
   id: string;
@@ -64,6 +65,7 @@ export default function CategoriesList() {
       aria-label={category.categoryName}
       prefetch={true}
     >
+      <CategoryCouponPromo categoryId={category.id} variant="badge" />
       {/* Category Banner Image */}
       <div className="aspect-square bg-gray-100 relative">
         {category.images?.[0] ? (

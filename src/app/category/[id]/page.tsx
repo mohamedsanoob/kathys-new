@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import FilterSection from "./_components/FilterSection";
 import ProductsSection from "./_components/ProductsSection";
+import CategoryCouponPromo from "@/app/_components/CategoryCouponPromo";
 import { useRouter } from "next/navigation";
 import { useCategoryContext } from "@/context/CategoryContext";
 
@@ -54,7 +55,13 @@ const Page = () => {
       ← Back
     </button>
   </div>
-   
+
+  <div className="mb-4 px-2 md:px-0">
+    <CategoryCouponPromo
+      categoryId={currentCategory.id}
+      variant="banner"
+    />
+  </div>
 
   {/* Subcategories Scrollable Section - Enhanced for mobile */}
   {subCategoriesDetails.length > 0 && (
@@ -69,6 +76,10 @@ const Page = () => {
     href={`/category/${subCategory.id}`}
     className="group relative flex-shrink-0 overflow-hidden rounded-lg hover:shadow-lg transition-all duration-200 bg-gray-500 w-[120px] h-[120px] md:w-[160px] md:h-[160px]"
   >
+    <CategoryCouponPromo
+      categoryId={subCategory.id}
+      variant="ribbon"
+    />
     {subCategory.images?.[0] && (
       <div className="absolute inset-0">
         <Image
