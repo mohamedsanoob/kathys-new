@@ -19,34 +19,34 @@ export function isKeralaPincode(pincode?: string | null): boolean {
 export interface ComputeDeliveryFeeArgs {
   paymentMode: "online" | "cod" | "cof" | "";
   isKerala: boolean;
-  /** Total quantity of all items in the cart (sum of line-item quantities). */
-  totalQuantity: number;
+  /** Number of cart product lines the applied coupon covers. */
+  eligibleLineCount: number;
   couponApplied: boolean;
 }
 
 /**
  * Delivery fee for an order.
  * - Collect-from-store (pickup) is always free.
- * - With a coupon AND more than one item: ₹60 Kerala / ₹80 outside per item
- *   (base fee × total quantity).
- * - Otherwise (no coupon, or a coupon on a single item): standard ₹75 Kerala /
- *   ₹100 outside, flat per order.
+ * - With a coupon covering 2+ eligible product lines: ₹60 Kerala / ₹80 outside
+ *   per eligible line (base fee × eligibleLineCount).
+ * - Otherwise (no coupon, or a coupon on 0–1 eligible lines): standard ₹75
+ *   Kerala / ₹100 outside, flat per order.
  */
 export function computeDeliveryFee({
   paymentMode,
   isKerala,
-  totalQuantity,
+  eligibleLineCount,
   couponApplied,
 }: ComputeDeliveryFeeArgs): number {
   if (paymentMode === "cof") return 0;
 
-  // Coupon rate + per-item multiplier apply only to MULTI-ITEM orders. A single
-  // item with a coupon is charged the standard flat rate (same as no coupon).
-  if (couponApplied && totalQuantity > 1) {
+  // Coupon per-line rate applies only when the coupon covers MORE THAN ONE
+  // eligible product line. Otherwise the standard flat rate applies.
+  if (couponApplied && eligibleLineCount > 1) {
     const base = isKerala
       ? COUPON_DELIVERY_FEE_KERALA
       : COUPON_DELIVERY_FEE_OUTSIDE_KERALA;
-    return base * totalQuantity;
+    return base * eligibleLineCount;
   }
 
   return isKerala

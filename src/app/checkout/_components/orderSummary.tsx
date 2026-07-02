@@ -62,11 +62,8 @@ const OrderSummary = ({
   const deliveryFee = computeDeliveryFee({
     paymentMode,
     isKerala: isKerala ?? false,
-    totalQuantity: cartProducts.reduce(
-      (n, p) => n + (Number(p.quantity) || 0),
-      0
-    ),
     couponApplied: !!appliedCoupon,
+    eligibleLineCount: appliedCoupon?.eligibleLineCount ?? 0,
   });
 
   const couponDiscount = appliedCoupon?.discount ?? 0;

@@ -126,11 +126,8 @@ const CartPage = () => {
   const deliveryFee = computeDeliveryFee({
     paymentMode: "online",
     isKerala: true,
-    totalQuantity: cartProducts.reduce(
-      (n, p) => n + (Number(p.quantity) || 0),
-      0
-    ),
     couponApplied: !!appliedCoupon,
+    eligibleLineCount: appliedCoupon?.eligibleLineCount ?? 0,
   });
   const grandTotal = Math.max(0, total + deliveryFee - couponDiscount);
 

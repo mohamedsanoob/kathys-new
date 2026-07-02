@@ -1,6 +1,8 @@
 export interface AppliedCoupon {
   code: string;
   discount: number;
+  /** Number of cart product lines the coupon applies to (server-provided). */
+  eligibleLineCount?: number;
   message?: string;
 }
 
