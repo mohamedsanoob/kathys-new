@@ -27,9 +27,10 @@ export interface ComputeDeliveryFeeArgs {
 /**
  * Delivery fee for an order.
  * - Collect-from-store (pickup) is always free.
- * - With a coupon: ₹60 Kerala / ₹80 outside, charged per item when there is more
- *   than one item (base fee × total quantity).
- * - Without a coupon: standard ₹75 Kerala / ₹100 outside, flat per order.
+ * - With a coupon AND more than one item: ₹60 Kerala / ₹80 outside per item
+ *   (base fee × total quantity).
+ * - Otherwise (no coupon, or a coupon on a single item): standard ₹75 Kerala /
+ *   ₹100 outside, flat per order.
  */
 export function computeDeliveryFee({
   paymentMode,
@@ -39,12 +40,13 @@ export function computeDeliveryFee({
 }: ComputeDeliveryFeeArgs): number {
   if (paymentMode === "cof") return 0;
 
-  if (couponApplied) {
+  // Coupon rate + per-item multiplier apply only to MULTI-ITEM orders. A single
+  // item with a coupon is charged the standard flat rate (same as no coupon).
+  if (couponApplied && totalQuantity > 1) {
     const base = isKerala
       ? COUPON_DELIVERY_FEE_KERALA
       : COUPON_DELIVERY_FEE_OUTSIDE_KERALA;
-    const multiplier = totalQuantity > 1 ? totalQuantity : 1;
-    return base * multiplier;
+    return base * totalQuantity;
   }
 
   return isKerala
