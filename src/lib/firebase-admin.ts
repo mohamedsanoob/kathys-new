@@ -1,22 +1,23 @@
 import "server-only";
 import { initializeApp, cert, getApps, App } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
-import { getAuth, Auth } from "firebase-admin/auth";
 
 // Firebase Admin SDK — SERVER-side reads only. Never import from a client
 // component (`import "server-only"` + `serverExternalPackages` enforce that).
 //
+// IMPORTANT: do NOT import `firebase-admin/auth` here. The Auth subpackage
+// pulls in `jwks-rsa` → `jose` (ESM-only), and on Vercel's Node runtime a
+// CommonJS `require("jose")` throws ERR_REQUIRE_ESM. This app uses the
+// client-side Firebase Auth SDK (see src/context/AuthContext.tsx), so Admin
+// Auth is unnecessary — we only need Firestore reads.
+//
 // LAZY: initialization (and the missing-credentials check) happens on the
-// FIRST call to getAdminDb()/getAdminAuth(), NOT at module load. This lets
-// `next build` import these modules during page-data collection without
-// requiring Firebase credentials to be present at build time. At request
-// time the first query triggers init; if creds are missing it throws a
-// clear error.
+// FIRST call to getAdminDb(), NOT at module load, so `next build` can import
+// this module without Firebase creds being present.
 
 interface AdminStore {
   app: App;
   db: Firestore;
-  auth: Auth;
 }
 
 const globalForAdmin = globalThis as unknown as { _firebaseAdmin?: AdminStore };
@@ -42,8 +43,7 @@ function createStore(): AdminStore {
     : initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
   const db = getFirestore(app);
   db.settings({ ignoreUndefinedProperties: true });
-  const auth = getAuth(app);
-  return { app, db, auth };
+  return { app, db };
 }
 
 function getStore(): AdminStore {
@@ -56,8 +56,4 @@ function getStore(): AdminStore {
 
 export function getAdminDb(): Firestore {
   return getStore().db;
-}
-
-export function getAdminAuth(): Auth {
-  return getStore().auth;
 }
