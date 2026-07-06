@@ -60,6 +60,9 @@ const CategoryContext = createContext<CategoryContextProps | undefined>(
   undefined
 );
 
+// Module-level cache to survive component unmounts (e.g. navigating to product page and back)
+const globalCategoryCache: Record<string, CategoryState> = {};
+
 export const CategoryProvider = ({
   children,
   initialData,
@@ -72,8 +75,15 @@ export const CategoryProvider = ({
   const searchParams = useSearchParams();
   const ITEMS_PER_PAGE = 10;
 
-  const [state, setState] = useState<CategoryState>(() =>
-    initialData
+  const params = new URLSearchParams(searchParams);
+  params.sort();
+  const cacheKey = `${id}?${params.toString()}`;
+
+  const [state, setState] = useState<CategoryState>(() => {
+    if (globalCategoryCache[cacheKey]) {
+      return globalCategoryCache[cacheKey];
+    }
+    return initialData
       ? {
           products: initialData.products,
           totalCount: initialData.totalCount,
@@ -93,17 +103,16 @@ export const CategoryProvider = ({
           lastProductId: null,
           hasMore: true,
           scrollPosition: 0,
-        }
-  );
-  const [loading, setLoading] = useState(!initialData);
+        };
+  });
+  const [loading, setLoading] = useState(!initialData && !globalCategoryCache[cacheKey]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const cacheRef = useRef<Record<string, CategoryState>>({});
   // When seeded with server-prefetched data, skip the FIRST client fetch
   // (initialData already reflects the current id + searchParams). Subsequent
-  // id/searchParams changes fetch normally.
-  const seededRef = useRef(!!initialData);
+  // id/searchParams changes fetch normally. If we restored from cache, also skip.
+  const seededRef = useRef(!!initialData || !!globalCategoryCache[cacheKey]);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -111,11 +120,11 @@ export const CategoryProvider = ({
     // Create a unique key based on category and filters
     const params = new URLSearchParams(searchParams);
     params.sort();
-    const cacheKey = `${id}?${params.toString()}`;
+    const currentCacheKey = `${id}?${params.toString()}`;
 
     // Use cached data if available (including scroll position)
-    if (cacheRef.current[cacheKey]) {
-      setState(cacheRef.current[cacheKey]);
+    if (globalCategoryCache[currentCacheKey]) {
+      setState(globalCategoryCache[currentCacheKey]);
       setLoading(false);
       return;
     }
@@ -167,7 +176,7 @@ export const CategoryProvider = ({
       };
 
       setState(newState);
-      cacheRef.current[cacheKey] = newState; // Cache the new state
+      globalCategoryCache[currentCacheKey] = newState; // Cache the new state
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
@@ -232,8 +241,8 @@ export const CategoryProvider = ({
 
         const params = new URLSearchParams(searchParams);
         params.sort();
-        const cacheKey = `${id}?${params.toString()}`;
-        cacheRef.current[cacheKey] = updatedState; // Update cache
+        const currentCacheKey = `${id}?${params.toString()}`;
+        globalCategoryCache[currentCacheKey] = updatedState; // Update cache
 
         return updatedState;
       });
@@ -251,8 +260,8 @@ export const CategoryProvider = ({
       // Update cache with new scroll position
       const params = new URLSearchParams(searchParams);
       params.sort();
-      const cacheKey = `${id}?${params.toString()}`;
-      cacheRef.current[cacheKey] = updatedState;
+      const currentCacheKey = `${id}?${params.toString()}`;
+      globalCategoryCache[currentCacheKey] = updatedState;
 
       return updatedState;
     });
