@@ -1,122 +1,67 @@
-"use client";
+import { notFound } from "next/navigation";
+import {
+  getCategoryByIdServer,
+  getProductsByCategoryServer,
+  getColorsByCategoryServer,
+  getSizesByCategoryServer,
+  getMinMaxPriceByCategoryServer,
+} from "@/lib/queries";
+import CategoryClient, { CategoryClientData } from "./_components/CategoryClient";
 
-import { Loader2 } from "lucide-react";
-import Link from "next/link";
-import Image from "next/image";
-import FilterSection from "./_components/FilterSection";
-import ProductsSection from "./_components/ProductsSection";
-import CategoryCouponPromo from "@/app/_components/CategoryCouponPromo";
-import { useRouter } from "next/navigation";
-import { useCategoryContext } from "@/context/CategoryContext";
+// Dynamic route — server-rendered on demand. The first page (category +
+// products + filter facets) is pre-fetched on the server so first paint has
+// content; pagination/filter changes are handled client-side.
+export const dynamic = "force-dynamic";
 
+export default async function CategoryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { id } = await params;
+  const sp = await searchParams;
 
-const Page = () => {
-  const router = useRouter();
-  const {
-    loading,
-    error,
-    products,
+  const currentCategory = await getCategoryByIdServer(id);
+  if (!currentCategory) notFound();
+
+  const sortBy = typeof sp.sortBy === "string" ? sp.sortBy : "latest";
+  const minPrice = sp.minPrice ? parseInt(String(sp.minPrice)) : undefined;
+  const maxPrice = sp.maxPrice ? parseInt(String(sp.maxPrice)) : undefined;
+  const color = typeof sp.color === "string" ? sp.color : undefined;
+  const sizesParam = typeof sp.sizes === "string" ? sp.sizes : undefined;
+  const sizes = sizesParam ? sizesParam.split(",") : undefined;
+
+  const subCategories = (currentCategory.subCategories as string[]) || [];
+
+  const [productsData, subCategoriesDetails, colors, sizesFacets, price] =
+    await Promise.all([
+      getProductsByCategoryServer({
+        categoryId: id,
+        limit: 10,
+        sortBy,
+        minPrice,
+        maxPrice,
+        colorFilter: color,
+        sizeFilter: sizes,
+      }),
+      Promise.all(subCategories.map((subId) => getCategoryByIdServer(subId))).then(
+        (arr) => arr.filter(Boolean) as NonNullable<(typeof arr)[number]>[]
+      ),
+      getColorsByCategoryServer(id),
+      getSizesByCategoryServer(id),
+      getMinMaxPriceByCategoryServer(id),
+    ]);
+
+  const initialData: CategoryClientData = {
+    products: productsData.products,
+    totalCount: productsData.totalCount,
     currentCategory,
     subCategoriesDetails,
-  } = useCategoryContext();
+    lastProductId: productsData.lastProductId,
+    facets: { colors, sizes: sizesFacets, price },
+  };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-[100vh]">
-        <Loader2 className="animate-spin rounded-full h-12 w-12 text-green-700" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex justify-center items-center h-[100vh]">
-        <p className="text-red-500">{error}</p>
-      </div>
-    );
-  }
-
-  if (!currentCategory) {
-    return (
-      <div className="flex justify-center items-center h-[100vh]">
-        <p>Category not found</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col max-w-[1290px] mx-auto md:mt-[1rem] p-1">
-{/* Back Button - Made more mobile-friendly */}
-  <div className="mb-3 px-2 mt-3 md:px-0">
-    <button
-      onClick={() => router.back()}
-      className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition md:px-4 md:py-2"
-    >
-      ← Back
-    </button>
-  </div>
-
-  <div className="mb-4 px-2 md:px-0">
-    <CategoryCouponPromo
-      categoryId={currentCategory.id}
-      variant="banner"
-    />
-  </div>
-
-  {/* Subcategories Scrollable Section - Enhanced for mobile */}
-  {subCategoriesDetails.length > 0 && (
-    <div className="mb-5 px-2 md:px-0">
-      <div className="relative">
-        {/* Scrollable container with mobile touch-friendly padding */}
-        <div className="overflow-x-auto pb-4 -mx-2 px-2 md:-mx-4 md:px-4 touch-pan-x">
-          <div className="inline-flex gap-2 w-max min-w-full md:gap-3">
-          {subCategoriesDetails.map((subCategory) => (
-  <Link
-    key={subCategory.id}
-    href={`/category/${subCategory.id}`}
-    className="group relative flex-shrink-0 overflow-hidden rounded-lg hover:shadow-lg transition-all duration-200 bg-gray-500 w-[120px] h-[120px] md:w-[160px] md:h-[160px]"
-  >
-    <CategoryCouponPromo
-      categoryId={subCategory.id}
-      variant="ribbon"
-    />
-    {subCategory.images?.[0] && (
-      <div className="absolute inset-0">
-        <Image
-          src={subCategory?.images[0]}
-          alt={subCategory?.categoryName}
-          fill
-          className="object-cover transition-transform duration-200 group-hover:scale-105 md:group-hover:scale-110"
-          sizes="(max-width: 640px) 120px, 160px"
-          loading="lazy"
-          quality={70}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent group-hover:from-black/40 group-hover:to-transparent transition-all duration-300" />
-      </div>
-    )}
-    <div className="relative z-10 h-full flex items-end p-2 md:p-3">
-      <span className="text-white font-semibold text-xs md:text-sm drop-shadow-lg line-clamp-2 text-left">
-        {subCategory.categoryName}
-      </span>
-    </div>
-  </Link>
-))}
-
-          </div>
-        </div>
-
-      </div>
-    </div>
-  )}
-
-
-      <div className="flex flex-col md:flex-row">
-        <FilterSection categoryName={currentCategory?.id} />
-        {/* ProductsSection no longer needs any props */}
-        <ProductsSection />
-      </div>
-    </div>
-  );
-};
-
-export default Page;
+  return <CategoryClient initialData={initialData} />;
+}

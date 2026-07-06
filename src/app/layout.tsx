@@ -1,20 +1,23 @@
 // ./app/layout.tsx
-"use client";
 import type { Metadata } from "next";
 import { Jost } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { ScrollProvider } from "@/context/ScrollContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Navbar from "./_components/Navbar";
 import Main from "./Main";
 import FooterNav from "./_components/FooterNav";
 import { WhatsApp } from "./_components/whatsapp-icon";
-import { CategoryProvider} from "@/context/CategoryContext";
 import AdSense from "./_components/AdSense";
+import LayoutWrapper from "./_components/LayoutWrapper";
+import RouteLoader from "./_components/RouteLoader";
 
-// 1. Import useRef and useEffect from React
-import { useRef, useEffect, useState, useCallback } from 'react';
+export const metadata: Metadata = {
+  title: "Kathy's - Shop the Latest Collections",
+  description: "Discover premium fashion collections at Kathy's",
+};
 
 const jost = Jost({
   variable: "--font-jost",
@@ -27,42 +30,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
- // 2. Use useState to hold the actual DOM node
-  const [layoutNode, setLayoutNode] = useState<HTMLDivElement | null>(null);
-
-  // 3. Create the callback ref function.
-  // This function will be called by React when the div is mounted.
-  const layoutRefCallback = useCallback((node: HTMLDivElement) => {
-    // When the node is available, we set it in our state.
-    if (node !== null) {
-      console.log('Callback ref attached to node:', node);
-      setLayoutNode(node);
-    }
-  }, []); // Empty dependency array ensures the function is stable
-
-  // 4. This useEffect now depends on 'layoutNode'.
-  // It will only run when layoutNode is successfully set.
-  useEffect(() => {
-    // We proceed only if the layoutNode exists.
-    if (layoutNode) {
-      console.log('useEffect is running with the node:', layoutNode);
-      const observer = new MutationObserver((mutations) => {
-        const styleChanged = mutations.some(mutation => mutation.attributeName === 'style');
-        if (styleChanged) {
-          layoutNode.style.height = '';
-        }
-      });
-
-      observer.observe(layoutNode, {
-        attributes: true,
-        attributeFilter: ['style'],
-      });
-
-      return () => observer.disconnect();
-    }
-  }, [layoutNode]); // The key change is here!
-    
   return (
     <html lang="en" className="h-full">
       <head>
@@ -70,14 +37,14 @@ export default function RootLayout({
         <AdSense pId="ca-pub-8258677943197720" />
       </head>
       <body className={`${jost.className} antialiased flex flex-col h-full`}>
+        <RouteLoader />
         <AuthProvider>
-          <CategoryProvider>
-            {/* 4. Attach the ref to the div you want to observe */}
-            <div ref={layoutRefCallback} className="flex flex-col h-full">
+          <ScrollProvider>
+            <LayoutWrapper>
               <Navbar />
               <Main children={children} />
               <FooterNav />
-            </div>
+            </LayoutWrapper>
           
             <ToastContainer
               position="top-right"
@@ -89,7 +56,7 @@ export default function RootLayout({
               draggable
               pauseOnHover
             />
-          </CategoryProvider>
+          </ScrollProvider>
         </AuthProvider>
         <WhatsApp/>
       </body>

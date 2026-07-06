@@ -26,9 +26,16 @@ export interface Product {
     combination: {
       name: string;
       value: string;
+      originalValue?: string;
     }[];
     sku: string;
   }[];
   taxRate: number;
   productUnit: string;
+  // Optional fields — present on some products / added by cart hydration
+  position?: number;
+  sizes?: string[];
+  docId?: string;
+  currentInventory?: number;
+  outOfStock?: boolean;
 }

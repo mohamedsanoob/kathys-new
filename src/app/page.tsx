@@ -5,8 +5,10 @@ import Help from "./_components/Help";
 // import ImageSwiper from "./_components/ImageSwiper";
 import Rating from "./_components/Rating";
 
-
- 
+// Collections reads Firestore via the Admin SDK; render server-side per
+// request (withCache handles the 5-min memo) instead of prerendering at build
+// (which would require Firebase creds to be present at build time).
+export const dynamic = "force-dynamic";
 
 export default function Home() {
  

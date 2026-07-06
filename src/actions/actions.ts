@@ -16,7 +16,10 @@ import {
   DocumentSnapshot,
   serverTimestamp,
 } from "firebase/firestore";
-import { CodeSquare } from "lucide-react";
+import { withCache } from "@/lib/cache";
+
+// Re-export so existing importers of `invalidateCache` from "@/actions/actions" keep working.
+export { invalidateCache } from "@/lib/cache";
 
 interface DocumentInterface extends DocumentData {
   id: string;
@@ -306,6 +309,8 @@ interface Product {
   skuId: string;
   createdDate?: { seconds: number; nanoseconds: number };
   updatedDate?: { seconds: number; nanoseconds: number };
+  sizes?: string[];
+  docId?: string;
 }
 
 export const getCollectionsWithProducts = async (): Promise<
@@ -315,7 +320,7 @@ export const getCollectionsWithProducts = async (): Promise<
     description: string;
     products: Product[];
   }[]
-> => {
+> => withCache("collectionsWithProducts", 5 * 60 * 1000, async () => {
   try {
      const categoriesQuery = query(
       collection(db, "categories"),
@@ -398,7 +403,7 @@ export const getCollectionsWithProducts = async (): Promise<
     );
     throw error;
   }
-};
+});
 
 
 
@@ -428,7 +433,8 @@ export const getCategoryByName = async (
 };
 
 
-export const getAllCategories = async (): Promise<Category[]> => {
+export const getAllCategories = async (): Promise<Category[]> =>
+  withCache("allCategories", 5 * 60 * 1000, async () => {
   try {
     const categoriesQuery = query(
       collection(db, "categories"),
@@ -447,11 +453,12 @@ export const getAllCategories = async (): Promise<Category[]> => {
     console.error("Error fetching categories:", error);
     return [];
   }
-};
+});
 
 export const getCategoryById = async (
   id: string
-): Promise<Category | null> => {
+): Promise<Category | null> =>
+  withCache(`category-${id}`, 5 * 60 * 1000, async () => {
   try {
     const querySnapshot = await getDocs(
       query(
@@ -471,7 +478,7 @@ export const getCategoryById = async (
     console.error("Error fetching category:", error);
     return null; // Handle the error gracefully
   }
-};
+});
 
 
 export const getUserAddresses = async (
@@ -555,11 +562,11 @@ export const getProductsByCategory = async (
   minPrice?: number,
   maxPrice?: number,
   colorFilter?: string, // Hex color code like "#8baf3a"
-  sizeFilter?: [] // Size value like "42"
+  sizeFilter?: string[] // Size value like "42"
   
 ): Promise<{
   products: Product[];
-  categories : {};
+  categories?: Record<string, any>;
   totalCount: number;
   lastVisible: DocumentSnapshot | null;
 }> => {
@@ -672,10 +679,10 @@ if (colorFilter) {
 }
 
       // Check size filter
-      if (sizeFilter?.length>0) {
+      if (sizeFilter && sizeFilter.length > 0) {
         sizeMatch = product.variantDetails?.some(variant => 
           variant.combination?.some(combo => 
-            combo.name?.toLowerCase() === "size" && sizeFilter.includes( combo.value)
+            combo.name?.toLowerCase() === "size" && sizeFilter?.includes(combo.value)
           )
         ) || false;
       }
@@ -699,12 +706,10 @@ if (colorFilter) {
     // Apply limit after combining
     const products = uniqueProducts.slice(0, limitNumber);
 
-    // Get total count considering filters
+    // Get total count using getCountFromServer (much cheaper than getDocs)
     let totalCount = 0;
- 
-         // Always get total count from server (deduped)
-    const countPromises = [];
 
+    const countPromises = [];
     for (let i = 0; i < allCategoryIds.length; i += chunkSize) {
       const chunk = allCategoryIds.slice(i, i + chunkSize);
       let countQuery = query(
@@ -721,21 +726,11 @@ if (colorFilter) {
         );
       }
 
-      // Instead of summing raw counts, we fetch product IDs
-      countPromises.push(getDocs(countQuery));
+      countPromises.push(getCountFromServer(countQuery));
     }
 
-    const countSnapshots = await Promise.all(countPromises);
-
-    // Deduplicate IDs across chunks
-    const allIds = new Set<string>();
-    countSnapshots.forEach(snapshot => {
-      snapshot.docs.forEach(doc => {
-        allIds.add(doc.id);
-      });
-    });
-
-     totalCount = allIds.size;
+    const countResults = await Promise.all(countPromises);
+    totalCount = countResults.reduce((sum, snap) => sum + snap.data().count, 0);
     
 
     return {
@@ -753,21 +748,22 @@ if (colorFilter) {
 
 export const getProductById = async (
   productId: string
-): Promise<Product | null> => {
-  try {
-    const productRef = doc(db, "products", productId);
-    const productSnap = await getDoc(productRef);
+): Promise<Product | null> =>
+  withCache(`product-${productId}`, 2 * 60 * 1000, async () => {
+    try {
+      const productRef = doc(db, "products", productId);
+      const productSnap = await getDoc(productRef);
 
-    if (productSnap.exists()) {
-      return { ...(productSnap.data() as Product), id: productSnap.id };
-    } else {
-      return null; // Product not found
+      if (productSnap.exists()) {
+        return { ...(productSnap.data() as Product), id: productSnap.id };
+      } else {
+        return null; // Product not found
+      }
+    } catch (error) {
+      console.error("Error fetching product details:", error);
+      return null;
     }
-  } catch (error) {
-    console.error("Error fetching product details:", error);
-    return null;
-  }
-};
+  });
 
 export const getRelatedProducts = async (
   categoryValues: string[] // Array of category values
@@ -1061,9 +1057,9 @@ export async function getCartProducts() {
     const productsData = productDocs
       .filter((d) => d.exists())
       .map((d) => ({
+        ...(d.data() as Product),
         id: d.data()?.id || d.id,
         docId: d.id,
-        ...d.data(),
       })) as Product[];
 
     const variantMatchesCart = (
@@ -1352,7 +1348,9 @@ export const getColorsByCategory = async (
           variant.optionName?.toLowerCase() === "color" &&
           Array.isArray(variant.optionValue)
         ) {
-          variant.optionValue.forEach(processColor);
+          variant.optionValue.forEach((c) =>
+            processColor({ name: c, hex: "#000000" })
+          );
         }
       });
 
@@ -1360,7 +1358,7 @@ export const getColorsByCategory = async (
       product.variantDetails?.forEach((detail) => {
         detail.combination?.forEach((combo) => {
           if (combo.name?.toLowerCase() === "color" && combo?.value) {
-            processColor(combo.value);
+            processColor({ name: combo.value, hex: "#000000" });
           }
         });
       });

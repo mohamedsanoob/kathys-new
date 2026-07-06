@@ -1,0 +1,557 @@
+import "server-only";
+//
+// Server-only data layer — read-only Firestore queries via the Firebase Admin
+// SDK. Called directly from async Server Components (NOT server actions — we
+// have no client-invoked mutations here). Never import this from a client
+// component; `import "server-only"` enforces that at build time.
+//
+// Each function mirrors a client fn in src/actions/actions.ts but:
+//   • uses the Admin SDK chainable API,
+//   • preserves the SAME cache key + TTL (via shared @/lib/cache),
+//   • getCollectionsWithProducts is batched (fixes the N+1: 1+N → 1+⌈N/10⌉),
+//   • getRelatedProducts chunks ≤10 (fixes silent break for >10 categories),
+//   • returns serializable shapes (no Firestore snapshots) so results can
+//     cross the RSC boundary as props.
+//
+import type { Product } from "@/types/product";
+import type { Category } from "@/types/category";
+import { getAdminDb } from "@/lib/firebase-admin";
+import { withCache } from "@/lib/cache";
+
+const MIN = 60 * 1000;
+const CHUNK = 10; // Firestore array-contains-any cap
+
+function chunk<T>(arr: T[], size = CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+/** Convert a Firestore Timestamp (or {seconds,nanoseconds} / number) to epoch ms. */
+function toMs(t: unknown): number {
+  if (!t) return 0;
+  if (typeof t === "number") return t;
+  const ts = t as { toMillis?: () => number; seconds?: number; nanoseconds?: number };
+  if (typeof ts.toMillis === "function") return ts.toMillis();
+  if (typeof ts.seconds === "number") return ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6);
+  return 0;
+}
+
+/** Strip Firestore-specific types so the product is serializable across the
+ *  RSC boundary (createdDate/updatedDate → epoch ms). */
+function serializeProduct(product: any): Product {
+  return {
+    ...product,
+    createdDate: toMs(product.createdDate),
+    updatedDate: toMs(product.updatedDate) || null,
+  };
+}
+
+/** Strip Firestore Timestamps from a category doc so it is RSC-serializable. */
+function serializeCategory(cat: any): Category {
+  return {
+    ...cat,
+    createdDate: toMs(cat.createdDate) || null,
+    updatedDate: toMs(cat.updatedDate) || null,
+  };
+}
+
+/** Hydrated category + its display products (home page). */
+export interface CollectionWithProducts {
+  id: string;
+  categoryName: string;
+  description?: string;
+  isSubcategory?: boolean;
+  products: Product[];
+}
+
+// ── Categories ───────────────────────────────────────────────────────
+
+export async function getAllCategoriesServer(): Promise<Category[]> {
+  return withCache("allCategories", 5 * MIN, async () => {
+    try {
+      const snap = await getAdminDb()
+        .collection("categories")
+        .where("active", "==", true)
+        .orderBy("categoryName", "asc")
+        .orderBy("order", "asc")
+        .get();
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Category[];
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      return [];
+    }
+  });
+}
+
+export async function getCategoryByIdServer(id: string): Promise<Category | null> {
+  return withCache(`category-${id}`, 5 * MIN, async () => {
+    try {
+      // Query by the stored `id` FIELD (not the doc id) to match the client
+      // implementation exactly — the two can differ.
+      const snap = await getAdminDb()
+        .collection("categories")
+        .where("id", "==", id)
+        .where("active", "==", true)
+        .limit(1)
+        .get();
+      if (snap.empty) return null;
+      const d = snap.docs[0];
+      return serializeCategory({ id: d.id, ...(d.data() as object) });
+    } catch (error) {
+      console.error("Error fetching category:", error);
+      return null;
+    }
+  });
+}
+
+export async function getCategoryByNameServer(name: string): Promise<Category | null> {
+  return withCache(`category-name-${name}`, 5 * MIN, async () => {
+    try {
+      const snap = await getAdminDb()
+        .collection("categories")
+        .where("categoryName", "==", name)
+        .where("active", "==", true)
+        .limit(1)
+        .get();
+      if (snap.empty) return null;
+      const d = snap.docs[0];
+      return serializeCategory({ id: d.id, ...(d.data() as object) });
+    } catch (error) {
+      console.error("Error fetching category by name:", error);
+      return null;
+    }
+  });
+}
+
+// ── Home: collections + products (batched N+1 fix) ───────────────────
+
+export async function getCollectionsWithProductsServer(): Promise<CollectionWithProducts[]> {
+  return withCache("collectionsWithProducts", 5 * MIN, async () => {
+    try {
+      const catSnap = await getAdminDb()
+        .collection("categories")
+        .where("active", "==", true)
+        .orderBy("order", "asc")
+        .get();
+      const categories = catSnap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Record<string, unknown>),
+      })) as Category[];
+
+      const topLevel = categories.filter((c) => !c.isSubcategory);
+      const categoryIds = topLevel.map((c) => c.id);
+      if (categoryIds.length === 0) return [];
+
+      // ONE query per ≤10-id chunk (was: 1 query per category).
+      const productSnaps = await Promise.all(
+        chunk(categoryIds).map((c) =>
+          getAdminDb()
+            .collection("products")
+            .where("categories", "array-contains-any", c)
+            .where("active", "==", true)
+            .orderBy("position", "asc")
+            .get()
+        )
+      );
+
+      // Flatten + dedupe by id.
+      const seen = new Set<string>();
+      const allProducts: Product[] = [];
+      for (const snap of productSnaps) {
+        for (const d of snap.docs) {
+          if (seen.has(d.id)) continue;
+          seen.add(d.id);
+          allProducts.push({ id: d.id, ...(d.data() as object) } as Product);
+        }
+      }
+
+      // Group ≤4 products per category, ordered by position.
+      const idSet = new Set(categoryIds);
+      const buckets = new Map<string, Product[]>();
+      for (const p of allProducts) {
+        for (const catId of (p.categories || []) as string[]) {
+          if (!idSet.has(catId)) continue;
+          let arr = buckets.get(catId);
+          if (!arr) {
+            arr = [];
+            buckets.set(catId, arr);
+          }
+          arr.push(p);
+        }
+      }
+      buckets.forEach((arr) => arr.sort((a, b) => (a.position || 0) - (b.position || 0)));
+
+      return topLevel.map((c) => ({
+        id: c.id,
+        categoryName: c.categoryName,
+        description: c.description,
+        isSubcategory: c.isSubcategory,
+        products: (buckets.get(c.id) || []).slice(0, 4),
+      }));
+    } catch (error) {
+      console.error("Error fetching collections with products:", error);
+      return [];
+    }
+  });
+}
+
+// ── Products ─────────────────────────────────────────────────────────
+
+export async function getProductByIdServer(productId: string): Promise<Product | null> {
+  return withCache(`product-${productId}`, 2 * MIN, async () => {
+    try {
+      const d = await getAdminDb().collection("products").doc(productId).get();
+      if (!d.exists) return null;
+      return serializeProduct({ id: d.id, ...(d.data() as object) });
+    } catch (error) {
+      console.error("Error fetching product details:", error);
+      return null;
+    }
+  });
+}
+
+export async function getRelatedProductsServer(categoryValues: string[]): Promise<Product[]> {
+  if (!categoryValues.length) return [];
+  const key = `related-${[...categoryValues].sort().join(",")}`;
+  return withCache(key, 2 * MIN, async () => {
+    try {
+      // Chunk ≤10 — the client version passed the whole array to
+      // array-contains-any, which silently breaks for >10 categories.
+      const snaps = await Promise.all(
+        chunk(categoryValues).map((c) =>
+          getAdminDb()
+            .collection("products")
+            .where("categories", "array-contains-any", c)
+            .where("active", "==", true)
+            .orderBy("position", "asc")
+            .limit(8)
+            .get()
+        )
+      );
+      const all = snaps.flatMap((s) =>
+        s.docs.map((d) => ({ id: d.id, ...(d.data() as object) }))
+      );
+      const unique = [...new Map(all.map((p) => [p.id, p])).values()];
+      return unique.slice(0, 8).map((p) => serializeProduct(p));
+    } catch (error) {
+      console.error("Error fetching related products:", error);
+      return [];
+    }
+  });
+}
+
+export interface ProductsByCategoryResult {
+  products: Product[];
+  totalCount: number;
+  /** id of the last product in the page — the client reconstructs a cursor
+   *  from this for the next `loadMore` (keeps client getProductsByCategory
+   *  unchanged). Null when the page is empty. */
+  lastProductId: string | null;
+  categories?: Record<string, unknown>;
+}
+
+export interface ProductsByCategoryParams {
+  categoryId: string;
+  limit?: number;
+  sortBy?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  colorFilter?: string; // hex like "#8baf3a"
+  sizeFilter?: string[]; // like ["42"]
+}
+
+/** Server-side FIRST page fetch for a category listing. Pagination cursor is
+ *  returned as lastProductId; subsequent pages are fetched client-side. */
+export async function getProductsByCategoryServer(
+  params: ProductsByCategoryParams
+): Promise<ProductsByCategoryResult> {
+  const {
+    categoryId,
+    limit: limitNumber = 10,
+    sortBy = "latest",
+    minPrice,
+    maxPrice,
+    colorFilter,
+    sizeFilter,
+  } = params;
+
+  try {
+    const catSnap = await getAdminDb()
+      .collection("categories")
+      .where("id", "==", categoryId)
+      .where("active", "==", true)
+      .limit(1)
+      .get();
+    if (catSnap.empty) return { products: [], totalCount: 0, lastProductId: null };
+
+    const categoryData = catSnap.docs[0].data() as Record<string, unknown>;
+    const subCategories = (categoryData?.subCategories as string[]) || [];
+    const allCategoryIds = [categoryId, ...subCategories];
+
+    const queryPromises = chunk(allCategoryIds).map((c) => {
+      let q: FirebaseFirestore.Query = getAdminDb()
+        .collection("products")
+        .where("categories", "array-contains-any", c)
+        .where("active", "==", true)
+        .orderBy("position", "asc");
+      if (minPrice !== undefined && maxPrice !== undefined) {
+        q = q
+          .where("productDiscountedPrice", ">=", minPrice)
+          .where("productDiscountedPrice", "<=", maxPrice);
+      }
+      switch (sortBy) {
+        case "price-low":
+          q = q.orderBy("productDiscountedPrice", "asc");
+          break;
+        case "price-high":
+          q = q.orderBy("productDiscountedPrice", "desc");
+          break;
+        case "latest":
+        default:
+          q = q.orderBy("createdDate", "desc");
+      }
+      return q.limit(limitNumber).get();
+    });
+
+    const productsSnapshots = await Promise.all(queryPromises);
+
+    let unique = (
+      [...new Map(
+        productsSnapshots
+          .flatMap((s) => s.docs)
+          .map((d) => [d.id, { id: d.id, ...(d.data() as object) }])
+      ).values()] as Product[]
+    );
+
+    // Client-side color/size filters (mirrors the client implementation).
+    unique = unique.filter((product) => {
+      let colorMatch = true;
+      let sizeMatch = true;
+
+      if (colorFilter) {
+        colorMatch =
+          (product.variantDetails?.some((variant) =>
+            variant.combination?.some((combo) => {
+              if (!combo || !combo.name || !combo.value) return false;
+              if (combo.name.toLowerCase().trim() === "color") {
+                const filterValue = colorFilter?.toLowerCase().trim() || "";
+                const variantValue = combo.value?.toLowerCase().trim() || "";
+                return variantValue === filterValue || variantValue.includes(filterValue);
+              }
+              return false;
+            })
+          ) as boolean) ?? false;
+      }
+
+      if (sizeFilter && sizeFilter.length > 0) {
+        sizeMatch =
+          (product.variantDetails?.some((variant) =>
+            variant.combination?.some(
+              (combo) =>
+                combo.name?.toLowerCase() === "size" && sizeFilter?.includes(combo.value)
+            )
+          ) as boolean) || false;
+      }
+
+      return colorMatch && sizeMatch;
+    });
+
+    switch (sortBy) {
+      case "latest":
+        unique.sort(
+          (a, b) =>
+            (((b as any).createdDate?.seconds) || 0) - (((a as any).createdDate?.seconds) || 0)
+        );
+        break;
+      case "price-low":
+        unique.sort((a, b) => (a.productDiscountedPrice || 0) - (b.productDiscountedPrice || 0));
+        break;
+      case "price-high":
+        unique.sort((a, b) => (b.productDiscountedPrice || 0) - (a.productDiscountedPrice || 0));
+        break;
+    }
+
+    const products = unique.slice(0, limitNumber).map((p) => serializeProduct(p));
+
+    // Total count via count() aggregation (cheap — no doc download).
+    const countResults = await Promise.all(
+      chunk(allCategoryIds).map((c) => {
+        let cq: FirebaseFirestore.Query = getAdminDb()
+          .collection("products")
+          .where("categories", "array-contains-any", c)
+          .where("active", "==", true);
+        if (minPrice !== undefined && maxPrice !== undefined) {
+          cq = cq
+            .where("productDiscountedPrice", ">=", minPrice)
+            .where("productDiscountedPrice", "<=", maxPrice);
+        }
+        return cq.count().get();
+      })
+    );
+    const totalCount = countResults.reduce((sum, snap) => sum + snap.data().count, 0);
+
+    // Cursor must be the Firestore-ORDER last doc of the first chunk — this
+    // matches the client getProductsByCategory `lastVisible`. Using the
+    // client-SORTED last product would start page 2 from the wrong spot.
+    const firstChunkDocs = productsSnapshots[0]?.docs ?? [];
+    const lastProductId =
+      products.length > 0 && firstChunkDocs.length > 0
+        ? firstChunkDocs[firstChunkDocs.length - 1].id
+        : null;
+
+    return { products, totalCount, lastProductId, categories: categoryData };
+  } catch (error) {
+    console.error("Error fetching products by category:", error);
+    return { products: [], totalCount: 0, lastProductId: null };
+  }
+}
+
+// ── Category facets (filter UI) ──────────────────────────────────────
+
+/** Fetch the deduped active product set for a category + its subcategories. */
+async function fetchCategoryProducts(
+  categoryId: string,
+  opts: { onlyActive?: boolean } = {}
+): Promise<any[]> {
+  const catSnap = await getAdminDb()
+    .collection("categories")
+    .where("id", "==", categoryId)
+    .limit(1)
+    .get();
+  if (catSnap.empty) return [];
+  const categoryData = catSnap.docs[0].data() as Record<string, unknown>;
+  const subCategories = (categoryData?.subCategories as string[]) || [];
+  const allCategoryIds = [categoryId, ...subCategories];
+
+  const snaps = await Promise.all(
+    chunk(allCategoryIds).map((c) => {
+      let q: FirebaseFirestore.Query = getAdminDb()
+        .collection("products")
+        .where("categories", "array-contains-any", c);
+      if (opts.onlyActive) q = q.where("active", "==", true);
+      return q.get();
+    })
+  );
+  const all = snaps.flatMap((s) =>
+    s.docs.map((d) => ({ id: d.id, ...(d.data() as object) }))
+  );
+  return [...new Map(all.map((p) => [p.id, p])).values()];
+}
+
+export async function getColorsByCategoryServer(
+  categoryId: string
+): Promise<{ color: { name: string; hex: string }; count: number }[]> {
+  try {
+    const uniqueProducts = await fetchCategoryProducts(categoryId, { onlyActive: true });
+    const colorCounts = new Map<string, { color: { name: string; hex: string }; count: number }>();
+
+    uniqueProducts.forEach((product) => {
+      const productColorNames = new Set<string>();
+      const processColor = (name?: string) => {
+        if (!name) return;
+        const colorName = name.toLowerCase();
+        productColorNames.add(colorName);
+        if (!colorCounts.has(colorName)) {
+          colorCounts.set(colorName, { color: { name, hex: "#000000" }, count: 0 });
+        }
+      };
+      product.variants?.forEach((variant: any) => {
+        if (
+          variant.optionName?.toLowerCase() === "color" &&
+          Array.isArray(variant.optionValue)
+        ) {
+          variant.optionValue.forEach((v: string) => processColor(v));
+        }
+      });
+      product.variantDetails?.forEach((detail: any) => {
+        detail.combination?.forEach((combo: any) => {
+          if (combo.name?.toLowerCase() === "color" && combo?.value) processColor(combo.value);
+        });
+      });
+      productColorNames.forEach((colorName) => {
+        const cd = colorCounts.get(colorName);
+        if (cd) cd.count++;
+      });
+    });
+
+    return Array.from(colorCounts.values()).sort((a, b) => b.count - a.count);
+  } catch (error) {
+    console.error("Error fetching colors by category:", error);
+    return [];
+  }
+}
+
+export async function getSizesByCategoryServer(
+  categoryId: string
+): Promise<{ size: string; count: number }[]> {
+  try {
+    const uniqueProducts = await fetchCategoryProducts(categoryId); // no active filter — matches client
+    const sizeCounts = new Map<string, number>();
+
+    uniqueProducts.forEach((product) => {
+      const productSizes = new Set<string>();
+      product.variants?.forEach((variant: any) => {
+        if (
+          variant.optionName?.toLowerCase() === "size" &&
+          Array.isArray(variant.optionValue)
+        ) {
+          variant.optionValue.forEach((v: string) => productSizes.add(v));
+        }
+      });
+      product.variantDetails?.forEach((detail: any) => {
+        detail.combination?.forEach((combo: any) => {
+          if (combo.name?.toLowerCase() === "size") productSizes.add(combo.value);
+        });
+      });
+      if (Array.isArray(product.sizes)) {
+        product.sizes.forEach((s: string) => {
+          if (s) productSizes.add(s);
+        });
+      }
+      productSizes.forEach((size) => sizeCounts.set(size, (sizeCounts.get(size) || 0) + 1));
+    });
+
+    return Array.from(sizeCounts.entries())
+      .map(([size, count]) => ({ size, count }))
+      .sort((a, b) => {
+        const aNum = parseFloat(a.size);
+        const bNum = parseFloat(b.size);
+        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+        return a.size.localeCompare(b.size);
+      });
+  } catch (error) {
+    console.error("Error fetching sizes by category:", error);
+    return [];
+  }
+}
+
+export async function getMinMaxPriceByCategoryServer(
+  categoryId: string
+): Promise<{ minPrice: number | null; maxPrice: number | null }> {
+  let minPrice: number | null = null;
+  let maxPrice: number | null = null;
+  try {
+    const uniqueProducts = await fetchCategoryProducts(categoryId); // no active filter — matches client
+    uniqueProducts.forEach((product) => {
+      const prices = [product.productDiscountedPrice].filter(
+        (p) => typeof p === "number"
+      ) as number[];
+      prices.forEach((price) => {
+        if (minPrice === null || price < minPrice) minPrice = price;
+        if (maxPrice === null || price > maxPrice) maxPrice = price;
+      });
+      product.variantDetails?.forEach((detail: any) => {
+        const vp = [detail.discountedPrice].filter((p) => typeof p === "number") as number[];
+        vp.forEach((price) => {
+          if (minPrice === null || price < minPrice) minPrice = price;
+          if (maxPrice === null || price > maxPrice) maxPrice = price;
+        });
+      });
+    });
+    return { minPrice, maxPrice };
+  } catch (error) {
+    console.error("Error fetching min/max price by category:", error);
+    return { minPrice: null, maxPrice: null };
+  }
+}

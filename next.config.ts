@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true, // Temporarily disable TypeScript errors
   },
+  // Require firebase-admin at runtime instead of bundling it (avoids gRPC
+  // native-binding bundling errors in next dev --turbopack and next build).
+  serverExternalPackages: ["firebase-admin"],
   images: {
     remotePatterns: [
       {

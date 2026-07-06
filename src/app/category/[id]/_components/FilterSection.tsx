@@ -11,11 +11,30 @@ import { useEffect, useState, useCallback } from "react";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const FilterSection = ({ categoryName }: { categoryName: string }) => {
+interface InitialFacets {
+  colors: { color: { name: string; hex: string }; count: number }[];
+  sizes: { size: string; count: number }[];
+  price: { minPrice: number | null; maxPrice: number | null };
+}
+
+const FilterSection = ({
+  categoryName,
+  initialFacets,
+}: {
+  categoryName: string;
+  initialFacets?: InitialFacets;
+}) => {
   const searchParams = useSearchParams();
-  const [filterColors, setFilterColors] = useState<{ color: string; count: number }[]>([]);
-  const [filterSizes, setFilterSizes] = useState<{ size: string; count: number }[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
+  const [filterColors, setFilterColors] = useState<
+    { color: { name: string; hex: string }; count: number }[]
+  >(() => initialFacets?.colors ?? []);
+  const [filterSizes, setFilterSizes] = useState<{ size: string; count: number }[]>(
+    () => initialFacets?.sizes ?? []
+  );
+  const [priceRange, setPriceRange] = useState<[number, number]>(() => [
+    initialFacets?.price.minPrice ?? 0,
+    initialFacets?.price.maxPrice ?? 100,
+  ]);
   const [value, setValue] = useState<[number, number]>([0, 100]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -27,6 +46,24 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
   }, []);
 
   useEffect(() => {
+    const applyUrlParams = (min: number, max: number) => {
+      const minPriceParam = searchParams.get("minPrice");
+      const maxPriceParam = searchParams.get("maxPrice");
+      const sizesParam = searchParams.get("sizes");
+      setValue(
+        minPriceParam && maxPriceParam
+          ? [parseInt(minPriceParam), parseInt(maxPriceParam)]
+          : [min, max]
+      );
+      setSelectedSizes(sizesParam ? sizesParam.split(",") : []);
+    };
+
+    // Server pre-fetched the facets — just apply URL params, skip the fetch.
+    if (initialFacets) {
+      applyUrlParams(initialFacets.price.minPrice ?? 0, initialFacets.price.maxPrice ?? 100);
+      return;
+    }
+
     const fetchData = async () => {
       try {
         const [colors, priceData, sizes] = await Promise.all([
@@ -41,29 +78,14 @@ const FilterSection = ({ categoryName }: { categoryName: string }) => {
         setFilterColors(colors);
         setFilterSizes(sizes);
         setPriceRange([min, max]);
-
-        const minPriceParam = searchParams.get("minPrice");
-        const maxPriceParam = searchParams.get("maxPrice");
-        const sizesParam = searchParams.get("sizes");
-        
-        setValue(
-          minPriceParam && maxPriceParam
-            ? [parseInt(minPriceParam), parseInt(maxPriceParam)]
-            : [min, max]
-        );
-
-        if (sizesParam) {
-          setSelectedSizes(sizesParam.split(','));
-        } else {
-          setSelectedSizes([]);
-        }
+        applyUrlParams(min, max);
       } catch (error) {
         console.error("Error fetching filter data:", error);
       }
     };
 
     fetchData();
-  }, [categoryName, searchParams]);
+  }, [categoryName, searchParams, initialFacets]);
 
   useEffect(() => {
     setIsMobileMenuOpen(searchParams.get("filter") === "open");

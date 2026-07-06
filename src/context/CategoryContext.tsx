@@ -8,16 +8,32 @@ import {
   useRef,
   ReactNode,
   useCallback,
+  RefObject,
 } from "react";
+import { useScrollContainer } from "@/context/ScrollContext";
 import { useParams, useSearchParams } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/firebase/config";
 import { getProductsByCategory, getCategoryById } from "@/actions/actions";
 
 // Helper to serialize Firestore Timestamps
-const serializeProduct = (product) => ({
+// Raw Firestore docs may hold Timestamp objects here, so type loosely for serialization
+const serializeProduct = (product: any) => ({
   ...product,
   createdDate: product.createdDate ? product.createdDate.toMillis() : null,
   updatedDate: product.updatedDate ? product.updatedDate.toMillis() : null,
 });
+
+export interface CategoryInitialData {
+  products: any[];
+  totalCount: number;
+  currentCategory: any;
+  subCategoriesDetails: any[];
+  /** id of the last product in the seeded first page — used to rebuild the
+   *  pagination cursor on the first `loadMore` (admin snapshots can't cross
+   *  the RSC boundary, so we pass an id and fetch the snapshot client-side). */
+  lastProductId: string | null;
+}
 
 interface CategoryState {
   products: any[];
@@ -25,6 +41,7 @@ interface CategoryState {
   currentCategory: any;
   subCategoriesDetails: any[];
   lastDoc: any;
+  lastProductId: string | null;
   hasMore: boolean;
   scrollPosition: number;
 }
@@ -36,33 +53,57 @@ interface CategoryContextProps extends CategoryState {
   ITEMS_PER_PAGE: number;
   loadMoreProducts: () => void;
   setScrollPosition: (position: number) => void;
+  scrollContainerRef: RefObject<HTMLDivElement | null>;
 }
 
 const CategoryContext = createContext<CategoryContextProps | undefined>(
   undefined
 );
 
-export const CategoryProvider = ({ children }: { children: ReactNode }) => {
-
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+export const CategoryProvider = ({
+  children,
+  initialData,
+}: {
+  children: ReactNode;
+  initialData?: CategoryInitialData;
+}) => {
+  const { scrollContainerRef } = useScrollContainer();
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const ITEMS_PER_PAGE = 10;
 
-  const [state, setState] = useState<CategoryState>({
-    products: [],
-    totalCount: 0,
-    currentCategory: null,
-    subCategoriesDetails: [],
-    lastDoc: null,
-    hasMore: true,
-    scrollPosition: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<CategoryState>(() =>
+    initialData
+      ? {
+          products: initialData.products,
+          totalCount: initialData.totalCount,
+          currentCategory: initialData.currentCategory,
+          subCategoriesDetails: initialData.subCategoriesDetails,
+          lastDoc: null,
+          lastProductId: initialData.lastProductId,
+          hasMore: initialData.products.length === ITEMS_PER_PAGE,
+          scrollPosition: 0,
+        }
+      : {
+          products: [],
+          totalCount: 0,
+          currentCategory: null,
+          subCategoriesDetails: [],
+          lastDoc: null,
+          lastProductId: null,
+          hasMore: true,
+          scrollPosition: 0,
+        }
+  );
+  const [loading, setLoading] = useState(!initialData);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const cacheRef = useRef<Record<string, CategoryState>>({});
+  // When seeded with server-prefetched data, skip the FIRST client fetch
+  // (initialData already reflects the current id + searchParams). Subsequent
+  // id/searchParams changes fetch normally.
+  const seededRef = useRef(!!initialData);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -74,7 +115,6 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
 
     // Use cached data if available (including scroll position)
     if (cacheRef.current[cacheKey]) {
-      console.log('Loading from cache, scroll position:', cacheRef.current[cacheKey].scrollPosition);
       setState(cacheRef.current[cacheKey]);
       setLoading(false);
       return;
@@ -106,24 +146,28 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
 
       let subCategories = [];
       if (productsData.categories?.subCategories?.length) {
-        subCategories = (await Promise.all(
-          productsData.categories.subCategories.map((subId) => getCategoryById(subId))
-        )).filter(Boolean);
+        subCategories = (
+          await Promise.all(
+            productsData.categories.subCategories.map((subId: string) =>
+              getCategoryById(subId)
+            )
+          )
+        ).filter(Boolean);
       }
-      
+
       const newState = {
         products: productsData.products.map(serializeProduct),
         totalCount: productsData.totalCount,
         currentCategory: categoryDetails,
         subCategoriesDetails: subCategories,
         lastDoc: productsData.lastVisible,
+        lastProductId: null,
         hasMore: productsData.products.length === ITEMS_PER_PAGE,
         scrollPosition: 0, // Reset scroll position for new data
       };
 
       setState(newState);
       cacheRef.current[cacheKey] = newState; // Cache the new state
-      console.log('Fresh data loaded, scroll position reset to 0');
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
@@ -132,6 +176,10 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
   }, [id, searchParams]);
 
   useEffect(() => {
+    if (seededRef.current) {
+      seededRef.current = false;
+      return; // server already pre-fetched the first page
+    }
     fetchData();
   }, [fetchData]);
 
@@ -146,8 +194,21 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
       const color = searchParams.get("color");
       const sizes = searchParams.get("sizes");
 
+      // Rebuild the cursor: prefer the last snapshot; otherwise reconstruct
+      // it from the seeded last product id (first loadMore after a seed).
+      let cursorDoc: any = state.lastDoc;
+      if (!cursorDoc && state.lastProductId) {
+        cursorDoc = await getDoc(doc(db, "products", state.lastProductId));
+      }
+      if (!cursorDoc) {
+        return; // nothing to paginate from
+      }
+
       const { products: newProducts, lastVisible } = await getProductsByCategory(
-        id, ITEMS_PER_PAGE, state.lastDoc, sortBy,
+        id,
+        ITEMS_PER_PAGE,
+        cursorDoc,
+        sortBy,
         minPrice ? parseInt(minPrice) : undefined,
         maxPrice ? parseInt(maxPrice) : undefined,
         color || "",
@@ -164,6 +225,7 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
           ...prev,
           products: [...prev.products, ...uniqueNew],
           lastDoc: lastVisible,
+          lastProductId: null, // real cursor now held in lastDoc
           hasMore: newProducts.length === ITEMS_PER_PAGE,
           // Keep the existing scroll position when loading more
         };
@@ -180,18 +242,18 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoadingMore(false);
     }
-  }, [id, searchParams, loadingMore, state.hasMore, state.lastDoc]);
+  }, [id, searchParams, loadingMore, state.hasMore, state.lastDoc, state.lastProductId]);
 
   const setScrollPosition = useCallback((position: number) => {
     setState((prev) => {
       const updatedState = { ...prev, scrollPosition: position };
-      
+
       // Update cache with new scroll position
       const params = new URLSearchParams(searchParams);
       params.sort();
       const cacheKey = `${id}?${params.toString()}`;
       cacheRef.current[cacheKey] = updatedState;
-      
+
       return updatedState;
     });
   }, [id, searchParams]);
