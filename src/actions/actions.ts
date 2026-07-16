@@ -507,6 +507,29 @@ export const getUserAddresses = async (
   }
 };
 
+const getOrderTimeMs = (order: Record<string, unknown>): number => {
+  const readTime = (value: unknown): number | null => {
+    if (!value) return null;
+    if (typeof value === "object" && value !== null) {
+      const ts = value as { toDate?: () => Date; seconds?: number };
+      if (typeof ts.toDate === "function") return ts.toDate().getTime();
+      if (typeof ts.seconds === "number") return ts.seconds * 1000;
+    }
+    if (typeof value === "string") {
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? null : parsed;
+    }
+    if (typeof value === "number") return value;
+    return null;
+  };
+
+  return (
+    readTime(order.createdAt) ??
+    readTime(order.timestamp) ??
+    0
+  );
+};
+
 export const getUserOrders = async (
   userId: string
 ): Promise<Order[]> => {
@@ -526,7 +549,9 @@ export const getUserOrders = async (
       ...doc.data() as Omit<Order, 'id'> // Spread the rest of the order data
     }));
 
-    return orders;
+    return orders.sort(
+      (a, b) => getOrderTimeMs(b as Record<string, unknown>) - getOrderTimeMs(a as Record<string, unknown>)
+    );
   } catch (error) {
     console.error("Error fetching user orders:", error);
     return []; // Return empty array in case of error

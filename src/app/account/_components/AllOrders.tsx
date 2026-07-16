@@ -102,16 +102,22 @@ const AllOrders = () => {
     setFilteredOrders(result);
   };
 
+  const getOrderDate = (order: OrderType) => {
+    const ts = order.createdAt;
+    if (ts?.seconds) {
+      return new Date(ts.seconds * 1000 + (ts.nanoseconds || 0) / 1000000);
+    }
+    const fallback = (order as OrderType & { timestamp?: { seconds?: number } })
+      .timestamp;
+    if (fallback?.seconds) {
+      return new Date(fallback.seconds * 1000);
+    }
+    return null;
+  };
+
   const handleStatusChange = (status: string) => {
     setSelectedStatus(status);
     setFilterOpen(false);
-  };
-
-  const convertTimestampToDate = (timestamp: {
-    seconds: number;
-    nanoseconds: number;
-  }) => {
-    return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
   };
 
   // Function to get status color classes
@@ -219,11 +225,10 @@ const AllOrders = () => {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Order Date</span>
                   <span className="text-gray-600">
-                    {order.createdAt
-                      ? convertTimestampToDate(
-                          order.createdAt
-                        ).toLocaleDateString()
-                      : "-"}
+                    {(() => {
+                      const date = getOrderDate(order);
+                      return date ? date.toLocaleDateString() : "-";
+                    })()}
                   </span>
                 </div>
               </div>
