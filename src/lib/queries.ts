@@ -73,10 +73,22 @@ export async function getAllCategoriesServer(): Promise<Category[]> {
       const snap = await getAdminDb()
         .collection("categories")
         .where("active", "==", true)
-        .orderBy("categoryName", "asc")
-        .orderBy("order", "asc")
         .get();
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Category[];
+      const categories = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as Category[];
+      // Sort by the admin-controlled `order` field (set via the backoffice
+      // rearrange tool). Done client-side because `order` is optional — a
+      // Firestore orderBy on it could drop docs missing the field and would
+      // need a composite (active, order) index. Categories without an `order`
+      // sort last, with name as a stable tiebreaker.
+      return categories.sort((a, b) => {
+        const ao = typeof a.order === "number" ? a.order : Infinity;
+        const bo = typeof b.order === "number" ? b.order : Infinity;
+        if (ao !== bo) return ao - bo;
+        return (a.categoryName || "").localeCompare(b.categoryName || "");
+      });
     } catch (error) {
       console.error("Error fetching categories:", error);
       return [];

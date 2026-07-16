@@ -35,6 +35,7 @@ interface Category {
   images: string[];
   isSubcategory: boolean;
   mobileBanner: string | null;
+  order?: number;
   parentCategory: {
     categoryId: string;
     categoryName: string;
@@ -438,17 +439,24 @@ export const getAllCategories = async (): Promise<Category[]> =>
   try {
     const categoriesQuery = query(
       collection(db, "categories"),
-      orderBy("categoryName", "asc"), // Optional: sort by name
-           where("active", "==", true),
-             orderBy("order", "asc"),   
+      where("active", "==", true)
     );
-    
+
     const querySnapshot = await getDocs(categoriesQuery);
-    
-    return querySnapshot.docs.map(doc => ({
+
+    const categories = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     })) as Category[];
+
+    // Sort by the admin-controlled `order` field (set via the backoffice
+    // rearrange tool); categories without an `order` sort last, name breaks ties.
+    return categories.sort((a, b) => {
+      const ao = typeof a.order === "number" ? a.order : Infinity;
+      const bo = typeof b.order === "number" ? b.order : Infinity;
+      if (ao !== bo) return ao - bo;
+      return (a.categoryName || "").localeCompare(b.categoryName || "");
+    });
   } catch (error) {
     console.error("Error fetching categories:", error);
     return [];
