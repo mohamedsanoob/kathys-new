@@ -324,7 +324,9 @@ const CheckoutPageContent = () => {
           (addr) => addr.id === selectedAddress
         );
         if (!address) throw new Error("Selected address not found");
-        orderData = address;
+        // Merge the order note typed in the saved-address step (held in form
+        // state) so it flows into `additional_info` like the guest flow does.
+        orderData = { ...address, notes: getValues("notes") || "" };
       } else {
         orderData = getValues();
       }

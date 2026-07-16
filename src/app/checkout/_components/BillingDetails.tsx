@@ -90,6 +90,7 @@ const BillingDetails = ({
                   selectedAddress={selectedAddress}
                   setSelectedAddress={setSelectedAddress}
                   setShowAddressForm={setShowAddressForm}
+                  register={register}
                 />
               ) : (
                 <div className="lg:mt-5 mt-0">

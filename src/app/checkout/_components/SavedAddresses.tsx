@@ -6,13 +6,15 @@ interface SavedAddressesProps {
   selectedAddress: string | null | undefined;
   setSelectedAddress: (value: string | null) => void;
   setShowAddressForm: (value: boolean) => void;
+  register?: any;
 }
 
 const SavedAddresses = ({
   savedAddresses,
   selectedAddress,
   setSelectedAddress,
-  setShowAddressForm
+  setShowAddressForm,
+  register,
 }: SavedAddressesProps) => {
   return (
     <div className="space-y-4">
@@ -56,6 +58,19 @@ const SavedAddresses = ({
       >
         + Add New Address
       </button>
+
+      {register && (
+        <div className="mt-6">
+          <label className="block text-sm font-medium mb-1">
+            Order notes (optional)
+          </label>
+          <textarea
+            className="w-full border border-gray-300 px-3 py-2 rounded min-h-[100px]"
+            placeholder="Notes about your order, e.g. special notes for delivery"
+            {...register("notes")}
+          />
+        </div>
+      )}
     </div>
   );
 };

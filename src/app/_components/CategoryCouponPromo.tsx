@@ -6,6 +6,7 @@ import { Copy, Sparkles, Tag, ChevronRight } from "lucide-react";
 import { toast } from "react-toastify";
 import { useCategoryCouponPromos } from "@/hooks/useCategoryCouponPromos";
 import type { CategoryCouponPromo } from "@/lib/categoryCouponPromos";
+import DiscountOfferTag from "./DiscountOfferTag";
 
 type PromoVariant = "banner" | "badge" | "ribbon";
 
@@ -76,11 +77,11 @@ const CategoryCouponPromo = ({
         className={`absolute top-2 right-2 z-20 pointer-events-none ${className}`}
       >
         <div className="relative">
-          <span className="absolute inset-0 rounded-full bg-amber-400/40 animate-ping" />
-          <span className="relative inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] md:text-xs font-bold text-white bg-gradient-to-r from-[#1e6553] via-emerald-500 to-[#1e6553] bg-[length:200%_100%] animate-[shimmer_2.5s_ease-in-out_infinite] shadow-lg">
+          <span className="absolute inset-0 rounded-full bg-red-400/40 animate-ping" />
+          <DiscountOfferTag className="relative gap-1 rounded-full shadow-lg">
             <Sparkles className="h-3 w-3 shrink-0" />
             {active.discountLabel}
-          </span>
+          </DiscountOfferTag>
         </div>
       </motion.div>
     );
@@ -99,7 +100,7 @@ const CategoryCouponPromo = ({
           e.stopPropagation();
           copyCode(active.code);
         }}
-        className={`absolute top-2 left-2 z-20 flex items-center gap-1 px-2 py-1 rounded-md text-[10px] md:text-xs font-bold text-white bg-gradient-to-r from-[#1e6553] to-emerald-600 shadow-md ring-2 ring-white/30 ${className}`}
+        className={`discount-offer-tag absolute top-2 left-2 z-20 flex items-center gap-1 rounded-md px-2 py-1 text-[10px] md:text-xs ring-2 ring-white/40 ${className}`}
       >
         <Tag className="h-3 w-3 shrink-0 animate-pulse" />
         <AnimatePresence mode="wait">
@@ -121,10 +122,10 @@ const CategoryCouponPromo = ({
     <motion.div
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative overflow-hidden rounded-xl ${className}`}
+      className={`relative overflow-hidden rounded-xl border border-red-300/40 ${className}`}
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-[#1e6553]/10 via-emerald-100/80 to-[#1e6553]/10 animate-[shimmer_3s_ease-in-out_infinite] bg-[length:200%_100%]" />
-      <div className="absolute inset-0 border border-[#1e6553]/25 rounded-xl pointer-events-none" />
+      <div className="absolute inset-0 discount-offer-banner-bg pointer-events-none" />
+      <div className="absolute inset-0 border border-red-400/20 rounded-xl pointer-events-none" />
 
       <button
         type="button"
@@ -135,23 +136,24 @@ const CategoryCouponPromo = ({
           <motion.div
             animate={{ rotate: [0, 8, -8, 0] }}
             transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-            className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#1e6553] to-emerald-500 text-white shadow-md"
+            className="discount-offer-tag shrink-0 flex h-10 w-10 items-center justify-center rounded-full shadow-md"
           >
             <Sparkles className="h-5 w-5" />
           </motion.div>
 
           <div className="min-w-0 flex-1">
             <AnimatePresence mode="wait">
-              <motion.p
+              <motion.div
                 key={active.code}
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -12 }}
                 transition={{ duration: 0.3 }}
-                className="text-sm md:text-base font-bold text-[#1e6553] tracking-tight"
               >
-                {promoHeadline(active)}
-              </motion.p>
+                <DiscountOfferTag className="mb-1.5 rounded-md px-2.5 py-1 text-xs md:text-sm normal-case">
+                  {promoHeadline(active)}
+                </DiscountOfferTag>
+              </motion.div>
             </AnimatePresence>
             <p className="text-xs text-gray-600 mt-0.5 truncate">
               Tap to view code
@@ -162,7 +164,7 @@ const CategoryCouponPromo = ({
           <motion.span
             animate={{ x: [0, 4, 0] }}
             transition={{ repeat: Infinity, duration: 1.5 }}
-            className="shrink-0 text-[#1e6553]"
+            className="shrink-0 text-red-600"
           >
             <ChevronRight
               className={`h-5 w-5 transition-transform ${expanded ? "rotate-90" : ""}`}
@@ -178,7 +180,7 @@ const CategoryCouponPromo = ({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="relative overflow-hidden border-t border-[#1e6553]/15 bg-white/70 backdrop-blur-sm"
+            className="relative overflow-hidden border-t border-red-200/80 bg-white/80 backdrop-blur-sm"
           >
             <div className="p-3 space-y-2">
               {promos.map((promo) => {
@@ -186,16 +188,14 @@ const CategoryCouponPromo = ({
                 return (
                   <div
                     key={promo.code}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-[#1e6553]/20 bg-white px-3 py-2.5 shadow-sm"
+                    className="discount-offer-surface flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 shadow-sm"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 relative z-[1]">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-bold text-[#1e6553] tracking-wider">
+                        <span className="font-bold text-red-700 tracking-wider">
                           {promo.code}
                         </span>
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                          {promo.discountLabel}
-                        </span>
+                        <DiscountOfferTag>{promo.discountLabel}</DiscountOfferTag>
                       </div>
                       {promo.description && (
                         <p className="text-xs text-gray-600 mt-1 line-clamp-2">
@@ -213,7 +213,7 @@ const CategoryCouponPromo = ({
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => copyCode(promo.code)}
-                      className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-[#1e6553] text-white hover:bg-[#1a5947] transition-colors"
+                      className="discount-offer-tag relative z-[1] shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs"
                     >
                       <Copy className="h-3.5 w-3.5" />
                       {copied ? "Copied!" : "Copy"}
