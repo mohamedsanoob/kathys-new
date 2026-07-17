@@ -163,6 +163,8 @@ const CheckoutPageContent = () => {
   // Restock immediately when the user returns via browser back (no PhonePe redirect)
   useEffect(() => {
     const releaseAbandonedOrder = async () => {
+      // Clear the payment loader if the page was frozen (bfcache) on Back.
+      setIsProcessingPayment(false);
       const status = searchParams.get("status");
       if (status === "success") return;
 

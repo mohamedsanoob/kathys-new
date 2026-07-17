@@ -56,8 +56,16 @@ const Page = () => {
     );
   }
 
-  const itemsTotal = order.items_total;
-  const deliveryFee = order.delivery;
+  // Defensive defaults — order docs can be partial (abandoned/old/malformed),
+  // and without these any missing field throws during render.
+  const customerDetails = order.customer_details || {};
+  const quantityEach = Array.isArray(order.quantity_each)
+    ? order.quantity_each
+    : [];
+  const orderStatus = order.status || "created";
+
+  const itemsTotal = Number(order.items_total) || 0;
+  const deliveryFee = Number(order.delivery) || 0;
   const grandTotal = (itemsTotal + deliveryFee).toFixed(2);
 
   return (
@@ -82,7 +90,7 @@ const Page = () => {
         <div>
           <p className="text-sm font-medium text-gray-900">Order #{order.id}</p>
           <p className="text-sm text-gray-500 mt-1">
-            Placed on {formatDate(order.createdAt)}
+            Placed on {order.createdAt ? formatDate(order.createdAt) : "—"}
           </p>
         </div>
       </div>
@@ -182,7 +190,7 @@ const Page = () => {
           Order Items
         </h2>
         <div className="space-y-4">
-          {order.quantity_each.map((item: any) => (
+          {quantityEach.map((item: any) => (
             <div
               key={item.product_id}
               className="flex flex-row items-center gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -290,7 +298,7 @@ const Page = () => {
                   order.status === "paid" ? "text-green-600" : "text-yellow-600"
                 }`}
               >
-                {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                {orderStatus.charAt(0).toUpperCase() + orderStatus.slice(1)}
               </span>
             </p>
           </div>
@@ -304,24 +312,24 @@ const Page = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">Name</h3>
-            <p className="text-gray-900">{order.customer_details.name}</p>
+            <p className="text-gray-900">{customerDetails.name}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">Email</h3>
-            <p className="text-gray-900">{order.customer_details.email}</p>
+            <p className="text-gray-900">{customerDetails.email}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">Phone</h3>
             <p className="text-gray-900">
-              {order.customer_details.mobile_number}
+              {customerDetails.mobile_number}
             </p>
           </div>
           <div className="sm:col-span-2">
             <h3 className="text-sm font-medium text-gray-500 mb-1">Address</h3>
-            <p className="text-gray-900">{order.customer_details.address}</p>
+            <p className="text-gray-900">{customerDetails.address}</p>
             <p className="text-gray-900">
-              {order.customer_details.locality_area}, {order.customer_details.city},{" "}
-              {order.customer_details.state} - {order.customer_details.pincode}
+              {customerDetails.locality_area}, {customerDetails.city},{" "}
+              {customerDetails.state} - {customerDetails.pincode}
             </p>
           </div>
         </div>

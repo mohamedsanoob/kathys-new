@@ -110,7 +110,7 @@ const OrderSummary = ({
                 <tr key={index} className="border-b border-gray-100">
                   <td className="text-start py-3 text-sm">
                     {product.productName} -{" "}
-                    {product.variantDetails.combination.map((c) => c.value).join(", ")} × {product.quantity}
+                    {(product.variantDetails?.combination || []).map((c) => c.value).join(", ")} × {product.quantity}
                   </td>
                   <td className="text-end py-3 text-sm">
                     ₹{((product?.variantDetails?.discountedPrice || product?.variantDetails?.price) * product.quantity).toFixed(2)}
