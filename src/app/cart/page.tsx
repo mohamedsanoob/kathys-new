@@ -47,7 +47,7 @@ const CartPage = () => {
   const [cartProducts, setCartProducts] = useState<CartProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   useCart();
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
 
   const {
     couponInput,
@@ -59,7 +59,7 @@ const CartPage = () => {
     handleRemoveCoupon,
     applyCouponByCode,
     couponDiscount,
-  } = useCartCoupon(cartProducts, !isLoading, currentUser?.uid);
+  } = useCartCoupon(cartProducts, !isLoading && !authLoading, currentUser?.uid);
 
   const fetchCartProducts = useCallback(async () => {
     setIsLoading(true);
@@ -73,9 +73,11 @@ const CartPage = () => {
     }
   }, []);
 
+  // Wait for auth so logged-in users don't load guest-carts/{guestCartId} first
   useEffect(() => {
+    if (authLoading) return;
     fetchCartProducts();
-  }, [fetchCartProducts]);
+  }, [authLoading, currentUser?.uid, fetchCartProducts]);
 
   const handleRemoveProduct = async (productId: string, sku?: string) => {
     try {

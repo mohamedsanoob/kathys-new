@@ -12,6 +12,7 @@ import {
   setDoc,
   startAfter,
   updateDoc,
+  deleteDoc,
   where,
   DocumentSnapshot,
   serverTimestamp,
@@ -116,6 +117,138 @@ interface CartData {
   products: CartProduct[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+type StoredCartLine = {
+  productId?: string;
+  quantity?: number;
+  variantDetails?: {
+    sku?: string;
+    combination?: { name: string; value: string | { name?: string } }[];
+  };
+};
+
+/**
+ * Resolve which Firestore cart doc to use. Must stay consistent across
+ * add / get / update / remove — never mix guestCartId with a logged-in uid.
+ */
+export function resolveCartTarget(user = auth.currentUser): {
+  cartId: string | null;
+  collectionName: "carts" | "guest-carts";
+  isGuest: boolean;
+} | null {
+  const isLoggedIn = !!(user && !user.isAnonymous);
+  if (isLoggedIn) {
+    return {
+      cartId: user!.uid,
+      collectionName: "carts",
+      isGuest: false,
+    };
+  }
+
+  if (typeof window === "undefined") return null;
+  const guestId = localStorage.getItem("guestCartId");
+  if (!guestId) {
+    return { cartId: null, collectionName: "guest-carts", isGuest: true };
+  }
+  return {
+    cartId: guestId,
+    collectionName: "guest-carts",
+    isGuest: true,
+  };
+}
+
+function ensureGuestCartId(): string {
+  let guestId = localStorage.getItem("guestCartId");
+  if (!guestId) {
+    guestId = crypto.randomUUID();
+    localStorage.setItem("guestCartId", guestId);
+  }
+  return guestId;
+}
+
+function cartLineSku(line?: { sku?: string } | null): string {
+  return String(line?.sku ?? "").trim();
+}
+
+function cartCombinationsMatch(
+  a?: { name: string; value: string | { name?: string } }[],
+  b?: { name: string; value: string | { name?: string } }[]
+): boolean {
+  if (!Array.isArray(a) || !Array.isArray(b) || !a.length || !b.length) {
+    return false;
+  }
+  if (a.length !== b.length) return false;
+  return a.every((opt) =>
+    b.some(
+      (other) =>
+        other.name === opt.name &&
+        normalizeOptionValue(other.value) === normalizeOptionValue(opt.value)
+    )
+  );
+}
+
+/**
+ * Match a stored cart line to a product (+ optional variant).
+ * Prefer SKU, then combination; non-variant lines match by productId only.
+ */
+function cartLinesAreSame(
+  existing: StoredCartLine,
+  productId: string,
+  incomingVariant?: {
+    sku?: string;
+    combination?: { name: string; value: string | { name?: string } }[];
+  } | null
+): boolean {
+  if (existing.productId !== productId) return false;
+
+  const existingSku = cartLineSku(existing.variantDetails);
+  const incomingSku = cartLineSku(incomingVariant);
+
+  // Both non-variant (no sku)
+  if (!existingSku && !incomingSku) return true;
+
+  if (existingSku && incomingSku) {
+    return existingSku === incomingSku;
+  }
+
+  // Fallback: same combination when one side lacks sku
+  if (
+    cartCombinationsMatch(
+      existing.variantDetails?.combination,
+      incomingVariant?.combination
+    )
+  ) {
+    return true;
+  }
+
+  // One has sku and the other doesn't → different lines
+  return false;
+}
+
+/** Collapse duplicate lines that share the same productId + variant. */
+function dedupeCartLines(products: StoredCartLine[]): StoredCartLine[] {
+  const merged: StoredCartLine[] = [];
+  for (const line of products) {
+    if (!line?.productId) continue;
+    const idx = merged.findIndex((m) =>
+      cartLinesAreSame(m, line.productId!, line.variantDetails)
+    );
+    if (idx >= 0) {
+      merged[idx] = {
+        ...merged[idx],
+        quantity:
+          (Number(merged[idx].quantity) || 0) + (Number(line.quantity) || 0),
+        variantDetails:
+          merged[idx].variantDetails?.sku || merged[idx].variantDetails?.combination
+            ? merged[idx].variantDetails
+            : line.variantDetails || merged[idx].variantDetails,
+      };
+    } else {
+      merged.push({ ...line });
+    }
+  }
+  return merged;
 }
 
 /** Normalize variant option values (string or { name, hex } object). */
@@ -840,71 +973,118 @@ export const addProductToCart = async ({
   quantity: number;
 }): Promise<void> => {
   try {
-    console.log("coming inside",variantDetails,productId,quantity);
     const user = auth.currentUser;
-    const isLoggedIn = user && !user.isAnonymous;
-
-    const cartId = isLoggedIn
-      ? user.uid
-      : localStorage.getItem("guestCartId") || crypto.randomUUID();
-
-    if (!isLoggedIn) {
-      localStorage.setItem("guestCartId", cartId);
-    }
-
-    const cartRef = doc(db, `${isLoggedIn ? "" : "guest-"}carts`, cartId);
+    const isLoggedIn = !!(user && !user.isAnonymous);
+    const cartId = isLoggedIn ? user!.uid : ensureGuestCartId();
+    const cartRef = doc(
+      db,
+      isLoggedIn ? "carts" : "guest-carts",
+      cartId
+    );
     const cartSnapshot = await getDoc(cartRef);
+
+    const newLine: StoredCartLine = variantDetails
+      ? { productId, quantity, variantDetails }
+      : { productId, quantity };
 
     if (!cartSnapshot.exists()) {
       await setDoc(cartRef, {
         userId: isLoggedIn ? cartId : null,
-        products: [variantDetails !==undefined ? { productId, quantity, variantDetails }:{ productId, quantity }],
+        products: [newLine],
         createdAt: new Date(),
         updatedAt: new Date(),
       });
       return;
     }
 
-
-
-
-    const { products } = cartSnapshot.data() as CartData;
-        console.log(products,variantDetails,"adwsdc",productId)
-    const existingProductIndex = products.findIndex(
-      (p) => 
-       variantDetails !==undefined ? p.productId === productId &&  p.variantDetails?.sku===variantDetails?.sku :
-        p.productId === productId 
+    const { products = [] } = cartSnapshot.data() as CartData;
+    const existingProductIndex = products.findIndex((p) =>
+      cartLinesAreSame(p, productId, variantDetails)
     );
 
-
-
-
-
-    let newQuantity;
+    let updatedProducts: StoredCartLine[];
     if (existingProductIndex >= 0) {
-      newQuantity = products[existingProductIndex].quantity + quantity;
+      updatedProducts = products.map((product, index) =>
+        index === existingProductIndex
+          ? {
+              ...product,
+              quantity: (Number(product.quantity) || 0) + quantity,
+              variantDetails:
+                product.variantDetails || variantDetails || undefined,
+            }
+          : product
+      );
     } else {
-      newQuantity = quantity;
+      updatedProducts = [...products, newLine];
     }
 
-    const updatedProducts =
-      existingProductIndex >= 0
-        ? products.map((product, index) =>
-            index === existingProductIndex
-              ? { ...product, quantity: newQuantity }
-              : product
-          )
-        : [...products,   variantDetails !==undefined ? { productId, quantity, variantDetails }:{ productId, quantity }];
-
-    console.log(updatedProducts, "updatedProducts");
-
     await updateDoc(cartRef, {
-      products: updatedProducts,
+      products: dedupeCartLines(updatedProducts),
       updatedAt: new Date(),
     });
   } catch (error) {
     console.error("Error managing cart:", error);
     throw error;
+  }
+};
+
+/**
+ * After phone login: merge guest-carts/{guestCartId} into carts/{uid},
+ * then delete the guest cart and clear localStorage.
+ */
+export async function mergeGuestCartIntoUserCart(
+  userId: string
+): Promise<void> {
+  if (typeof window === "undefined" || !userId) return;
+
+  const guestId = localStorage.getItem("guestCartId");
+  if (!guestId) return;
+
+  try {
+    const guestRef = doc(db, "guest-carts", guestId);
+    const userRef = doc(db, "carts", userId);
+    const [guestSnap, userSnap] = await Promise.all([
+      getDoc(guestRef),
+      getDoc(userRef),
+    ]);
+
+    const guestProducts: StoredCartLine[] = guestSnap.exists()
+      ? ((guestSnap.data() as CartData).products || [])
+      : [];
+
+    if (!guestProducts.length) {
+      localStorage.removeItem("guestCartId");
+      if (guestSnap.exists()) {
+        await deleteDoc(guestRef).catch(() => {});
+      }
+      return;
+    }
+
+    const userProducts: StoredCartLine[] = userSnap.exists()
+      ? ((userSnap.data() as CartData).products || [])
+      : [];
+
+    const merged = dedupeCartLines([...userProducts, ...guestProducts]);
+
+    if (userSnap.exists()) {
+      await updateDoc(userRef, {
+        products: merged,
+        updatedAt: new Date(),
+      });
+    } else {
+      await setDoc(userRef, {
+        userId,
+        products: merged,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
+    await deleteDoc(guestRef).catch(() => {});
+    localStorage.removeItem("guestCartId");
+    window.dispatchEvent(new Event("cart-updated"));
+  } catch (error) {
+    console.error("Failed to merge guest cart:", error);
   }
 };
 
@@ -1063,19 +1243,24 @@ export const getBuyNowCartProducts = async (): Promise<CartReturn[]> => {
 };
 
 export async function getCartProducts() {
-  const user = auth.currentUser;
-  const cartId = user?.uid || localStorage.getItem("guestCartId");
-
-  if (!cartId) return [];
+  const target = resolveCartTarget();
+  if (!target?.cartId) return [];
 
   try {
-    const isGuest = !user || user.isAnonymous;
-    const cartRef = doc(db, `${isGuest ? "guest-" : ""}carts`, cartId);
+    const cartRef = doc(db, target.collectionName, target.cartId);
     const cartSnapshot = await getDoc(cartRef);
     
     if (!cartSnapshot.exists()) return [];
     
-    const cartItems: CartProduct[] = cartSnapshot.data()?.products || [];
+    const rawItems: CartProduct[] = cartSnapshot.data()?.products || [];
+    // Heal duplicate lines left by older buggy add-to-cart matching
+    const cartItems = dedupeCartLines(rawItems) as CartProduct[];
+    if (cartItems.length !== rawItems.length) {
+      await updateDoc(cartRef, {
+        products: cartItems,
+        updatedAt: new Date(),
+      }).catch(() => {});
+    }
     const productIdsInCart = cartItems.map(item => item.productId).filter(Boolean) as string[];
 
     if (productIdsInCart.length === 0) return [];
@@ -1193,31 +1378,31 @@ export async function getCartProducts() {
  * updateCartItem and removeCartItem so both identify items the same way.
  */
 const cartItemMatches = (
-  product: { productId?: string; variantDetails?: { sku?: string } },
+  product: StoredCartLine,
   productId: string,
   variantSku?: string | null
 ): boolean => {
   if (product.productId !== productId) return false;
-  if (!product.variantDetails?.sku) return true;
-  return product.variantDetails.sku === variantSku;
+  const existingSku = cartLineSku(product.variantDetails);
+  // Non-variant lines are stored without a sku; UI may still pass product.skuId.
+  if (!existingSku) return true;
+  if (!variantSku) return true;
+  return existingSku === String(variantSku).trim();
 };
 
 export const removeCartItem = async (productId: string, variantSku?: string | null) => {
   try {
-    const user = auth.currentUser;
-    const cartId = user?.uid || localStorage.getItem("guestCartId");
-
-    if (!cartId) {
+    const target = resolveCartTarget();
+    if (!target?.cartId) {
       console.error("No cart ID found - user not logged in and no guest cart");
       throw new Error("Cart not found");
     }
 
-    const isGuest = !user || user.isAnonymous;
-    const cartRef = doc(db, `${isGuest ? "guest-" : ""}carts`, cartId);
+    const cartRef = doc(db, target.collectionName, target.cartId);
     const cartSnapshot = await getDoc(cartRef);
 
     if (!cartSnapshot.exists()) {
-      console.error(`Cart document ${cartId} doesn't exist`);
+      console.error(`Cart document ${target.cartId} doesn't exist`);
       throw new Error("Cart not found");
     }
 
@@ -1256,20 +1441,17 @@ export const updateCartItem = async (
   }[]
 ) => {
   try {
-    const user = auth.currentUser;
-    const cartId = user?.uid || localStorage.getItem("guestCartId");
-
-    if (!cartId) {
+    const target = resolveCartTarget();
+    if (!target?.cartId) {
       console.error("No cart ID found - user not logged in and no guest cart");
       throw new Error("Cart not found");
     }
 
-    const isGuest = !user || user.isAnonymous;
-    const cartRef = doc(db, `${isGuest ? "guest-" : ""}carts`, cartId);
+    const cartRef = doc(db, target.collectionName, target.cartId);
     const cartSnapshot = await getDoc(cartRef);
 
     if (!cartSnapshot.exists()) {
-      console.error(`Cart document ${cartId} doesn't exist`);
+      console.error(`Cart document ${target.cartId} doesn't exist`);
       throw new Error("Cart not found");
     }
 
@@ -1277,11 +1459,11 @@ export const updateCartItem = async (
     const updatedProducts = [...existingProducts];
 
     updates.forEach(({ productId, variantSku, quantity }) => {
-      const target = updatedProducts.find((p) =>
+      const line = updatedProducts.find((p) =>
         cartItemMatches(p, productId, variantSku)
       );
-      if (target) {
-        target.quantity = quantity;
+      if (line) {
+        line.quantity = quantity;
       } else {
         console.warn(
           `Cart item not found for update: productId=${productId}, sku=${variantSku ?? "(none)"}`
@@ -1289,8 +1471,10 @@ export const updateCartItem = async (
       }
     });
 
-    // Filter out any products with quantity <= 0
-    const filteredProducts = updatedProducts.filter(p => p.quantity > 0);
+    // Filter out any products with quantity <= 0 and collapse duplicates
+    const filteredProducts = dedupeCartLines(
+      updatedProducts.filter((p) => (p.quantity || 0) > 0)
+    );
 
     await updateDoc(cartRef, {
       products: filteredProducts,
