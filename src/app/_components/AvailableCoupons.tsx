@@ -8,7 +8,6 @@ import {
   type CouponCartItem,
 } from "@/lib/validateCartCoupon";
 import type { CouponStatus } from "@/app/_components/CouponField";
-import DiscountOfferTag from "@/app/_components/DiscountOfferTag";
 
 interface AvailableCouponsProps {
   cartItems: CouponCartItem[];
@@ -70,14 +69,14 @@ const AvailableCoupons = ({
   if (!cartReady || cartItems.length === 0) return null;
 
   return (
-    <div className="w-full border border-dashed border-red-300/40 rounded-md overflow-hidden discount-offer-surface">
+    <div className="w-full border border-gray-200 rounded-md overflow-hidden bg-white">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="relative z-[1] w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-red-50/80 hover:bg-red-100/80 transition-colors text-left"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
       >
         <span className="text-sm font-medium text-gray-800 flex items-center gap-2">
-          <Tag className="h-4 w-4 text-red-600" />
+          <Tag className="h-4 w-4 text-[#1e6553]" />
           Available coupons
           {!loading && coupons.length > 0 && (
             <span className="text-xs font-normal text-gray-500">
@@ -93,13 +92,13 @@ const AvailableCoupons = ({
       </button>
 
       {expanded && (
-        <div className="p-2 space-y-2 max-h-56 overflow-y-auto bg-white">
+        <div className="p-2 space-y-2 max-h-56 overflow-y-auto border-t border-gray-100">
           {loading ? (
             <div className="flex justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-red-600" />
+              <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
             </div>
           ) : error ? (
-            <p className="text-xs text-red-500 px-1 py-2">{error}</p>
+            <p className="text-xs text-gray-600 px-1 py-2">{error}</p>
           ) : coupons.length === 0 ? (
             <p className="text-xs text-gray-500 px-1 py-2">
               No active coupons right now.
@@ -115,17 +114,19 @@ const AvailableCoupons = ({
                   key={coupon.code}
                   className={`rounded-md border px-3 py-2.5 ${
                     coupon.applicable
-                      ? "discount-offer-surface border-red-300/40"
-                      : "border-gray-200 bg-gray-50 opacity-80"
+                      ? "border-gray-200 bg-white"
+                      : "border-gray-100 bg-gray-50 opacity-80"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1 relative z-[1]">
+                    <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-red-700 tracking-wide">
+                        <span className="text-sm font-semibold text-gray-900 tracking-wide">
                           {coupon.code}
                         </span>
-                        <DiscountOfferTag>{coupon.discountLabel}</DiscountOfferTag>
+                        <span className="text-xs font-medium text-[#1e6553]">
+                          {coupon.discountLabel}
+                        </span>
                       </div>
                       {coupon.description && (
                         <p className="text-xs text-gray-600 mt-1 line-clamp-2">
@@ -139,12 +140,12 @@ const AvailableCoupons = ({
                         {validTill && <span>Valid till {validTill}</span>}
                       </div>
                       {!coupon.applicable && coupon.message && (
-                        <p className="text-[11px] text-amber-700 mt-1">
+                        <p className="text-[11px] text-gray-500 mt-1">
                           {coupon.message}
                         </p>
                       )}
                       {coupon.applicable && coupon.discount > 0 && (
-                        <p className="text-[11px] text-red-600 mt-1">
+                        <p className="text-[11px] text-[#1e6553] mt-1">
                           Save ₹{coupon.discount.toFixed(2)} on this order
                         </p>
                       )}
@@ -159,9 +160,9 @@ const AvailableCoupons = ({
                       onClick={() => onSelectCoupon(coupon.code)}
                       className={`shrink-0 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                         isApplied
-                          ? "discount-offer-tag cursor-default"
+                          ? "bg-[#1e6553]/15 text-[#1e6553] cursor-default"
                           : coupon.applicable
-                            ? "discount-offer-tag hover:opacity-95"
+                            ? "bg-[#1e6553] text-white hover:bg-[#1a5947]"
                             : "bg-gray-200 text-gray-400 cursor-not-allowed"
                       }`}
                     >

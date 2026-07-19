@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getUserOrders } from "@/actions/actions";
+import { toDate } from "@/lib/dates";
 import { X, Filter, ArrowRight, ShoppingBag } from "lucide-react";
 import { Dialog, DialogContent } from "@mui/material";
 import Link from "next/link";
@@ -30,10 +31,7 @@ interface OrderType {
     discounted_price: number;
     variant_details: Record<string, string>;
   }>;
-  createdAt: {
-    seconds: number;
-    nanoseconds: number;
-  };
+  createdAt?: unknown;
   items_total: number;
   payment_mode: string;
 }
@@ -100,19 +98,6 @@ const AllOrders = () => {
     }
 
     setFilteredOrders(result);
-  };
-
-  const getOrderDate = (order: OrderType) => {
-    const ts = order.createdAt;
-    if (ts?.seconds) {
-      return new Date(ts.seconds * 1000 + (ts.nanoseconds || 0) / 1000000);
-    }
-    const fallback = (order as OrderType & { timestamp?: { seconds?: number } })
-      .timestamp;
-    if (fallback?.seconds) {
-      return new Date(fallback.seconds * 1000);
-    }
-    return null;
   };
 
   const handleStatusChange = (status: string) => {
@@ -226,8 +211,8 @@ const AllOrders = () => {
                   <span className="text-gray-500">Order Date</span>
                   <span className="text-gray-600">
                     {(() => {
-                      const date = getOrderDate(order);
-                      return date ? date.toLocaleDateString() : "-";
+                      const d = toDate(order.createdAt);
+                      return d ? d.toLocaleDateString() : "-";
                     })()}
                   </span>
                 </div>

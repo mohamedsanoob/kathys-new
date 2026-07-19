@@ -17,6 +17,7 @@ import type { Product } from "@/types/product";
 import type { Category } from "@/types/category";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { withCache } from "@/lib/cache";
+import { toMillis as toMillisShared } from "@/lib/dates";
 
 const MIN = 60 * 1000;
 const CHUNK = 10; // Firestore array-contains-any cap
@@ -27,14 +28,9 @@ function chunk<T>(arr: T[], size = CHUNK): T[][] {
   return out;
 }
 
-/** Convert a Firestore Timestamp (or {seconds,nanoseconds} / number) to epoch ms. */
+/** Convert a date-like value to epoch ms (0 when missing/invalid). */
 function toMs(t: unknown): number {
-  if (!t) return 0;
-  if (typeof t === "number") return t;
-  const ts = t as { toMillis?: () => number; seconds?: number; nanoseconds?: number };
-  if (typeof ts.toMillis === "function") return ts.toMillis();
-  if (typeof ts.seconds === "number") return ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6);
-  return 0;
+  return toMillisShared(t) ?? 0;
 }
 
 /** Strip Firestore-specific types so the product is serializable across the
@@ -199,7 +195,7 @@ export async function getCollectionsWithProductsServer(): Promise<CollectionWith
         categoryName: c.categoryName,
         description: c.description,
         isSubcategory: c.isSubcategory,
-        products: (buckets.get(c.id) || []).slice(0, 4),
+        products: (buckets.get(c.id) || []).slice(0, 4).map(serializeProduct),
       }));
     } catch (error) {
       console.error("Error fetching collections with products:", error);
@@ -372,8 +368,7 @@ export async function getProductsByCategoryServer(
     switch (sortBy) {
       case "latest":
         unique.sort(
-          (a, b) =>
-            (((b as any).createdDate?.seconds) || 0) - (((a as any).createdDate?.seconds) || 0)
+          (a, b) => (toMs((b as any).createdDate) || 0) - (toMs((a as any).createdDate) || 0)
         );
         break;
       case "price-low":
@@ -421,149 +416,178 @@ export async function getProductsByCategoryServer(
 
 // ── Category facets (filter UI) ──────────────────────────────────────
 
-/** Fetch the deduped active product set for a category + its subcategories. */
+/** Fetch the deduped product set for a category + its subcategories (cached). */
 async function fetchCategoryProducts(
   categoryId: string,
   opts: { onlyActive?: boolean } = {}
 ): Promise<any[]> {
-  const catSnap = await getAdminDb()
-    .collection("categories")
-    .where("id", "==", categoryId)
-    .limit(1)
-    .get();
-  if (catSnap.empty) return [];
-  const categoryData = catSnap.docs[0].data() as Record<string, unknown>;
-  const subCategories = (categoryData?.subCategories as string[]) || [];
-  const allCategoryIds = [categoryId, ...subCategories];
+  const onlyActive = !!opts.onlyActive;
+  return withCache(
+    `server-facet-products-${categoryId}-${onlyActive ? "active" : "all"}`,
+    5 * MIN,
+    async () => {
+      const catSnap = await getAdminDb()
+        .collection("categories")
+        .where("id", "==", categoryId)
+        .limit(1)
+        .get();
+      if (catSnap.empty) return [];
+      const categoryData = catSnap.docs[0].data() as Record<string, unknown>;
+      const subCategories = (categoryData?.subCategories as string[]) || [];
+      const allCategoryIds = [categoryId, ...subCategories];
 
-  const snaps = await Promise.all(
-    chunk(allCategoryIds).map((c) => {
-      let q: FirebaseFirestore.Query = getAdminDb()
-        .collection("products")
-        .where("categories", "array-contains-any", c);
-      if (opts.onlyActive) q = q.where("active", "==", true);
-      return q.get();
-    })
+      const snaps = await Promise.all(
+        chunk(allCategoryIds).map((c) => {
+          let q: FirebaseFirestore.Query = getAdminDb()
+            .collection("products")
+            .where("categories", "array-contains-any", c);
+          if (onlyActive) q = q.where("active", "==", true);
+          return q.get();
+        })
+      );
+      const all = snaps.flatMap((s) =>
+        s.docs.map((d) => ({ id: d.id, ...(d.data() as object) }))
+      );
+      return [...new Map(all.map((p) => [p.id, p])).values()];
+    }
   );
-  const all = snaps.flatMap((s) =>
-    s.docs.map((d) => ({ id: d.id, ...(d.data() as object) }))
-  );
-  return [...new Map(all.map((p) => [p.id, p])).values()];
+}
+
+export type CategoryFacetsServer = {
+  colors: { color: { name: string; hex: string }; count: number }[];
+  sizes: { size: string; count: number }[];
+  price: { minPrice: number | null; maxPrice: number | null };
+};
+
+/** One cached facet payload — avoids 3× full-product scans. */
+export async function getFacetsByCategoryServer(
+  categoryId: string
+): Promise<CategoryFacetsServer> {
+  return withCache(`server-facets-${categoryId}`, 5 * MIN, async () => {
+    try {
+      const [activeProducts, allProducts] = await Promise.all([
+        fetchCategoryProducts(categoryId, { onlyActive: true }),
+        fetchCategoryProducts(categoryId),
+      ]);
+
+      const colorCounts = new Map<
+        string,
+        { color: { name: string; hex: string }; count: number }
+      >();
+      activeProducts.forEach((product) => {
+        const productColorNames = new Set<string>();
+        const processColor = (name?: string) => {
+          if (!name) return;
+          const colorName = name.toLowerCase();
+          productColorNames.add(colorName);
+          if (!colorCounts.has(colorName)) {
+            colorCounts.set(colorName, { color: { name, hex: "#000000" }, count: 0 });
+          }
+        };
+        product.variants?.forEach((variant: any) => {
+          if (
+            variant.optionName?.toLowerCase() === "color" &&
+            Array.isArray(variant.optionValue)
+          ) {
+            variant.optionValue.forEach((v: string) => processColor(v));
+          }
+        });
+        product.variantDetails?.forEach((detail: any) => {
+          detail.combination?.forEach((combo: any) => {
+            if (combo.name?.toLowerCase() === "color" && combo?.value) {
+              processColor(combo.value);
+            }
+          });
+        });
+        productColorNames.forEach((colorName) => {
+          const cd = colorCounts.get(colorName);
+          if (cd) cd.count++;
+        });
+      });
+
+      const sizeCounts = new Map<string, number>();
+      let minPrice: number | null = null;
+      let maxPrice: number | null = null;
+
+      allProducts.forEach((product) => {
+        const productSizes = new Set<string>();
+        product.variants?.forEach((variant: any) => {
+          if (
+            variant.optionName?.toLowerCase() === "size" &&
+            Array.isArray(variant.optionValue)
+          ) {
+            variant.optionValue.forEach((v: string) => productSizes.add(v));
+          }
+        });
+        product.variantDetails?.forEach((detail: any) => {
+          detail.combination?.forEach((combo: any) => {
+            if (combo.name?.toLowerCase() === "size") productSizes.add(combo.value);
+          });
+        });
+        if (Array.isArray(product.sizes)) {
+          product.sizes.forEach((s: string) => {
+            if (s) productSizes.add(s);
+          });
+        }
+        productSizes.forEach((size) =>
+          sizeCounts.set(size, (sizeCounts.get(size) || 0) + 1)
+        );
+
+        const prices = [product.productDiscountedPrice].filter(
+          (p) => typeof p === "number"
+        ) as number[];
+        prices.forEach((price) => {
+          if (minPrice === null || price < minPrice) minPrice = price;
+          if (maxPrice === null || price > maxPrice) maxPrice = price;
+        });
+        product.variantDetails?.forEach((detail: any) => {
+          const vp = [detail.discountedPrice].filter(
+            (p) => typeof p === "number"
+          ) as number[];
+          vp.forEach((price) => {
+            if (minPrice === null || price < minPrice) minPrice = price;
+            if (maxPrice === null || price > maxPrice) maxPrice = price;
+          });
+        });
+      });
+
+      return {
+        colors: Array.from(colorCounts.values()).sort((a, b) => b.count - a.count),
+        sizes: Array.from(sizeCounts.entries())
+          .map(([size, count]) => ({ size, count }))
+          .sort((a, b) => {
+            const aNum = parseFloat(a.size);
+            const bNum = parseFloat(b.size);
+            if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+            return a.size.localeCompare(b.size);
+          }),
+        price: { minPrice, maxPrice },
+      };
+    } catch (error) {
+      console.error("Error fetching facets by category:", error);
+      return {
+        colors: [],
+        sizes: [],
+        price: { minPrice: null, maxPrice: null },
+      };
+    }
+  });
 }
 
 export async function getColorsByCategoryServer(
   categoryId: string
 ): Promise<{ color: { name: string; hex: string }; count: number }[]> {
-  try {
-    const uniqueProducts = await fetchCategoryProducts(categoryId, { onlyActive: true });
-    const colorCounts = new Map<string, { color: { name: string; hex: string }; count: number }>();
-
-    uniqueProducts.forEach((product) => {
-      const productColorNames = new Set<string>();
-      const processColor = (name?: string) => {
-        if (!name) return;
-        const colorName = name.toLowerCase();
-        productColorNames.add(colorName);
-        if (!colorCounts.has(colorName)) {
-          colorCounts.set(colorName, { color: { name, hex: "#000000" }, count: 0 });
-        }
-      };
-      product.variants?.forEach((variant: any) => {
-        if (
-          variant.optionName?.toLowerCase() === "color" &&
-          Array.isArray(variant.optionValue)
-        ) {
-          variant.optionValue.forEach((v: string) => processColor(v));
-        }
-      });
-      product.variantDetails?.forEach((detail: any) => {
-        detail.combination?.forEach((combo: any) => {
-          if (combo.name?.toLowerCase() === "color" && combo?.value) processColor(combo.value);
-        });
-      });
-      productColorNames.forEach((colorName) => {
-        const cd = colorCounts.get(colorName);
-        if (cd) cd.count++;
-      });
-    });
-
-    return Array.from(colorCounts.values()).sort((a, b) => b.count - a.count);
-  } catch (error) {
-    console.error("Error fetching colors by category:", error);
-    return [];
-  }
+  return (await getFacetsByCategoryServer(categoryId)).colors;
 }
 
 export async function getSizesByCategoryServer(
   categoryId: string
 ): Promise<{ size: string; count: number }[]> {
-  try {
-    const uniqueProducts = await fetchCategoryProducts(categoryId); // no active filter — matches client
-    const sizeCounts = new Map<string, number>();
-
-    uniqueProducts.forEach((product) => {
-      const productSizes = new Set<string>();
-      product.variants?.forEach((variant: any) => {
-        if (
-          variant.optionName?.toLowerCase() === "size" &&
-          Array.isArray(variant.optionValue)
-        ) {
-          variant.optionValue.forEach((v: string) => productSizes.add(v));
-        }
-      });
-      product.variantDetails?.forEach((detail: any) => {
-        detail.combination?.forEach((combo: any) => {
-          if (combo.name?.toLowerCase() === "size") productSizes.add(combo.value);
-        });
-      });
-      if (Array.isArray(product.sizes)) {
-        product.sizes.forEach((s: string) => {
-          if (s) productSizes.add(s);
-        });
-      }
-      productSizes.forEach((size) => sizeCounts.set(size, (sizeCounts.get(size) || 0) + 1));
-    });
-
-    return Array.from(sizeCounts.entries())
-      .map(([size, count]) => ({ size, count }))
-      .sort((a, b) => {
-        const aNum = parseFloat(a.size);
-        const bNum = parseFloat(b.size);
-        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-        return a.size.localeCompare(b.size);
-      });
-  } catch (error) {
-    console.error("Error fetching sizes by category:", error);
-    return [];
-  }
+  return (await getFacetsByCategoryServer(categoryId)).sizes;
 }
 
 export async function getMinMaxPriceByCategoryServer(
   categoryId: string
 ): Promise<{ minPrice: number | null; maxPrice: number | null }> {
-  let minPrice: number | null = null;
-  let maxPrice: number | null = null;
-  try {
-    const uniqueProducts = await fetchCategoryProducts(categoryId); // no active filter — matches client
-    uniqueProducts.forEach((product) => {
-      const prices = [product.productDiscountedPrice].filter(
-        (p) => typeof p === "number"
-      ) as number[];
-      prices.forEach((price) => {
-        if (minPrice === null || price < minPrice) minPrice = price;
-        if (maxPrice === null || price > maxPrice) maxPrice = price;
-      });
-      product.variantDetails?.forEach((detail: any) => {
-        const vp = [detail.discountedPrice].filter((p) => typeof p === "number") as number[];
-        vp.forEach((price) => {
-          if (minPrice === null || price < minPrice) minPrice = price;
-          if (maxPrice === null || price > maxPrice) maxPrice = price;
-        });
-      });
-    });
-    return { minPrice, maxPrice };
-  } catch (error) {
-    console.error("Error fetching min/max price by category:", error);
-    return { minPrice: null, maxPrice: null };
-  }
+  return (await getFacetsByCategoryServer(categoryId)).price;
 }

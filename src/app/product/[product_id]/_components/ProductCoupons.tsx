@@ -9,7 +9,6 @@ import {
   type AvailableCoupon,
   type CouponCartItem,
 } from "@/lib/validateCartCoupon";
-import DiscountOfferTag from "@/app/_components/DiscountOfferTag";
 
 interface VariantDetail {
   price: number;
@@ -105,20 +104,15 @@ const ProductCoupons = ({
 
   const applicableCount = coupons.filter((c) => c.applicable).length;
 
-  // Only show the box when at least one coupon is actually applicable to this
-  // product. While loading, on error, or with no applicable coupons, coupons is
-  // empty so this renders nothing — keeping the section hidden.
-  if (applicableCount === 0) return null;
-
   return (
-    <div className="mb-6 w-full border border-dashed border-red-300/50 rounded-lg overflow-hidden discount-offer-surface">
+    <div className="mb-6 w-full border border-gray-200 rounded-lg overflow-hidden bg-white">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="relative z-[1] w-full flex items-center justify-between gap-2 px-4 py-3 bg-red-50/80 hover:bg-red-100/80 transition-colors text-left"
+        className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
       >
         <span className="text-sm font-medium text-gray-900 flex items-center gap-2">
-          <Tag className="h-4 w-4 text-red-600" />
+          <Tag className="h-4 w-4 text-[#1e6553]" />
           Offers & coupons
           {!loading && coupons.length > 0 && (
             <span className="text-xs font-normal text-gray-500">
@@ -138,17 +132,17 @@ const ProductCoupons = ({
       </button>
 
       {expanded && (
-        <div className="p-3 space-y-2 max-h-64 overflow-y-auto bg-white">
+        <div className="p-3 space-y-2 max-h-64 overflow-y-auto border-t border-gray-100">
           {hasVariants && !selectedVariant ? (
             <p className="text-sm text-gray-500 py-2">
               Select product options to see applicable coupons.
             </p>
           ) : loading ? (
             <div className="flex justify-center py-6">
-              <Loader2 className="h-5 w-5 animate-spin text-red-600" />
+              <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
             </div>
           ) : error ? (
-            <p className="text-xs text-red-500 py-2">{error}</p>
+            <p className="text-xs text-gray-600 py-2">{error}</p>
           ) : coupons.length === 0 ? (
             <p className="text-sm text-gray-500 py-2">
               No active coupons for this product right now.
@@ -162,17 +156,19 @@ const ProductCoupons = ({
                   key={coupon.code}
                   className={`rounded-md border px-3 py-2.5 ${
                     coupon.applicable
-                      ? "discount-offer-surface border-red-300/40"
-                      : "border-gray-200 bg-gray-50"
+                      ? "border-gray-200 bg-white"
+                      : "border-gray-100 bg-gray-50"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1 relative z-[1]">
+                    <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-bold text-red-700 tracking-wide">
+                        <span className="text-sm font-semibold text-gray-900 tracking-wide">
                           {coupon.code}
                         </span>
-                        <DiscountOfferTag>{coupon.discountLabel}</DiscountOfferTag>
+                        <span className="text-xs font-medium text-[#1e6553]">
+                          {coupon.discountLabel}
+                        </span>
                       </div>
                       {coupon.description && (
                         <p className="text-xs text-gray-600 mt-1">
@@ -186,13 +182,13 @@ const ProductCoupons = ({
                         {validTill && <span>Valid till {validTill}</span>}
                       </div>
                       {coupon.applicable && coupon.discount > 0 && (
-                        <p className="text-xs text-red-600 font-medium mt-1.5">
+                        <p className="text-xs text-[#1e6553] font-medium mt-1.5">
                           Save ₹{coupon.discount.toFixed(2)} when you buy this
                           item
                         </p>
                       )}
                       {!coupon.applicable && coupon.message && (
-                        <p className="text-[11px] text-amber-700 mt-1">
+                        <p className="text-[11px] text-gray-500 mt-1">
                           {coupon.message}
                         </p>
                       )}
@@ -201,7 +197,7 @@ const ProductCoupons = ({
                       <button
                         type="button"
                         onClick={() => copyCode(coupon.code)}
-                        className="relative z-[1] shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded text-xs font-medium discount-offer-tag"
+                        className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded text-xs font-medium bg-[#1e6553] text-white hover:bg-[#1a5947]"
                         title="Copy coupon code"
                       >
                         <Copy className="h-3.5 w-3.5" />

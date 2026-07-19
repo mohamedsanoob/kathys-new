@@ -9,10 +9,7 @@ import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { toast } from "react-toastify";
 import PhoneAuthModal from "@/app/_components/PhoneAuthModal";
-import ShowShareModal from "@/app/_components/ShowShareModel";
 import ProductCoupons from "./ProductCoupons";
-
-
 
 interface Product {
   skuId: string;
@@ -385,7 +382,7 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
 
 // Update the handleShare function to include WhatsApp sharing with photo
 const handleShare = async () => {
-  const productUrl = `${window.location.origin}/products/${product.id}`;
+  const productUrl = `${window.location.origin}/product/${product.id}`;
   const shareText = `Check out ${product.productName} on our store! ${productUrl}`;
   const imageUrl = product.images[0]; // Using the first product image
 
@@ -418,7 +415,7 @@ const handleShare = async () => {
 // Update the ShowShareModal component to include WhatsApp sharing option
 const ShowShareModal = ({ product, setShowShareModal }: { product: Product, setShowShareModal: (show: boolean) => void }) => {
   const shareOnWhatsApp = () => {
-    const productUrl = `${window.location.origin}/products/${product.id}`;
+    const productUrl = `${window.location.origin}/product/${product.id}`;
     const shareText = `Check out ${product.productName} on our store! ${productUrl}`;
     const imageUrl = product.images[0];
     
@@ -430,6 +427,8 @@ const ShowShareModal = ({ product, setShowShareModal }: { product: Product, setS
     window.open(whatsappUrl, '_blank');
     setShowShareModal(false);
   };
+
+  const productUrl = `${window.location.origin}/product/${product.id}`;
 
   return (
     <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm">
@@ -461,12 +460,12 @@ const ShowShareModal = ({ product, setShowShareModal }: { product: Product, setS
               <input
                 type="text"
                 readOnly
-                value={`${window.location.origin}/products/${product.id}`}
+                value={productUrl}
                 className="flex-1 border border-gray-300 rounded-l px-3 py-2 text-sm"
               />
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/products/${product.id}`);
+                  navigator.clipboard.writeText(productUrl);
                   toast.success("Link copied to clipboard!");
                 }}
                 className="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded-r text-sm transition-colors"
@@ -578,11 +577,6 @@ const ShowShareModal = ({ product, setShowShareModal }: { product: Product, setS
         </div>
       )}
 
-      <ProductCoupons
-        product={product}
-        selectedVariant={selectedVariant}
-        hasVariants={hasVariants}
-      />
 
       <div className="flex gap-6 mb-6 mt-6">
   <button
@@ -734,6 +728,14 @@ const ShowShareModal = ({ product, setShowShareModal }: { product: Product, setS
           {selectedVariant?.sku || product.skuId || "N/A"}
         </p>
   
+      </div>
+
+      <div className="mt-6">
+        <ProductCoupons
+          product={product}
+          selectedVariant={selectedVariant}
+          hasVariants={hasVariants}
+        />
       </div>
 
       {showShareModal && (

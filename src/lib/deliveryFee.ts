@@ -19,7 +19,7 @@ export function isKeralaPincode(pincode?: string | null): boolean {
 export interface ComputeDeliveryFeeArgs {
   paymentMode: "online" | "cod" | "cof" | "";
   isKerala: boolean;
-  /** Number of cart product lines the applied coupon covers. */
+  /** Number of cart product LINES (SKUs) the applied coupon covers — not qty. */
   eligibleLineCount: number;
   couponApplied: boolean;
 }

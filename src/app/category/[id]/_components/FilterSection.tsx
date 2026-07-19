@@ -1,9 +1,5 @@
 "use client";
-import {
-  getColorsByCategory,
-  getMinMaxPriceByCategory,
-  getSizesByCategory,
-} from "@/actions/actions";
+import { getFacetsByCategory } from "@/actions/actions";
 import { Checkbox, Slider } from "@mui/material";
 import namer from "color-namer";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -66,17 +62,12 @@ const FilterSection = ({
 
     const fetchData = async () => {
       try {
-        const [colors, priceData, sizes] = await Promise.all([
-          getColorsByCategory(categoryName),
-          getMinMaxPriceByCategory(categoryName),
-          getSizesByCategory(categoryName)
-        ]);
+        const facets = await getFacetsByCategory(categoryName);
+        const min = facets.price.minPrice ?? 0;
+        const max = facets.price.maxPrice ?? 100;
 
-        const min = priceData.minPrice ?? 0;
-        const max = priceData.maxPrice ?? 100;
-
-        setFilterColors(colors);
-        setFilterSizes(sizes);
+        setFilterColors(facets.colors);
+        setFilterSizes(facets.sizes);
         setPriceRange([min, max]);
         applyUrlParams(min, max);
       } catch (error) {

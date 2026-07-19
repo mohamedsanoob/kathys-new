@@ -49,8 +49,8 @@ export async function validateCartCoupon(
       coupon: {
         code: data.code,
         discount: data.discount,
-        eligibleLineCount: Number(data.eligibleLineCount) || 0,
         message: data.message,
+        eligibleLineCount: Number(data.eligibleLineCount) || 0,
       },
     };
   }

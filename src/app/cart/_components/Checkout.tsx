@@ -4,10 +4,10 @@ import CouponSection from "@/app/_components/CouponSection";
 import type { AppliedCoupon } from "@/lib/appliedCouponStorage";
 import type { CouponStatus } from "@/app/_components/CouponField";
 import type { CouponCartItem } from "@/lib/validateCartCoupon";
+import { computeDeliveryFee } from "@/lib/deliveryFee";
 
 interface CheckoutProps {
   total: number;
-  deliveryFee: number;
   disabled: boolean;
   cartItems: CouponCartItem[];
   cartReady: boolean;
@@ -20,11 +20,12 @@ interface CheckoutProps {
   onApplyCoupon: () => void;
   onRemoveCoupon: () => void;
   onSelectCoupon: (code: string) => void;
+  /** Cart has no address yet — estimate Kerala rates (store default). */
+  isKerala?: boolean;
 }
 
 const Checkout = ({
   total,
-  deliveryFee,
   disabled,
   cartItems,
   cartReady,
@@ -37,8 +38,15 @@ const Checkout = ({
   onApplyCoupon,
   onRemoveCoupon,
   onSelectCoupon,
+  isKerala = true,
 }: CheckoutProps) => {
   const couponDiscount = appliedCoupon?.discount ?? 0;
+  const deliveryFee = computeDeliveryFee({
+    paymentMode: "online",
+    isKerala,
+    eligibleLineCount: appliedCoupon?.eligibleLineCount ?? 0,
+    couponApplied: !!appliedCoupon,
+  });
   const grandTotal = Math.max(0, total + deliveryFee - couponDiscount);
 
   const format = (amount: number) =>

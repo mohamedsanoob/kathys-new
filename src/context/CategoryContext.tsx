@@ -15,13 +15,12 @@ import { useParams, useSearchParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { getProductsByCategory, getCategoryById } from "@/actions/actions";
+import { toMillis } from "@/lib/dates";
 
-// Helper to serialize Firestore Timestamps
-// Raw Firestore docs may hold Timestamp objects here, so type loosely for serialization
 const serializeProduct = (product: any) => ({
   ...product,
-  createdDate: product.createdDate ? product.createdDate.toMillis() : null,
-  updatedDate: product.updatedDate ? product.updatedDate.toMillis() : null,
+  createdDate: toMillis(product.createdDate),
+  updatedDate: toMillis(product.updatedDate),
 });
 
 export interface CategoryInitialData {
@@ -60,8 +59,10 @@ const CategoryContext = createContext<CategoryContextProps | undefined>(
   undefined
 );
 
-// Module-level cache to survive component unmounts (e.g. navigating to product page and back)
-const globalCategoryCache: Record<string, CategoryState> = {};
+// Module-level cache to survive component unmounts (e.g. navigating to product page and back).
+// Partial so `cache[key]` is `CategoryState | undefined` — a plain Record makes TS treat
+// every lookup as defined, which collapses `useState(!cache[key])` to `useState<false>`.
+const globalCategoryCache: Partial<Record<string, CategoryState>> = {};
 
 export const CategoryProvider = ({
   children,
@@ -105,14 +106,18 @@ export const CategoryProvider = ({
           scrollPosition: 0,
         };
   });
-  const [loading, setLoading] = useState(!initialData && !globalCategoryCache[cacheKey]);
+  const [loading, setLoading] = useState<boolean>(
+    !initialData && !globalCategoryCache[cacheKey]
+  );
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // When seeded with server-prefetched data, skip the FIRST client fetch
   // (initialData already reflects the current id + searchParams). Subsequent
   // id/searchParams changes fetch normally. If we restored from cache, also skip.
-  const seededRef = useRef(!!initialData || !!globalCategoryCache[cacheKey]);
+  const seededRef = useRef<boolean>(
+    !!initialData || !!globalCategoryCache[cacheKey]
+  );
 
   const fetchData = useCallback(async () => {
     if (!id) return;

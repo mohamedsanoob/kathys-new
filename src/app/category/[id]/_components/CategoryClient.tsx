@@ -22,9 +22,8 @@ export interface CategoryClientData extends CategoryInitialData {
   facets: CategoryFacets;
 }
 
-// Rendered INSIDE CategoryProvider so it can consume the context. First paint
-// uses the server-prefetched data (loading starts false), so there's no spinner.
-function CategoryContent({ facets }: { facets: CategoryFacets }) {
+// Rendered INSIDE CategoryProvider so it can consume the context.
+function CategoryContent({ facets }: { facets?: CategoryFacets }) {
   const router = useRouter();
   const { loading, error, currentCategory, subCategoriesDetails } = useCategoryContext();
 
@@ -80,7 +79,10 @@ function CategoryContent({ facets }: { facets: CategoryFacets }) {
                     href={`/category/${subCategory.id}`}
                     className="group relative flex-shrink-0 overflow-hidden rounded-lg hover:shadow-lg transition-all duration-200 bg-gray-500 w-[120px] h-[120px] md:w-[160px] md:h-[160px]"
                   >
-                    <CategoryCouponPromo categoryId={subCategory.id} variant="ribbon" />
+                    <CategoryCouponPromo
+                      categoryId={subCategory.id}
+                      variant="ribbon"
+                    />
                     {subCategory.images?.[0] && (
                       <div className="absolute inset-0">
                         <Image
@@ -116,7 +118,19 @@ function CategoryContent({ facets }: { facets: CategoryFacets }) {
   );
 }
 
-export default function CategoryClient({ initialData }: { initialData: CategoryClientData }) {
+export default function CategoryClient({
+  initialData,
+}: {
+  initialData?: CategoryClientData;
+}) {
+  if (!initialData) {
+    return (
+      <CategoryProvider>
+        <CategoryContent />
+      </CategoryProvider>
+    );
+  }
+
   const { facets, ...categoryInitial } = initialData;
   return (
     <CategoryProvider initialData={categoryInitial}>

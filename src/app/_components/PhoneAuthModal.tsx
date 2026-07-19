@@ -14,7 +14,6 @@ import { auth, db } from "@/firebase/config";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
 import axios from "axios";
-import { mergeGuestCartIntoUserCart } from "@/actions/actions";
 
 interface PhoneAuthModalProps {
   isOpen: boolean;
@@ -167,10 +166,6 @@ const PhoneAuthModal = ({
         if (!response?.data?.success) {
           throw new Error("Failed to migrate");
         }
-      } catch (error: any) {}
-
-      try {
-        await mergeGuestCartIntoUserCart(user.uid);
       } catch (error: any) {}
 
       toast.success("Phone number verified successfully!");

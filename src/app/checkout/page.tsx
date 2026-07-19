@@ -7,6 +7,8 @@ import axios from "axios";
 import { db } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
 import { computeDeliveryFee, isKeralaPincode } from "@/lib/deliveryFee";
+import { useCartCoupon } from "@/hooks/useCartCoupon";
+import { clearAppliedCoupon } from "@/lib/appliedCouponStorage";
 import {
   collection,
   doc,
@@ -29,8 +31,6 @@ import { ArrowLeft, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { PaymentSuccess } from "../_components/PaymentSuccess";
 import { PaymentRejected } from "../_components/PaymentRejected";
 import PhoneAuthModal from "../_components/PhoneAuthModal";
-import { useCartCoupon } from "@/hooks/useCartCoupon";
-import { clearAppliedCoupon } from "@/lib/appliedCouponStorage";
 
 // --- Define new type for PhonePe Order Response ---
 interface PhonePeOrderResponse {
@@ -89,22 +89,6 @@ const CheckoutPageContent = () => {
   const [showPaymentMode, setShowPaymentMode] = useState(false);
   const [paymentModeError, setPaymentModeError] = useState(false);
 
-  const {
-    couponInput,
-    setCouponInput,
-    appliedCoupon,
-    couponStatus,
-    couponMessage,
-    handleApplyCoupon,
-    handleRemoveCoupon,
-    applyCouponByCode,
-    couponDiscount,
-  } = useCartCoupon(
-    cartProductsWithDetails,
-    !isLoading,
-    currentUser?.uid
-  );
-
   // This state now controls the view
   const [paymentStatus, setPaymentStatus] = useState<
     "pending" | "success" | "failed" | "no-items"
@@ -146,8 +130,8 @@ const CheckoutPageContent = () => {
       // Clear the cart *only* on success
       window.dispatchEvent(new Event("cart-remove-all"));
       localStorage.removeItem("guestCartId");
-      sessionStorage.removeItem(PENDING_PHONEPE_ORDER_KEY);
       clearAppliedCoupon();
+      sessionStorage.removeItem(PENDING_PHONEPE_ORDER_KEY);
     } else if (status === "failed") {
       setPaymentStatus("failed");
       setPaymentError(message || "Your payment failed. Please try again.");
@@ -163,8 +147,6 @@ const CheckoutPageContent = () => {
   // Restock immediately when the user returns via browser back (no PhonePe redirect)
   useEffect(() => {
     const releaseAbandonedOrder = async () => {
-      // Clear the payment loader if the page was frozen (bfcache) on Back.
-      setIsProcessingPayment(false);
       const status = searchParams.get("status");
       if (status === "success") return;
 
@@ -284,11 +266,44 @@ const CheckoutPageContent = () => {
     return sum + price * product.quantity;
   }, 0);
 
+  const cartCouponItems = (cartProductsWithDetails ?? []).map((p) => ({
+    id: p.id,
+    productPrice: p.productPrice,
+    productDiscountedPrice:
+      p.variantDetails?.discountedPrice ||
+      p.variantDetails?.price ||
+      p.productDiscountedPrice ||
+      p.productPrice,
+    quantity: p.quantity,
+    categories: p.categories || [],
+    variantDetails: p.variantDetails
+      ? {
+          price: p.variantDetails.price,
+          discountedPrice:
+            p.variantDetails.discountedPrice || p.variantDetails.price,
+          sku: p.variantDetails.sku || "",
+        }
+      : undefined,
+  }));
+
+  const {
+    couponInput,
+    setCouponInput,
+    appliedCoupon,
+    couponStatus,
+    couponMessage,
+    handleApplyCoupon,
+    handleRemoveCoupon,
+    applyCouponByCode,
+    couponDiscount,
+    eligibleLineCount,
+  } = useCartCoupon(cartCouponItems, !isLoading, currentUser?.uid);
+
   const deliveryFee = computeDeliveryFee({
     paymentMode,
     isKerala,
+    eligibleLineCount,
     couponApplied: !!appliedCoupon,
-    eligibleLineCount: appliedCoupon?.eligibleLineCount ?? 0,
   });
   const grandTotal = Math.max(0, total + deliveryFee - couponDiscount);
 
@@ -326,9 +341,7 @@ const CheckoutPageContent = () => {
           (addr) => addr.id === selectedAddress
         );
         if (!address) throw new Error("Selected address not found");
-        // Merge the order note typed in the saved-address step (held in form
-        // state) so it flows into `additional_info` like the guest flow does.
-        orderData = { ...address, notes: getValues("notes") || "" };
+        orderData = address;
       } else {
         orderData = getValues();
       }
@@ -428,6 +441,7 @@ const CheckoutPageContent = () => {
 
           window.dispatchEvent(new Event("cart-remove-all"));
           localStorage.removeItem("guestCartId");
+          clearAppliedCoupon();
           setIsProcessingPayment(false);
           setPaymentStatus("success");
           return;
@@ -620,7 +634,6 @@ const CheckoutPageContent = () => {
             onApplyCoupon={handleApplyCoupon}
             onRemoveCoupon={handleRemoveCoupon}
             onSelectCoupon={applyCouponByCode}
-            cartReady={!isLoading}
           />
         </div>
 

@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { toDate } from "@/lib/dates";
 
 const Page = () => {
   const user = useAuth()
@@ -31,8 +32,9 @@ const Page = () => {
     fetchOrder();
   }, [id]);
 
-  const formatDate = (timestamp: { seconds: number; nanoseconds: number }) => {
-    const date = new Date(timestamp.seconds * 1000);
+  const formatDate = (timestamp: unknown) => {
+    const date = toDate(timestamp);
+    if (!date) return "—";
     return date.toLocaleString("en-IN", {
       day: "numeric",
       month: "short",
@@ -218,7 +220,8 @@ const Page = () => {
                     {Object.entries(item.variant_details).map(
                       ([key, value]) => (
                         <p key={key}>
-                          <span className="font-medium">{key}:</span> {value}
+                          <span className="font-medium">{key}:</span>{" "}
+                          {String(value)}
                         </p>
                       )
                     )}

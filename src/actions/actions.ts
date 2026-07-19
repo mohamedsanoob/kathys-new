@@ -12,12 +12,12 @@ import {
   setDoc,
   startAfter,
   updateDoc,
-  deleteDoc,
   where,
   DocumentSnapshot,
   serverTimestamp,
 } from "firebase/firestore";
 import { withCache } from "@/lib/cache";
+import { toIsoString, toMillis } from "@/lib/dates";
 
 // Re-export so existing importers of `invalidateCache` from "@/actions/actions" keep working.
 export { invalidateCache } from "@/lib/cache";
@@ -36,7 +36,6 @@ interface Category {
   images: string[];
   isSubcategory: boolean;
   mobileBanner: string | null;
-  order?: number;
   parentCategory: {
     categoryId: string;
     categoryName: string;
@@ -117,138 +116,6 @@ interface CartData {
   products: CartProduct[];
   createdAt: Date;
   updatedAt: Date;
-}
-
-type StoredCartLine = {
-  productId?: string;
-  quantity?: number;
-  variantDetails?: {
-    sku?: string;
-    combination?: { name: string; value: string | { name?: string } }[];
-  };
-};
-
-/**
- * Resolve which Firestore cart doc to use. Must stay consistent across
- * add / get / update / remove — never mix guestCartId with a logged-in uid.
- */
-export function resolveCartTarget(user = auth.currentUser): {
-  cartId: string | null;
-  collectionName: "carts" | "guest-carts";
-  isGuest: boolean;
-} | null {
-  const isLoggedIn = !!(user && !user.isAnonymous);
-  if (isLoggedIn) {
-    return {
-      cartId: user!.uid,
-      collectionName: "carts",
-      isGuest: false,
-    };
-  }
-
-  if (typeof window === "undefined") return null;
-  const guestId = localStorage.getItem("guestCartId");
-  if (!guestId) {
-    return { cartId: null, collectionName: "guest-carts", isGuest: true };
-  }
-  return {
-    cartId: guestId,
-    collectionName: "guest-carts",
-    isGuest: true,
-  };
-}
-
-function ensureGuestCartId(): string {
-  let guestId = localStorage.getItem("guestCartId");
-  if (!guestId) {
-    guestId = crypto.randomUUID();
-    localStorage.setItem("guestCartId", guestId);
-  }
-  return guestId;
-}
-
-function cartLineSku(line?: { sku?: string } | null): string {
-  return String(line?.sku ?? "").trim();
-}
-
-function cartCombinationsMatch(
-  a?: { name: string; value: string | { name?: string } }[],
-  b?: { name: string; value: string | { name?: string } }[]
-): boolean {
-  if (!Array.isArray(a) || !Array.isArray(b) || !a.length || !b.length) {
-    return false;
-  }
-  if (a.length !== b.length) return false;
-  return a.every((opt) =>
-    b.some(
-      (other) =>
-        other.name === opt.name &&
-        normalizeOptionValue(other.value) === normalizeOptionValue(opt.value)
-    )
-  );
-}
-
-/**
- * Match a stored cart line to a product (+ optional variant).
- * Prefer SKU, then combination; non-variant lines match by productId only.
- */
-function cartLinesAreSame(
-  existing: StoredCartLine,
-  productId: string,
-  incomingVariant?: {
-    sku?: string;
-    combination?: { name: string; value: string | { name?: string } }[];
-  } | null
-): boolean {
-  if (existing.productId !== productId) return false;
-
-  const existingSku = cartLineSku(existing.variantDetails);
-  const incomingSku = cartLineSku(incomingVariant);
-
-  // Both non-variant (no sku)
-  if (!existingSku && !incomingSku) return true;
-
-  if (existingSku && incomingSku) {
-    return existingSku === incomingSku;
-  }
-
-  // Fallback: same combination when one side lacks sku
-  if (
-    cartCombinationsMatch(
-      existing.variantDetails?.combination,
-      incomingVariant?.combination
-    )
-  ) {
-    return true;
-  }
-
-  // One has sku and the other doesn't → different lines
-  return false;
-}
-
-/** Collapse duplicate lines that share the same productId + variant. */
-function dedupeCartLines(products: StoredCartLine[]): StoredCartLine[] {
-  const merged: StoredCartLine[] = [];
-  for (const line of products) {
-    if (!line?.productId) continue;
-    const idx = merged.findIndex((m) =>
-      cartLinesAreSame(m, line.productId!, line.variantDetails)
-    );
-    if (idx >= 0) {
-      merged[idx] = {
-        ...merged[idx],
-        quantity:
-          (Number(merged[idx].quantity) || 0) + (Number(line.quantity) || 0),
-        variantDetails:
-          merged[idx].variantDetails?.sku || merged[idx].variantDetails?.combination
-            ? merged[idx].variantDetails
-            : line.variantDetails || merged[idx].variantDetails,
-      };
-    } else {
-      merged.push({ ...line });
-    }
-  }
-  return merged;
 }
 
 /** Normalize variant option values (string or { name, hex } object). */
@@ -371,8 +238,8 @@ export const getAllCollections = async (): Promise<DocumentInterface[]> => {
       return {
         id: doc.id,
         ...docData,
-        createdDate: createdDate?.toDate()?.toISOString(),
-        updatedDate: updatedDate?.toDate()?.toISOString(),
+        createdDate: toIsoString(createdDate),
+        updatedDate: toIsoString(updatedDate),
       };
     });
   } catch (error) {
@@ -389,8 +256,8 @@ export const getAllProducts = async (): Promise<DocumentInterface[]> => {
       return {
         id: doc.id,
         ...docData,
-        createdDate: createdDate?.toDate()?.toISOString(),
-        updatedDate: updatedDate?.toDate()?.toISOString(),
+        createdDate: toIsoString(createdDate),
+        updatedDate: toIsoString(updatedDate),
       };
     });
   } catch (error) {
@@ -572,24 +439,17 @@ export const getAllCategories = async (): Promise<Category[]> =>
   try {
     const categoriesQuery = query(
       collection(db, "categories"),
-      where("active", "==", true)
+      orderBy("categoryName", "asc"), // Optional: sort by name
+           where("active", "==", true),
+             orderBy("order", "asc"),   
     );
-
+    
     const querySnapshot = await getDocs(categoriesQuery);
-
-    const categories = querySnapshot.docs.map(doc => ({
+    
+    return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     })) as Category[];
-
-    // Sort by the admin-controlled `order` field (set via the backoffice
-    // rearrange tool); categories without an `order` sort last, name breaks ties.
-    return categories.sort((a, b) => {
-      const ao = typeof a.order === "number" ? a.order : Infinity;
-      const bo = typeof b.order === "number" ? b.order : Infinity;
-      if (ao !== bo) return ao - bo;
-      return (a.categoryName || "").localeCompare(b.categoryName || "");
-    });
   } catch (error) {
     console.error("Error fetching categories:", error);
     return [];
@@ -648,29 +508,6 @@ export const getUserAddresses = async (
   }
 };
 
-const getOrderTimeMs = (order: Record<string, unknown>): number => {
-  const readTime = (value: unknown): number | null => {
-    if (!value) return null;
-    if (typeof value === "object" && value !== null) {
-      const ts = value as { toDate?: () => Date; seconds?: number };
-      if (typeof ts.toDate === "function") return ts.toDate().getTime();
-      if (typeof ts.seconds === "number") return ts.seconds * 1000;
-    }
-    if (typeof value === "string") {
-      const parsed = Date.parse(value);
-      return Number.isNaN(parsed) ? null : parsed;
-    }
-    if (typeof value === "number") return value;
-    return null;
-  };
-
-  return (
-    readTime(order.createdAt) ??
-    readTime(order.timestamp) ??
-    0
-  );
-};
-
 export const getUserOrders = async (
   userId: string
 ): Promise<Order[]> => {
@@ -690,9 +527,7 @@ export const getUserOrders = async (
       ...doc.data() as Omit<Order, 'id'> // Spread the rest of the order data
     }));
 
-    return orders.sort(
-      (a, b) => getOrderTimeMs(b as Record<string, unknown>) - getOrderTimeMs(a as Record<string, unknown>)
-    );
+    return orders;
   } catch (error) {
     console.error("Error fetching user orders:", error);
     return []; // Return empty array in case of error
@@ -859,7 +694,9 @@ if (colorFilter) {
     // Sort the final combined results
     switch (sortBy) {
       case "latest":
-        uniqueProducts.sort((a, b) => (b.createdDate?.seconds || 0) - (a.createdDate?.seconds || 0));
+        uniqueProducts.sort(
+          (a, b) => (toMillis(b.createdDate) || 0) - (toMillis(a.createdDate) || 0)
+        );
         break;
       case "price-low":
         uniqueProducts.sort((a, b) => (a.productDiscountedPrice || 0) - (b.productDiscountedPrice || 0));
@@ -973,118 +810,71 @@ export const addProductToCart = async ({
   quantity: number;
 }): Promise<void> => {
   try {
+    console.log("coming inside",variantDetails,productId,quantity);
     const user = auth.currentUser;
-    const isLoggedIn = !!(user && !user.isAnonymous);
-    const cartId = isLoggedIn ? user!.uid : ensureGuestCartId();
-    const cartRef = doc(
-      db,
-      isLoggedIn ? "carts" : "guest-carts",
-      cartId
-    );
-    const cartSnapshot = await getDoc(cartRef);
+    const isLoggedIn = user && !user.isAnonymous;
 
-    const newLine: StoredCartLine = variantDetails
-      ? { productId, quantity, variantDetails }
-      : { productId, quantity };
+    const cartId = isLoggedIn
+      ? user.uid
+      : localStorage.getItem("guestCartId") || crypto.randomUUID();
+
+    if (!isLoggedIn) {
+      localStorage.setItem("guestCartId", cartId);
+    }
+
+    const cartRef = doc(db, `${isLoggedIn ? "" : "guest-"}carts`, cartId);
+    const cartSnapshot = await getDoc(cartRef);
 
     if (!cartSnapshot.exists()) {
       await setDoc(cartRef, {
         userId: isLoggedIn ? cartId : null,
-        products: [newLine],
+        products: [variantDetails !==undefined ? { productId, quantity, variantDetails }:{ productId, quantity }],
         createdAt: new Date(),
         updatedAt: new Date(),
       });
       return;
     }
 
-    const { products = [] } = cartSnapshot.data() as CartData;
-    const existingProductIndex = products.findIndex((p) =>
-      cartLinesAreSame(p, productId, variantDetails)
+
+
+
+    const { products } = cartSnapshot.data() as CartData;
+        console.log(products,variantDetails,"adwsdc",productId)
+    const existingProductIndex = products.findIndex(
+      (p) => 
+       variantDetails !==undefined ? p.productId === productId &&  p.variantDetails?.sku===variantDetails?.sku :
+        p.productId === productId 
     );
 
-    let updatedProducts: StoredCartLine[];
+
+
+
+
+    let newQuantity;
     if (existingProductIndex >= 0) {
-      updatedProducts = products.map((product, index) =>
-        index === existingProductIndex
-          ? {
-              ...product,
-              quantity: (Number(product.quantity) || 0) + quantity,
-              variantDetails:
-                product.variantDetails || variantDetails || undefined,
-            }
-          : product
-      );
+      newQuantity = products[existingProductIndex].quantity + quantity;
     } else {
-      updatedProducts = [...products, newLine];
+      newQuantity = quantity;
     }
 
+    const updatedProducts =
+      existingProductIndex >= 0
+        ? products.map((product, index) =>
+            index === existingProductIndex
+              ? { ...product, quantity: newQuantity }
+              : product
+          )
+        : [...products,   variantDetails !==undefined ? { productId, quantity, variantDetails }:{ productId, quantity }];
+
+    console.log(updatedProducts, "updatedProducts");
+
     await updateDoc(cartRef, {
-      products: dedupeCartLines(updatedProducts),
+      products: updatedProducts,
       updatedAt: new Date(),
     });
   } catch (error) {
     console.error("Error managing cart:", error);
     throw error;
-  }
-};
-
-/**
- * After phone login: merge guest-carts/{guestCartId} into carts/{uid},
- * then delete the guest cart and clear localStorage.
- */
-export async function mergeGuestCartIntoUserCart(
-  userId: string
-): Promise<void> {
-  if (typeof window === "undefined" || !userId) return;
-
-  const guestId = localStorage.getItem("guestCartId");
-  if (!guestId) return;
-
-  try {
-    const guestRef = doc(db, "guest-carts", guestId);
-    const userRef = doc(db, "carts", userId);
-    const [guestSnap, userSnap] = await Promise.all([
-      getDoc(guestRef),
-      getDoc(userRef),
-    ]);
-
-    const guestProducts: StoredCartLine[] = guestSnap.exists()
-      ? ((guestSnap.data() as CartData).products || [])
-      : [];
-
-    if (!guestProducts.length) {
-      localStorage.removeItem("guestCartId");
-      if (guestSnap.exists()) {
-        await deleteDoc(guestRef).catch(() => {});
-      }
-      return;
-    }
-
-    const userProducts: StoredCartLine[] = userSnap.exists()
-      ? ((userSnap.data() as CartData).products || [])
-      : [];
-
-    const merged = dedupeCartLines([...userProducts, ...guestProducts]);
-
-    if (userSnap.exists()) {
-      await updateDoc(userRef, {
-        products: merged,
-        updatedAt: new Date(),
-      });
-    } else {
-      await setDoc(userRef, {
-        userId,
-        products: merged,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-    }
-
-    await deleteDoc(guestRef).catch(() => {});
-    localStorage.removeItem("guestCartId");
-    window.dispatchEvent(new Event("cart-updated"));
-  } catch (error) {
-    console.error("Failed to merge guest cart:", error);
   }
 };
 
@@ -1243,24 +1033,19 @@ export const getBuyNowCartProducts = async (): Promise<CartReturn[]> => {
 };
 
 export async function getCartProducts() {
-  const target = resolveCartTarget();
-  if (!target?.cartId) return [];
+  const user = auth.currentUser;
+  const cartId = user?.uid || localStorage.getItem("guestCartId");
+
+  if (!cartId) return [];
 
   try {
-    const cartRef = doc(db, target.collectionName, target.cartId);
+    const isGuest = !user || user.isAnonymous;
+    const cartRef = doc(db, `${isGuest ? "guest-" : ""}carts`, cartId);
     const cartSnapshot = await getDoc(cartRef);
     
     if (!cartSnapshot.exists()) return [];
     
-    const rawItems: CartProduct[] = cartSnapshot.data()?.products || [];
-    // Heal duplicate lines left by older buggy add-to-cart matching
-    const cartItems = dedupeCartLines(rawItems) as CartProduct[];
-    if (cartItems.length !== rawItems.length) {
-      await updateDoc(cartRef, {
-        products: cartItems,
-        updatedAt: new Date(),
-      }).catch(() => {});
-    }
+    const cartItems: CartProduct[] = cartSnapshot.data()?.products || [];
     const productIdsInCart = cartItems.map(item => item.productId).filter(Boolean) as string[];
 
     if (productIdsInCart.length === 0) return [];
@@ -1378,31 +1163,31 @@ export async function getCartProducts() {
  * updateCartItem and removeCartItem so both identify items the same way.
  */
 const cartItemMatches = (
-  product: StoredCartLine,
+  product: { productId?: string; variantDetails?: { sku?: string } },
   productId: string,
   variantSku?: string | null
 ): boolean => {
   if (product.productId !== productId) return false;
-  const existingSku = cartLineSku(product.variantDetails);
-  // Non-variant lines are stored without a sku; UI may still pass product.skuId.
-  if (!existingSku) return true;
-  if (!variantSku) return true;
-  return existingSku === String(variantSku).trim();
+  if (!product.variantDetails?.sku) return true;
+  return product.variantDetails.sku === variantSku;
 };
 
 export const removeCartItem = async (productId: string, variantSku?: string | null) => {
   try {
-    const target = resolveCartTarget();
-    if (!target?.cartId) {
+    const user = auth.currentUser;
+    const cartId = user?.uid || localStorage.getItem("guestCartId");
+
+    if (!cartId) {
       console.error("No cart ID found - user not logged in and no guest cart");
       throw new Error("Cart not found");
     }
 
-    const cartRef = doc(db, target.collectionName, target.cartId);
+    const isGuest = !user || user.isAnonymous;
+    const cartRef = doc(db, `${isGuest ? "guest-" : ""}carts`, cartId);
     const cartSnapshot = await getDoc(cartRef);
 
     if (!cartSnapshot.exists()) {
-      console.error(`Cart document ${target.cartId} doesn't exist`);
+      console.error(`Cart document ${cartId} doesn't exist`);
       throw new Error("Cart not found");
     }
 
@@ -1441,17 +1226,20 @@ export const updateCartItem = async (
   }[]
 ) => {
   try {
-    const target = resolveCartTarget();
-    if (!target?.cartId) {
+    const user = auth.currentUser;
+    const cartId = user?.uid || localStorage.getItem("guestCartId");
+
+    if (!cartId) {
       console.error("No cart ID found - user not logged in and no guest cart");
       throw new Error("Cart not found");
     }
 
-    const cartRef = doc(db, target.collectionName, target.cartId);
+    const isGuest = !user || user.isAnonymous;
+    const cartRef = doc(db, `${isGuest ? "guest-" : ""}carts`, cartId);
     const cartSnapshot = await getDoc(cartRef);
 
     if (!cartSnapshot.exists()) {
-      console.error(`Cart document ${target.cartId} doesn't exist`);
+      console.error(`Cart document ${cartId} doesn't exist`);
       throw new Error("Cart not found");
     }
 
@@ -1459,11 +1247,11 @@ export const updateCartItem = async (
     const updatedProducts = [...existingProducts];
 
     updates.forEach(({ productId, variantSku, quantity }) => {
-      const line = updatedProducts.find((p) =>
+      const target = updatedProducts.find((p) =>
         cartItemMatches(p, productId, variantSku)
       );
-      if (line) {
-        line.quantity = quantity;
+      if (target) {
+        target.quantity = quantity;
       } else {
         console.warn(
           `Cart item not found for update: productId=${productId}, sku=${variantSku ?? "(none)"}`
@@ -1471,10 +1259,8 @@ export const updateCartItem = async (
       }
     });
 
-    // Filter out any products with quantity <= 0 and collapse duplicates
-    const filteredProducts = dedupeCartLines(
-      updatedProducts.filter((p) => (p.quantity || 0) > 0)
-    );
+    // Filter out any products with quantity <= 0
+    const filteredProducts = updatedProducts.filter(p => p.quantity > 0);
 
     await updateDoc(cartRef, {
       products: filteredProducts,
@@ -1489,308 +1275,218 @@ export const updateCartItem = async (
   }
 };
 
-export const getColorsByCategory = async (
-  categoryId: string
-): Promise<{ color: { name: string; hex: string }; count: number }[]> => {
-  try {
-    // First, get the category document
-    const categoryQuery = query(
-      collection(db, "categories"),
-      where("id", "==", categoryId)
-    );
-    const categorySnapshot = await getDocs(categoryQuery);
+/** Fetch category + subcategory products once (cached). Previously colors /
+ *  sizes / price each re-downloaded the full set — 3× the reads & latency. */
+async function fetchCategoryProductsForFacets(
+  categoryId: string,
+  onlyActive: boolean
+): Promise<Product[]> {
+  return withCache(
+    `facet-products-${categoryId}-${onlyActive ? "active" : "all"}`,
+    5 * 60 * 1000,
+    async () => {
+      const categoryQuery = query(
+        collection(db, "categories"),
+        where("id", "==", categoryId)
+      );
+      const categorySnapshot = await getDocs(categoryQuery);
+      if (categorySnapshot.empty) return [];
 
-    if (categorySnapshot.empty) {
-      console.log("Category not found.");
-      return [];
+      const categoryData = categorySnapshot.docs[0].data();
+      const subCategories = (categoryData?.subCategories as string[]) || [];
+      const allCategoryIds = [categoryId, ...subCategories];
+
+      const productsSnapshots = await Promise.all(
+        allCategoryIds.map((id) => {
+          const constraints = [
+            where("categories", "array-contains", id),
+            ...(onlyActive ? [where("active", "==", true)] : []),
+          ];
+          return getDocs(query(collection(db, "products"), ...constraints));
+        })
+      );
+
+      const allProducts = productsSnapshots.flatMap((snapshot) =>
+        snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Product))
+      );
+      return [...new Map(allProducts.map((item) => [item.id, item])).values()];
     }
+  );
+}
 
-    const categoryData = categorySnapshot.docs[0].data();
-    const subCategories = categoryData?.subCategories || [];
-    
-    // Create an array of all relevant category IDs (main category + subcategories)
-    const allCategoryIds = [categoryId, ...subCategories];
+function deriveColorsFromProducts(
+  products: Product[]
+): { color: { name: string; hex: string }; count: number }[] {
+  const colorCounts = new Map<
+    string,
+    { color: { name: string; hex: string }; count: number }
+  >();
 
-    // Create a query for each category ID using array-contains
-    const queryPromises = allCategoryIds.map(categoryId => 
-      getDocs(query(
-        collection(db, "products"),
-        where("categories", "array-contains", categoryId),
-        where("active", "==", true),
-      ))
-    );
-
-    // Execute all queries in parallel
-    const productsSnapshots = await Promise.all(queryPromises);
-    
-    // Combine all products
-    const allProducts = productsSnapshots.flatMap(snapshot => 
-      snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
-    );
-    
-    // Remove duplicates (in case a product belongs to multiple subcategories)
-    const uniqueProducts = [...new Map(allProducts.map(item => [item.id, item])).values()];
-
-    // Create a map to track color counts and first encountered hex value
-    const colorCounts = new Map<string, {
-      color: { name: string; hex: string };
-      count: number;
-    }>();
-
-    uniqueProducts.forEach((product) => {
-      const productColorNames = new Set<string>();
-
-      // Helper function to process color objects
-      const processColor = (colorObj: { name: string; hex: string }) => {
-        if (!colorObj?.name) return;
-        
-        const colorName = colorObj.name.toLowerCase();
-        productColorNames.add(colorName);
-        
-        // Store the first encountered hex for this color name
-        if (!colorCounts.has(colorName)) {
-          colorCounts.set(colorName, {
-            color: {
-              name: colorObj.name,
-              hex: colorObj.hex || '#000000' // default if hex missing
-            },
-            count: 0
-          });
-        }
-      };
-
-      // Check variants for colors
-      product.variants?.forEach((variant) => {
-        if (
-          variant.optionName?.toLowerCase() === "color" &&
-          Array.isArray(variant.optionValue)
-        ) {
-          variant.optionValue.forEach((c) =>
-            processColor({ name: c, hex: "#000000" })
-          );
-        }
-      });
-
-      // Check variantDetails for colors
-      product.variantDetails?.forEach((detail) => {
-        detail.combination?.forEach((combo) => {
-          if (combo.name?.toLowerCase() === "color" && combo?.value) {
-            processColor({ name: combo.value, hex: "#000000" });
-          }
+  products.forEach((product) => {
+    const productColorNames = new Set<string>();
+    const processColor = (colorObj: { name: string; hex: string }) => {
+      if (!colorObj?.name) return;
+      const colorName = colorObj.name.toLowerCase();
+      productColorNames.add(colorName);
+      if (!colorCounts.has(colorName)) {
+        colorCounts.set(colorName, {
+          color: { name: colorObj.name, hex: colorObj.hex || "#000000" },
+          count: 0,
         });
-      });
+      }
+    };
 
-      // Increment counts for each unique color name in this product
-      productColorNames.forEach(colorName => {
-        const colorData = colorCounts.get(colorName);
-        if (colorData) colorData.count++;
+    product.variants?.forEach((variant) => {
+      if (
+        variant.optionName?.toLowerCase() === "color" &&
+        Array.isArray(variant.optionValue)
+      ) {
+        variant.optionValue.forEach((c) =>
+          processColor({ name: c as string, hex: "#000000" })
+        );
+      }
+    });
+
+    product.variantDetails?.forEach((detail) => {
+      detail.combination?.forEach((combo) => {
+        if (combo.name?.toLowerCase() === "color" && combo?.value) {
+          processColor({ name: combo.value, hex: "#000000" });
+        }
       });
     });
 
-    // Convert the map to an array of objects sorted by count (descending)
-    return Array.from(colorCounts.values())
-      .sort((a, b) => b.count - a.count);
-  } catch (error) {
-    console.error("Error fetching colors by category:", error);
-    return [];
-  }
+    productColorNames.forEach((colorName) => {
+      const colorData = colorCounts.get(colorName);
+      if (colorData) colorData.count++;
+    });
+  });
+
+  return Array.from(colorCounts.values()).sort((a, b) => b.count - a.count);
+}
+
+function deriveSizesFromProducts(
+  products: Product[]
+): { size: string; count: number }[] {
+  const sizeCounts = new Map<string, number>();
+
+  products.forEach((product) => {
+    const productSizes = new Set<string>();
+    product.variants?.forEach((variant) => {
+      if (
+        variant.optionName?.toLowerCase() === "size" &&
+        Array.isArray(variant.optionValue)
+      ) {
+        variant.optionValue.forEach((sizeValue) => {
+          productSizes.add(sizeValue as string);
+        });
+      }
+    });
+    product.variantDetails?.forEach((detail) => {
+      detail.combination?.forEach((combo) => {
+        if (combo.name?.toLowerCase() === "size") {
+          productSizes.add(combo.value);
+        }
+      });
+    });
+    if (Array.isArray(product.sizes)) {
+      product.sizes.forEach((size) => {
+        if (size) productSizes.add(size);
+      });
+    }
+    productSizes.forEach((size) => {
+      sizeCounts.set(size, (sizeCounts.get(size) || 0) + 1);
+    });
+  });
+
+  return Array.from(sizeCounts.entries())
+    .map(([size, count]) => ({ size, count }))
+    .sort((a, b) => {
+      const aNum = parseFloat(a.size);
+      const bNum = parseFloat(b.size);
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+      return a.size.localeCompare(b.size);
+    });
+}
+
+function derivePriceFromProducts(products: Product[]): {
+  minPrice: number | null;
+  maxPrice: number | null;
+} {
+  let minPrice: number | null = null;
+  let maxPrice: number | null = null;
+
+  products.forEach((product) => {
+    const prices = [product.productDiscountedPrice].filter(
+      (price) => typeof price === "number"
+    ) as number[];
+    prices.forEach((price) => {
+      if (minPrice === null || price < minPrice) minPrice = price;
+      if (maxPrice === null || price > maxPrice) maxPrice = price;
+    });
+    product.variantDetails?.forEach((detail) => {
+      const variantPrices = [detail.discountedPrice].filter(
+        (price) => typeof price === "number"
+      ) as number[];
+      variantPrices.forEach((price) => {
+        if (minPrice === null || price < minPrice) minPrice = price;
+        if (maxPrice === null || price > maxPrice) maxPrice = price;
+      });
+    });
+  });
+
+  return { minPrice, maxPrice };
+}
+
+export type CategoryFacets = {
+  colors: { color: { name: string; hex: string }; count: number }[];
+  sizes: { size: string; count: number }[];
+  price: { minPrice: number | null; maxPrice: number | null };
 };
 
+/** Single fetch for filter UI — colors + sizes + price from one product set. */
+export const getFacetsByCategory = async (
+  categoryId: string
+): Promise<CategoryFacets> =>
+  withCache(`facets-${categoryId}`, 5 * 60 * 1000, async () => {
+    try {
+      // Colors historically filtered active-only; sizes/price included inactive.
+      // Fetch both once each (cached) rather than three full downloads.
+      const [activeProducts, allProducts] = await Promise.all([
+        fetchCategoryProductsForFacets(categoryId, true),
+        fetchCategoryProductsForFacets(categoryId, false),
+      ]);
+      return {
+        colors: deriveColorsFromProducts(activeProducts),
+        sizes: deriveSizesFromProducts(allProducts),
+        price: derivePriceFromProducts(allProducts),
+      };
+    } catch (error) {
+      console.error("Error fetching facets by category:", error);
+      return {
+        colors: [],
+        sizes: [],
+        price: { minPrice: null, maxPrice: null },
+      };
+    }
+  });
+
+export const getColorsByCategory = async (
+  categoryId: string
+): Promise<{ color: { name: string; hex: string }; count: number }[]> => {
+  const facets = await getFacetsByCategory(categoryId);
+  return facets.colors;
+};
 
 export const getSizesByCategory = async (
   categoryId: string
 ): Promise<{ size: string; count: number }[]> => {
-
-  console.log(categoryId)
-  try {
-    // First, get the category document
-    const categoryQuery = query(
-      collection(db, "categories"),
-      where("id", "==", categoryId)
-    );
-    const categorySnapshot = await getDocs(categoryQuery);
-
-    if (categorySnapshot.empty) {
-      console.log("Category not found.");
-      return [];
-    }
-
-    const categoryData = categorySnapshot.docs[0].data();
-    const subCategories = categoryData?.subCategories || [];
-    
-    // Create an array of all relevant category IDs (main category + subcategories)
-    const allCategoryIds = [categoryId, ...subCategories];
-
-    // Create a query for each category ID using array-contains
-    const queryPromises = allCategoryIds.map(categoryId => 
-      getDocs(query(
-        collection(db, "products"),
-        where("categories", "array-contains", categoryId),
-      ))
-    );
-
-    // Execute all queries in parallel
-    const productsSnapshots = await Promise.all(queryPromises);
-    
-    // Combine all products
-    const allProducts = productsSnapshots.flatMap(snapshot => 
-      snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
-    );
-
-
- 
-    
-    // Remove duplicates (in case a product belongs to multiple subcategories)
-    const uniqueProducts = [...new Map(allProducts.map(item => [item.id, item])).values()];
-
-    // Create a map to count occurrences of each size
-    const sizeCounts = new Map<string, number>();
-
-    uniqueProducts.forEach((product) => {
-      // Track sizes we've already counted for this product to avoid double-counting
-      const productSizes = new Set<string>();
-
-      // Check variants for sizes
-      product.variants?.forEach((variant) => {
-      
-        if (
-          variant.optionName?.toLowerCase() === "size" &&
-          Array.isArray(variant.optionValue)
-        ) {
-          variant.optionValue.forEach((sizeValue) => {
-       
-              productSizes.add(sizeValue);
-            
-          });
-        }
-      });
-
-      // Check variantDetails for sizes
-      product.variantDetails?.forEach((detail) => {
-        detail.combination?.forEach((combo) => {
-          if (
-            combo.name?.toLowerCase() === "size" 
-          ) {
-            productSizes.add(combo.value);
-          }
-        });
-      });
-
-      // Check the sizes array directly (if it exists)
-      if (Array.isArray(product.sizes)) {
-        product.sizes.forEach(size => {
-          if (size) productSizes.add(size);
-        });
-      }
-
-      // Update counts for each unique size in this product
-      productSizes.forEach(size => {
-        sizeCounts.set(size, (sizeCounts.get(size) || 0) + 1);
-      });
-    });
-
-    // Convert the map to an array of objects and sort by size
-    const sizesArray = Array.from(sizeCounts.entries())
-      .map(([size, count]) => ({ size, count }))
-      .sort((a, b) => {
-        // Try to sort numerically if possible
-        const aNum = parseFloat(a.size);
-        const bNum = parseFloat(b.size);
-        
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-          return aNum - bNum;
-        }
-        
-        // Fallback to alphabetical sorting
-        return a.size.localeCompare(b.size);
-      });
-
-    return sizesArray;
-  } catch (error) {
-    console.error("Error fetching sizes by category:", error);
-    return [];
-  }
+  const facets = await getFacetsByCategory(categoryId);
+  return facets.sizes;
 };
+
 export const getMinMaxPriceByCategory = async (
   categoryId: string
 ): Promise<{ minPrice: number | null; maxPrice: number | null }> => {
-  let minPrice: number | null = null;
-  let maxPrice: number | null = null;
-
-  try {
-    // First, get the category document
-    const categoryQuery = query(
-      collection(db, "categories"),
-      where("id", "==", categoryId)
-    );
-    const categorySnapshot = await getDocs(categoryQuery);
-
-    if (categorySnapshot.empty) {
-      console.log("Category not found.");
-      return { minPrice, maxPrice };
-    }
-
-    const categoryData = categorySnapshot.docs[0].data();
-    const subCategories = categoryData?.subCategories || [];
-    
-    // Create an array of all relevant category IDs (main category + subcategories)
-    const allCategoryIds = [categoryId, ...subCategories];
-
-    // Create a query for each category ID using array-contains
-    const queryPromises = allCategoryIds.map(categoryId => 
-      getDocs(query(
-        collection(db, "products"),
-        where("categories", "array-contains", categoryId)
-      ))
-    );
-
-    // Execute all queries in parallel
-    const productsSnapshots = await Promise.all(queryPromises);
-    
-    // Combine all products
-    const allProducts = productsSnapshots.flatMap(snapshot => 
-      snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
-    );
-    
-    // Remove duplicates (in case a product belongs to multiple subcategories)
-    const uniqueProducts = [...new Map(allProducts.map(item => [item.id, item])).values()];
-
-    // Calculate min and max prices
-    uniqueProducts.forEach((product) => {
-      // Consider both original price and discounted price
-      const pricesToConsider = [
-        product.productDiscountedPrice,
-      ].filter(price => typeof price === "number") as number[];
-
-      pricesToConsider.forEach((price) => {
-        if (minPrice === null || price < minPrice) {
-          minPrice = price;
-        }
-        if (maxPrice === null || price > maxPrice) {
-          maxPrice = price;
-        }
-      });
-
-      // Also consider prices in variantDetails
-      product.variantDetails?.forEach((detail) => {
-        const variantPrices = [
-          detail.discountedPrice
-        ].filter(price => typeof price === "number") as number[];
-
-        variantPrices.forEach((price) => {
-          if (minPrice === null || price < minPrice) {
-            minPrice = price;
-          }
-          if (maxPrice === null || price > maxPrice) {
-            maxPrice = price;
-          }
-        });
-      });
-    });
-
-    return { minPrice, maxPrice };
-  } catch (error) {
-    console.error("Error fetching min/max price by category:", error);
-    return { minPrice: null, maxPrice: null };
-  }
+  const facets = await getFacetsByCategory(categoryId);
+  return facets.price;
 };

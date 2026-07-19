@@ -1,6 +1,5 @@
 import { db } from "@/firebase/config";
 import { doc, getDoc, updateDoc, arrayRemove } from "firebase/firestore";
-import { Product } from "./products";
 
 export interface WishlistItem {
   id: string;

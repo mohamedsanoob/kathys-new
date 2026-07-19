@@ -10,94 +10,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --animate-shimmer: shimmer 3s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-/* Red textured discount / offer tags (coupons, category promos) */
-.discount-offer-tag {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  overflow: hidden;
-  color: #fff;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  background: linear-gradient(
-    120deg,
-    #7f1d1d 0%,
-    #dc2626 28%,
-    #ef4444 50%,
-    #b91c1c 72%,
-    #991b1b 100%
-  );
-  background-size: 200% 200%;
-  animation: shimmer 3s ease-in-out infinite;
-  box-shadow: 0 2px 10px rgba(185, 28, 28, 0.35);
-}
-
-.discount-offer-tag::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    -45deg,
-    rgba(255, 255, 255, 0.07) 0px,
-    rgba(255, 255, 255, 0.07) 1px,
-    transparent 1px,
-    transparent 5px
-  );
-  pointer-events: none;
-}
-
-.discount-offer-tag > * {
-  position: relative;
-  z-index: 1;
-}
-
-.discount-offer-surface {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(
-    120deg,
-    rgba(254, 226, 226, 0.95) 0%,
-    rgba(254, 242, 242, 0.98) 45%,
-    rgba(254, 226, 226, 0.95) 100%
-  );
-  border-color: rgba(220, 38, 38, 0.28);
-}
-
-.discount-offer-surface::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    -45deg,
-    rgba(220, 38, 38, 0.04) 0px,
-    rgba(220, 38, 38, 0.04) 1px,
-    transparent 1px,
-    transparent 8px
-  );
-  pointer-events: none;
-}
-
-.discount-offer-banner-bg {
-  background: linear-gradient(
-    120deg,
-    rgba(254, 226, 226, 0.85) 0%,
-    rgba(254, 242, 242, 0.95) 50%,
-    rgba(254, 226, 226, 0.85) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 3s ease-in-out infinite;
 }
 
 
@@ -223,5 +135,20 @@ input[type="number"]::-webkit-inner-spin-button {
 
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* Simple coupon / offer chips — no shine, brand green */
+.discount-offer-tag {
+  display: inline-flex;
+  align-items: center;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: #1e6553;
+}
+
+.discount-offer-surface {
+  background: #f9fafb;
+  border-color: #e5e7eb;
 }
 

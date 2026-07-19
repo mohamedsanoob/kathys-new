@@ -42,7 +42,7 @@ const CouponField = ({
           <button
             type="button"
             onClick={onRemoveCoupon}
-            className="text-gray-400 hover:text-red-500 transition-colors"
+            className="text-gray-400 hover:text-gray-700 transition-colors"
             aria-label="Remove coupon"
           >
             <X className="h-4 w-4" />
@@ -54,7 +54,7 @@ const CouponField = ({
             <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              value={couponInput}
+              value={couponInput || ""}
               onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -69,9 +69,9 @@ const CouponField = ({
           <button
             type="button"
             onClick={onApplyCoupon}
-            disabled={!couponInput.trim() || couponStatus === "validating"}
+            disabled={!(couponInput || "").trim() || couponStatus === "validating"}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors shrink-0 ${
-              couponInput.trim() && couponStatus !== "validating"
+              (couponInput || "").trim() && couponStatus !== "validating"
                 ? "bg-[#1e6553] text-white hover:bg-[#1a5947]"
                 : "bg-gray-200 text-gray-400 cursor-not-allowed"
             }`}
@@ -91,7 +91,7 @@ const CouponField = ({
         </p>
       )}
       {couponStatus === "error" && couponMessage && (
-        <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
+        <p className="mt-1.5 flex items-center gap-1 text-xs text-gray-600">
           <AlertCircle className="h-3 w-3" /> {couponMessage}
         </p>
       )}

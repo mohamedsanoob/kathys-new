@@ -4,20 +4,21 @@ import Footer from "./_components/Footer";
 import Help from "./_components/Help";
 // import ImageSwiper from "./_components/ImageSwiper";
 import Rating from "./_components/Rating";
+import { getCollectionsWithProductsServer } from "@/lib/queries";
 
-// Collections reads Firestore via the Admin SDK; render server-side per
-// request (withCache handles the 5-min memo) instead of prerendering at build
-// (which would require Firebase creds to be present at build time).
+// Collections are fetched via the Admin SDK on the server (batched), with
+// withCache handling the 5-min memo. force-dynamic avoids needing Firebase
+// creds at build time.
 export const dynamic = "force-dynamic";
 
-export default function Home() {
- 
-  
+export default async function Home() {
+  const collections = await getCollectionsWithProductsServer();
+
   return (
     <div className="relative w-full overflow-x-hidden">
       {/* <ImageSwiper /> */}
       {/* <Community /> */}
-      <Collections />
+      <Collections initialData={collections as any} />
       <Rating />
       <Help />
       <Footer />

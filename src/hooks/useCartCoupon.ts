@@ -25,7 +25,9 @@ export function useCartCoupon(
 
   const cartFingerprint = buildCartFingerprint(cartItems);
 
-  // Restore coupon once cart is loaded (avoids empty-cart → loaded wipe)
+  // Restore coupon once cart is loaded (avoids empty-cart → loaded wipe).
+  // Re-validate so eligibleLineCount / discount stay accurate for delivery.
+  // Depend only on cartReady + fingerprint — cartItems identity changes every render.
   useEffect(() => {
     if (!cartReady || restoredRef.current) return;
     restoredRef.current = true;
@@ -33,17 +35,48 @@ export function useCartCoupon(
 
     const stored = loadStoredCoupon();
     if (
-      stored &&
-      (!stored.cartFingerprint || stored.cartFingerprint === cartFingerprint)
+      !stored ||
+      (stored.cartFingerprint && stored.cartFingerprint !== cartFingerprint)
     ) {
-      setAppliedCoupon(stored.coupon);
-      setCouponInput(stored.coupon.code);
-      setCouponStatus("applied");
-      setCouponMessage(stored.coupon.message || "Coupon applied");
-      if (!stored.cartFingerprint) {
-        saveAppliedCoupon(stored.coupon, cartFingerprint);
-      }
+      return;
     }
+
+    const code = stored.coupon.code;
+    const itemsSnapshot = cartItems;
+    const userSnapshot = userId;
+    const fingerprintSnapshot = cartFingerprint;
+    setCouponInput(code);
+    setCouponStatus("validating");
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await validateCartCoupon(code, itemsSnapshot, userSnapshot);
+        if (cancelled) return;
+        if (result.ok) {
+          setAppliedCoupon(result.coupon);
+          setCouponStatus("applied");
+          setCouponMessage(result.coupon.message || "Coupon applied");
+          saveAppliedCoupon(result.coupon, fingerprintSnapshot);
+        } else {
+          setAppliedCoupon(null);
+          setCouponStatus("idle");
+          setCouponMessage("");
+          clearAppliedCoupon();
+        }
+      } catch {
+        if (cancelled) return;
+        // Fall back to stored discount; delivery uses line count 0 → standard fee
+        setAppliedCoupon(stored.coupon);
+        setCouponStatus("applied");
+        setCouponMessage(stored.coupon.message || "Coupon applied");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot cartItems/userId at restore time
   }, [cartReady, cartFingerprint]);
 
   // Clear only when cart contents change after initial restore
@@ -153,5 +186,6 @@ export function useCartCoupon(
     handleRemoveCoupon,
     applyCouponByCode,
     couponDiscount: appliedCoupon?.discount ?? 0,
+    eligibleLineCount: appliedCoupon?.eligibleLineCount ?? 0,
   };
 }

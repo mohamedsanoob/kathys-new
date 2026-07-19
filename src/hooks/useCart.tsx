@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { getCartProducts } from "@/actions/actions";
-import { useAuth } from "@/context/AuthContext";
 
 interface CartProduct {
   id: string;
@@ -27,7 +26,6 @@ interface VariantDetail {
 }
 
 export const useCart = () => {
-  const { currentUser, loading: authLoading } = useAuth();
   const [cartProducts, setCartProducts] = useState<CartProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -61,32 +59,32 @@ export const useCart = () => {
     }
   }, [fetchCart, isUpdating]);
 
+  // ✅ use ref to always hold latest refreshCart function
   const refreshCartRef = useRef(refreshCart);
   useEffect(() => {
     refreshCartRef.current = refreshCart;
   }, [refreshCart]);
 
+  // ✅ Attach event listener once, and always use latest refreshCart
   useEffect(() => {
     const handleCartUpdated = () => {
       refreshCartRef.current();
     };
-    const handleCartRemoveAll = () => {
-      setCartProducts([]);
-    };
     window.addEventListener("cart-updated", handleCartUpdated);
-    window.addEventListener("cart-remove-all", handleCartRemoveAll);
+    window.addEventListener("cart-remove-all", () => {
+      setCartProducts([]);
+    });
     return () => {
+      window.removeEventListener("cart-remove-all", () => {
+        setCartProducts([]);
+      });
       window.removeEventListener("cart-updated", handleCartUpdated);
-      window.removeEventListener("cart-remove-all", handleCartRemoveAll);
     };
   }, []);
 
-  // Wait for Firebase auth to hydrate so we don't briefly read the guest cart
-  // for a logged-in user (which looks like items "re-appeared" on refresh).
   useEffect(() => {
-    if (authLoading) return;
     fetchCart();
-  }, [authLoading, currentUser?.uid, fetchCart]);
+  }, [fetchCart]);
 
   const totalQuantity = useMemo(
     () => cartProducts.reduce((sum, item) => sum + item.quantity, 0),
@@ -109,7 +107,7 @@ export const useCart = () => {
       cartProducts,
       totalQuantity,
       totalPrice,
-      isLoading: authLoading || isLoading,
+      isLoading,
       isUpdating,
       refreshCart,
       lastUpdated,
@@ -118,7 +116,6 @@ export const useCart = () => {
       cartProducts,
       totalQuantity,
       totalPrice,
-      authLoading,
       isLoading,
       isUpdating,
       refreshCart,
