@@ -69,34 +69,51 @@ const ProductsSection: React.FC = () => {
     };
   }, [loading, scrollRestored, setScrollPosition]);
 
-  // Restore scroll position
+  // Restore scroll position (bounded — never block infinite scroll forever)
   useEffect(() => {
     if (loading || scrollRestored || !scrollPosition) return;
     const container = scrollContainerRef.current;
     if (!container) return;
 
-
     isRestoringRef.current = true;
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 60; // ~1s at 60fps
 
-    const restoreScroll = () => {
-      if (container.scrollHeight > container.clientHeight && container.scrollHeight > scrollPosition) {
-        container.scrollTo({
-          top: scrollPosition,
-          behavior: "instant",
-        });
-      
-        setScrollRestored(true);
-
-        setTimeout(() => {
-          isRestoringRef.current = false;
-        }, 100);
-      } else {
-        requestAnimationFrame(restoreScroll);
-      }
+    const finish = () => {
+      if (cancelled) return;
+      const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+      container.scrollTo({
+        top: Math.min(scrollPosition, maxScroll),
+        behavior: "instant",
+      });
+      setScrollRestored(true);
+      setTimeout(() => {
+        if (!cancelled) isRestoringRef.current = false;
+      }, 100);
     };
 
-    setTimeout(restoreScroll, 100);
-  }, [loading,  scrollRestored]);
+    const restoreScroll = () => {
+      if (cancelled) return;
+      attempts += 1;
+      if (
+        (container.scrollHeight > container.clientHeight &&
+          container.scrollHeight > scrollPosition) ||
+        attempts >= MAX_ATTEMPTS
+      ) {
+        finish();
+        return;
+      }
+      requestAnimationFrame(restoreScroll);
+    };
+
+    const t = setTimeout(restoreScroll, 100);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      isRestoringRef.current = false;
+    };
+  }, [loading, scrollRestored, scrollPosition, scrollContainerRef]);
 
   // Reset scroll restore flag on navigation
   useEffect(() => {
@@ -106,28 +123,33 @@ const ProductsSection: React.FC = () => {
 
   // Infinite scroll
   useEffect(() => {
-    if (!hasMore) return;
+    if (!hasMore || loading) return;
     const container = scrollContainerRef.current;
-    if (!container || !loaderRef.current) return;
+    const sentinel = loaderRef.current;
+    if (!container || !sentinel) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loadingMore && !isRestoringRef.current) {
+        if (
+          entries[0].isIntersecting &&
+          !loadingMore &&
+          !isRestoringRef.current
+        ) {
           loadMoreProducts();
         }
       },
       {
-        root: container, // important: observe inside container
+        root: container,
         threshold: 0.1,
       }
     );
 
-    observer.observe(loaderRef.current);
+    observer.observe(sentinel);
 
     return () => {
-      if (loaderRef.current) observer.unobserve(loaderRef.current);
+      observer.disconnect();
     };
-  }, [loadMoreProducts, hasMore, loadingMore]);
+  }, [loadMoreProducts, hasMore, loadingMore, loading, scrollContainerRef]);
 
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newSortBy = e.target.value;
@@ -147,16 +169,12 @@ const ProductsSection: React.FC = () => {
     router.push(`${pathname}${query}`);
   };
 
+  // Keep render order aligned with Firestore cursor order (no client re-sort).
   const productList = useMemo(() => {
-    const isDefaultSort = !searchParams.toString().includes("sortBy");
-    const productsToRender = isDefaultSort
-      ? [...products].sort((a, b) => (a.position || 0) - (b.position || 0))
-      : products;
-
     if (isGridView) {
       return (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-          {productsToRender.map((p) => (
+          {products.map((p) => (
             <ProductGridItem key={p.id} product={p} />
           ))}
         </div>
@@ -164,12 +182,16 @@ const ProductsSection: React.FC = () => {
     }
     return (
       <div className="space-y-6">
-        {productsToRender.map((p) => (
-          <ProductListItem key={p.id} product={p} categoryName={currentCategory?.name} />
+        {products.map((p) => (
+          <ProductListItem
+            key={p.id}
+            product={p}
+            categoryName={currentCategory?.name}
+          />
         ))}
       </div>
     );
-  }, [isGridView, products, currentCategory?.name, searchParams]);
+  }, [isGridView, products, currentCategory?.name]);
 
   return (
     <div

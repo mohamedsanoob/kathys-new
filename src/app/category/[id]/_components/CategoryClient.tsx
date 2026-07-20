@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import FilterSection from "./FilterSection";
 import ProductsSection from "./ProductsSection";
 import CategoryCouponPromo from "@/app/_components/CategoryCouponPromo";
@@ -123,9 +123,11 @@ export default function CategoryClient({
 }: {
   initialData?: CategoryClientData;
 }) {
+  const { id } = useParams<{ id: string }>();
+
   if (!initialData) {
     return (
-      <CategoryProvider>
+      <CategoryProvider key={id || "live"}>
         <CategoryContent />
       </CategoryProvider>
     );
@@ -133,7 +135,7 @@ export default function CategoryClient({
 
   const { facets, ...categoryInitial } = initialData;
   return (
-    <CategoryProvider initialData={categoryInitial}>
+    <CategoryProvider key={id || "seeded"} initialData={categoryInitial}>
       <CategoryContent facets={facets} />
     </CategoryProvider>
   );

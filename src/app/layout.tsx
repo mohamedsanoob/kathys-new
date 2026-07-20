@@ -1,5 +1,6 @@
 // ./app/layout.tsx
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Jost } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
@@ -37,7 +38,9 @@ export default function RootLayout({
         <AdSense pId="ca-pub-8258677943197720" />
       </head>
       <body className={`${jost.className} antialiased flex flex-col h-full`}>
-        <RouteLoader />
+        <Suspense fallback={null}>
+          <RouteLoader />
+        </Suspense>
         <AuthProvider>
           <ScrollProvider>
             <LayoutWrapper>

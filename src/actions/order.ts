@@ -1,4 +1,4 @@
-import { db } from "@/firebase/config";
+import { auth, db } from "@/firebase/config";
 import { collection, getDocs, query, where } from "firebase/firestore";
 
 interface Timestamp {
@@ -19,7 +19,7 @@ interface CustomerDetails {
 }
 
 interface VariantDetails {
-  [key: string]: string; // Dynamic variant properties like Size, Color etc.
+  [key: string]: string;
 }
 
 interface OrderItem {
@@ -46,7 +46,7 @@ interface CodDetails {
   verification_date: Timestamp | null;
 }
 
-interface Order {
+export interface Order {
   id: string;
   orderDetails: {
     orderStatus: string;
@@ -75,7 +75,22 @@ interface Order {
   updatedAt: Timestamp;
   acceptedAt: Timestamp;
   timestamp: Timestamp;
+  userId?: string | null;
 }
+
+const normalizePhone = (value?: string | null) =>
+  (value || "").replace(/\D/g, "").slice(-10);
+
+/** True when the signed-in user owns this order (uid or phone). */
+export const isOrderOwnedByCurrentUser = (order: Order | null): boolean => {
+  if (!order) return false;
+  const user = auth.currentUser;
+  if (!user) return false;
+  if (order.userId && order.userId === user.uid) return true;
+  const orderPhone = normalizePhone(order.customer_details?.mobile_number);
+  const userPhone = normalizePhone(user.phoneNumber);
+  return Boolean(orderPhone && userPhone && orderPhone === userPhone);
+};
 
 export const getOrderById = async (id: string): Promise<Order | null> => {
   try {
@@ -83,34 +98,12 @@ export const getOrderById = async (id: string): Promise<Order | null> => {
       query(collection(db, "orders"), where("id", "==", id))
     );
 
-    if (querySnapshot.empty) return null; // order not found
+    if (querySnapshot.empty) return null;
 
-    const doc = querySnapshot.docs[0];
-    const orderData = doc.data() as Order; // Type assertion
-
-    console.log(orderData, "order");
-
-    return { ...orderData }; // Return the order with the document ID
+    const docSnap = querySnapshot.docs[0];
+    return { ...(docSnap.data() as Order), id: docSnap.id };
   } catch (error) {
     console.error("Error fetching order:", error);
-    return null; // Handle the error gracefully
-  }
-};
-
-export const getOrders = async (): Promise<Order[]> => {
-  try {
-    const categoriesQuery = query(
-      collection(db, "orders") // Optional: sort by name
-    );
-
-    const querySnapshot = await getDocs(categoriesQuery);
-
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Order[];
-  } catch (error) {
-    console.error("Error fetching categories:", error);
-    return [];
+    return null;
   }
 };

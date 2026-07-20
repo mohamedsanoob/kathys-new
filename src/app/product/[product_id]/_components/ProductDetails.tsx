@@ -307,11 +307,7 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
   const handleAddToWishlist = useCallback(async () => {
     if (!currentUser) {
       toast.info("Please login to add items to your wishlist");
-       <PhoneAuthModal
-         isOpen={showPhoneAuth}
-         onClose={() => setShowPhoneAuth(false)}
-         onSuccess={handlePhoneVerified}
-       />;
+      setShowPhoneAuth(true);
       return;
     }
 
@@ -741,6 +737,12 @@ const ShowShareModal = ({ product, setShowShareModal }: { product: Product, setS
       {showShareModal && (
  <ShowShareModal product={product} setShowShareModal={setShowShareModal}/>
 )}
+
+      <PhoneAuthModal
+        isOpen={showPhoneAuth}
+        onClose={() => setShowPhoneAuth(false)}
+        onSuccess={handlePhoneVerified}
+      />
     </div>
   );
 };

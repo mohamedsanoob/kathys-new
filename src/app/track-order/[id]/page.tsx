@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getOrderById } from "@/actions/order";
+import { getOrderById, isOrderOwnedByCurrentUser } from "@/actions/order";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -10,18 +10,20 @@ import { useAuth } from "@/context/AuthContext";
 import { toDate } from "@/lib/dates";
 
 const Page = () => {
-  const user = useAuth()
+  const user = useAuth();
   const { id } = useParams();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || user.loading) return;
 
     const fetchOrder = async () => {
       try {
         const res = await getOrderById(id as string);
         setOrder(res);
+        setIsOwner(isOrderOwnedByCurrentUser(res));
       } catch (error) {
         console.error("Error fetching order:", error);
       } finally {
@@ -30,7 +32,7 @@ const Page = () => {
     };
 
     fetchOrder();
-  }, [id]);
+  }, [id, user.loading, user.currentUser]);
 
   const formatDate = (timestamp: unknown) => {
     const date = toDate(timestamp);
@@ -312,30 +314,35 @@ const Page = () => {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Customer Details
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Name</h3>
-            <p className="text-gray-900">{customerDetails.name}</p>
+        {isOwner ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Name</h3>
+              <p className="text-gray-900">{customerDetails.name}</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Email</h3>
+              <p className="text-gray-900">{customerDetails.email}</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Phone</h3>
+              <p className="text-gray-900">{customerDetails.mobile_number}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Address</h3>
+              <p className="text-gray-900">{customerDetails.address}</p>
+              <p className="text-gray-900">
+                {customerDetails.locality_area}, {customerDetails.city},{" "}
+                {customerDetails.state} - {customerDetails.pincode}
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Email</h3>
-            <p className="text-gray-900">{customerDetails.email}</p>
-          </div>
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Phone</h3>
-            <p className="text-gray-900">
-              {customerDetails.mobile_number}
-            </p>
-          </div>
-          <div className="sm:col-span-2">
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Address</h3>
-            <p className="text-gray-900">{customerDetails.address}</p>
-            <p className="text-gray-900">
-              {customerDetails.locality_area}, {customerDetails.city},{" "}
-              {customerDetails.state} - {customerDetails.pincode}
-            </p>
-          </div>
-        </div>
+        ) : (
+          <p className="text-sm text-gray-600">
+            Sign in with the phone number used for this order to view full
+            customer details.
+          </p>
+        )}
       </div>
     </div>
   );

@@ -12,7 +12,15 @@ import { getCollectionsWithProductsServer } from "@/lib/queries";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const collections = await getCollectionsWithProductsServer();
+  let collections: Awaited<
+    ReturnType<typeof getCollectionsWithProductsServer>
+  > = [];
+  try {
+    collections = await getCollectionsWithProductsServer();
+  } catch (error) {
+    console.error("Home collections SSR failed:", error);
+    // Client Collections will retry when initialData is empty.
+  }
 
   return (
     <div className="relative w-full overflow-x-hidden">

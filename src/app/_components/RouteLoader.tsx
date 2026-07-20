@@ -1,36 +1,45 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 // Full-screen loader shown during client-side route transitions.
 //
 // The App Router gives no navigation "start" event, so we detect starts via
 // document-level click delegation on <a> (every next/link renders one) and
-// detect completion via the pathname changing.
+// detect completion via pathname + search changing.
 //
 // A ~200ms grace delay means fast/prefetched routes never flash the overlay —
 // it only appears when a navigation actually drags on (e.g. a server-rendered
 // route waiting on Firestore).
 const SHOW_DELAY_MS = 200;
+const MAX_SHOW_MS = 8000;
 
 export default function RouteLoader() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams?.toString() || "";
   const [loading, setLoading] = useState(false);
   const [show, setShow] = useState(false);
 
   // Start on any internal link click.
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+        return;
 
       const anchor = (e.target as HTMLElement | null)?.closest("a");
       if (!anchor) return;
 
       const href = anchor.getAttribute("href");
       if (!href) return;
-      if (href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
+      if (
+        href.startsWith("#") ||
+        href.startsWith("mailto:") ||
+        href.startsWith("tel:")
+      )
+        return;
 
       let url: URL;
       try {
@@ -60,13 +69,17 @@ export default function RouteLoader() {
       return;
     }
     const t = setTimeout(() => setShow(true), SHOW_DELAY_MS);
-    return () => clearTimeout(t);
+    const safety = setTimeout(() => setLoading(false), MAX_SHOW_MS);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(safety);
+    };
   }, [loading]);
 
-  // The new route committed — stop.
+  // The new route committed — stop (pathname OR search).
   useEffect(() => {
     setLoading(false);
-  }, [pathname]);
+  }, [pathname, search]);
 
   if (!show) return null;
 

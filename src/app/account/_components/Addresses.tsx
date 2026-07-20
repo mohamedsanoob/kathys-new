@@ -107,8 +107,9 @@ const states = [
 ];
 
 const Addresses = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const [userAddresses, setUserAddresses] = useState<AddressType[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<AddressType | null>(
     null
@@ -132,19 +133,46 @@ const Addresses = () => {
     },
   });
 
-  const fetchAddresses = async (uid: string | undefined) => {
-    if (!uid) return;
-    const addresses = await getUserAddresses(uid);
-    if (addresses.length > 0) {
-      setUserAddresses(addresses);
-    } else {
-      console.log("No addresses found for this user");
+  const refreshAddresses = async () => {
+    if (!currentUser?.uid) {
+      setUserAddresses([]);
+      return;
     }
+    const addresses = (await getUserAddresses(
+      currentUser.uid
+    )) as unknown as AddressType[];
+    setUserAddresses(addresses);
   };
 
   useEffect(() => {
-    fetchAddresses(currentUser?.uid);
-  }, [currentUser?.uid]);
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+    if (!currentUser?.uid) {
+      setUserAddresses([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const addresses = (await getUserAddresses(
+          currentUser.uid
+        )) as unknown as AddressType[];
+        if (!cancelled) setUserAddresses(addresses);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.uid, authLoading]);
 
   const onSubmit = async (data: FormData) => {
     if (!currentUser?.uid || !editingAddress?.id) {
@@ -173,7 +201,7 @@ const Addresses = () => {
     if (success) {
       console.log("Address updated!");
       setEditOpen(false);
-      fetchAddresses(currentUser.uid);
+      refreshAddresses();
     } else {
       console.error("Failed to update address");
     }
@@ -196,10 +224,24 @@ const Addresses = () => {
   const handleDelete = (address: AddressType) => {
     if (address.id && currentUser?.uid) {
       deleteUserAddressById(currentUser?.uid, address.id).then(() => {
-        fetchAddresses(currentUser.uid);
+        refreshAddresses();
       });
     }
   };
+
+  if (authLoading || loading) {
+    return (
+      <p className="text-center text-gray-500 w-full py-4">Loading addresses...</p>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <p className="text-center text-gray-500 w-full py-4">
+        Please sign in to view your addresses.
+      </p>
+    );
+  }
 
   return (
     <div className="flex flex-wrap gap-4 w-full">

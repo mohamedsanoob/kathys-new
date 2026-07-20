@@ -323,27 +323,34 @@ export const getCollectionsWithProducts = async (): Promise<
   }[]
 > => withCache("collectionsWithProducts", 5 * 60 * 1000, async () => {
   try {
-     const categoriesQuery = query(
+    const categoriesQuery = query(
       collection(db, "categories"),
-      where("active", "==", true),  // Only active categories
-      orderBy("order", "asc"),      // Sort by order in ascending order                // Limit to 5 results
+      where("active", "==", true)
     );
     const categoriesSnapshot = await getDocs(categoriesQuery);
-    const categories: Category[] = categoriesSnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        categoryName: data.categoryName,
-        description: data.description,
-        active: data.active,
-        desktopBanner: data.desktopBanner,
-        images: data.images || [], // Default to empty array if missing
-        isSubcategory: data.isSubcategory,
-        slug: data.slug,
-        mobileBanner: data.mobileBanner,
-        // Ensure ALL properties from the Category interface are mapped here
-      } as Category;
-    });
+    const categories: Category[] = categoriesSnapshot.docs
+      .map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          ...data,
+          id: docSnap.id,
+          categoryName: data.categoryName,
+          description: data.description,
+          active: data.active,
+          desktopBanner: data.desktopBanner,
+          images: data.images || [],
+          isSubcategory: data.isSubcategory,
+          slug: data.slug,
+          mobileBanner: data.mobileBanner,
+        } as Category;
+      })
+      .filter((c) => !c.isSubcategory)
+      .sort((a, b) => {
+        const ao = typeof (a as any).order === "number" ? (a as any).order : Infinity;
+        const bo = typeof (b as any).order === "number" ? (b as any).order : Infinity;
+        if (ao !== bo) return ao - bo;
+        return (a.categoryName || "").localeCompare(b.categoryName || "");
+      });
 
     const collectionsWithProducts = await Promise.all(
       categories.map(async (category) => {
@@ -436,101 +443,104 @@ export const getCategoryByName = async (
 
 export const getAllCategories = async (): Promise<Category[]> =>
   withCache("allCategories", 5 * 60 * 1000, async () => {
-  try {
     const categoriesQuery = query(
       collection(db, "categories"),
-      orderBy("categoryName", "asc"), // Optional: sort by name
-           where("active", "==", true),
-             orderBy("order", "asc"),   
+      where("active", "==", true)
     );
-    
+
     const querySnapshot = await getDocs(categoriesQuery);
-    
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+
+    const categories = querySnapshot.docs.map((docSnap) => ({
+      ...docSnap.data(),
+      id: docSnap.id,
     })) as Category[];
-  } catch (error) {
-    console.error("Error fetching categories:", error);
-    return [];
-  }
-});
+
+    // Sort in memory so docs missing `order` are not dropped by orderBy.
+    return categories.sort((a, b) => {
+      const ao = typeof (a as any).order === "number" ? (a as any).order : Infinity;
+      const bo = typeof (b as any).order === "number" ? (b as any).order : Infinity;
+      if (ao !== bo) return ao - bo;
+      return (a.categoryName || "").localeCompare(b.categoryName || "");
+    });
+  });
 
 export const getCategoryById = async (
   id: string
 ): Promise<Category | null> =>
   withCache(`category-${id}`, 5 * 60 * 1000, async () => {
-  try {
     const querySnapshot = await getDocs(
       query(
         collection(db, "categories"),
         where("id", "==", id),
-             where("active", "==", true),
+        where("active", "==", true)
       )
     );
 
-    if (querySnapshot.empty) return null; // Category not found
+    if (querySnapshot.empty) return null;
 
-    const doc = querySnapshot.docs[0];
-    const categoryData = doc.data() as Category; // Type assertion
-
-    return { ...categoryData, id: doc.id }; // Return the category with the document ID
-  } catch (error) {
-    console.error("Error fetching category:", error);
-    return null; // Handle the error gracefully
-  }
-});
+    const docSnap = querySnapshot.docs[0];
+    const categoryData = docSnap.data() as Category;
+    return { ...categoryData, id: docSnap.id };
+  });
 
 
 export const getUserAddresses = async (
-  userId: string
+  userId?: string
 ): Promise<Address[]> => {
   try {
-    // Reference to the addresses subcollection under the user document
-    const addressesRef = collection(db, "users", userId, "addresses");
-    
-    // Get all documents in the addresses subcollection
-    const querySnapshot = await getDocs(addressesRef);
+    // Always bind to the signed-in user — ignore mismatched client-supplied ids.
+    const uid = auth.currentUser?.uid;
+    if (!uid) return [];
+    if (userId && userId !== uid) {
+      console.warn("getUserAddresses: ignoring mismatched userId");
+    }
 
-    // If no addresses found, return empty array
+    const addressesRef = collection(db, "users", uid, "addresses");
+    const querySnapshot = await getDocs(addressesRef);
     if (querySnapshot.empty) return [];
 
-    // Map through documents and format the data
-    const addresses = querySnapshot.docs.map(doc => ({
-      id: doc.id, // Include the document ID
-      ...doc.data() as Omit<Address, 'id'> // Spread the rest of the address data
+    return querySnapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...(docSnap.data() as Omit<Address, "id">),
     }));
-
-    return addresses;
   } catch (error) {
     console.error("Error fetching user addresses:", error);
-    return []; // Return empty array in case of error
+    return [];
   }
 };
 
-export const getUserOrders = async (
-  userId: string
-): Promise<Order[]> => {
+export const getUserOrders = async (userId?: string): Promise<Order[]> => {
   try {
-    // Reference to the orders subcollection under the user document
-    const ordersRef = collection(db, "users", userId, "orders");
+    const uid = auth.currentUser?.uid;
+    if (!uid) return [];
+    if (userId && userId !== uid) {
+      console.warn("getUserOrders: ignoring mismatched userId");
+    }
 
-    // Get all documents in the orders subcollection
+    const ordersRef = collection(db, "users", uid, "orders");
     const querySnapshot = await getDocs(ordersRef);
-
-    // If no orders found, return empty array
     if (querySnapshot.empty) return [];
 
-    // Map through documents and format the data
-    const orders = querySnapshot.docs.map(doc => ({
-      id: doc.id, // Include the document ID
-      ...doc.data() as Omit<Order, 'id'> // Spread the rest of the order data
+    const orders = querySnapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...(docSnap.data() as Omit<Order, "id">),
     }));
 
-    return orders;
+    // Newest first (createdAt or timestamp).
+    return orders.sort((a, b) => {
+      const aMs =
+        (a as any).createdAt?.seconds ||
+        (a as any).timestamp?.seconds ||
+        0;
+      const bMs =
+        (b as any).createdAt?.seconds ||
+        (b as any).timestamp?.seconds ||
+        0;
+      return bMs - aMs;
+    });
   } catch (error) {
     console.error("Error fetching user orders:", error);
-    return []; // Return empty array in case of error
+    return [];
   }
 };
 
@@ -562,210 +572,240 @@ export const getProductsByCategory = async (
   sortBy: string = "latest",
   minPrice?: number,
   maxPrice?: number,
-  colorFilter?: string, // Hex color code like "#8baf3a"
-  sizeFilter?: string[] // Size value like "42"
-  
+  colorFilter?: string,
+  sizeFilter?: string[]
 ): Promise<{
   products: Product[];
   categories?: Record<string, any>;
   totalCount: number;
   lastVisible: DocumentSnapshot | null;
+  hasMore: boolean;
 }> => {
-  try {
-    // First, get the category document
-    const categoryQuery = query(
-      collection(db, "categories"),
-      where("id", "==", categoryId),
-           where("active", "==", true),
-    );
-    const categorySnapshot = await getDocs(categoryQuery);
+  const categoryQuery = query(
+    collection(db, "categories"),
+    where("id", "==", categoryId),
+    where("active", "==", true)
+  );
+  const categorySnapshot = await getDocs(categoryQuery);
 
-    if (categorySnapshot.empty) {
-      return { products: [], totalCount: 0, lastVisible: null };
+  if (categorySnapshot.empty) {
+    return {
+      products: [],
+      totalCount: 0,
+      lastVisible: null,
+      hasMore: false,
+    };
+  }
+
+  const categoryData = categorySnapshot.docs[0].data();
+  const subCategories = categoryData?.subCategories || [];
+  const allCategoryIds = [categoryId, ...subCategories];
+  const chunkSize = 10;
+
+  const matchesFilters = (product: Product) => {
+    let colorMatch = true;
+    let sizeMatch = true;
+
+    if (colorFilter) {
+      const filterValue = colorFilter.toLowerCase().trim();
+      colorMatch =
+        product.variantDetails?.some((variant) =>
+          variant.combination?.some((combo) => {
+            if (!combo?.name || !combo?.value) return false;
+            if (combo.name.toLowerCase().trim() !== "color") return false;
+            const variantValue = combo.value.toLowerCase().trim();
+            return (
+              variantValue === filterValue || variantValue.includes(filterValue)
+            );
+          })
+        ) ?? false;
     }
 
-    const categoryData = categorySnapshot.docs[0].data();
-    const subCategories = categoryData?.subCategories || [];
-    
-    // Create an array of all relevant category IDs (main category + subcategories)
-    const allCategoryIds = [categoryId, ...subCategories];
-
-    // Since Firestore doesn't support array-contains-any with more than 10 items,
-    // we need to split into chunks if there are more than 10 subcategories
-    const chunkSize = 10
-    const queryPromises = [];
-
-    for (let i = 0; i < allCategoryIds.length; i += chunkSize) {
-      const chunk = allCategoryIds.slice(i, i + chunkSize);
-      let chunkQuery = query(
-        collection(db, "products"),
-        where("categories", "array-contains-any", chunk),
-             where("active", "==", true),
-                     orderBy("position", "asc"),    
-      );
-
-      // Apply price filters if provided
-      if (minPrice !== undefined && maxPrice !== undefined) {
-        chunkQuery = query(
-          chunkQuery,
-          where("productDiscountedPrice", ">=", minPrice),
-          where("productDiscountedPrice", "<=", maxPrice)
-        );
-      }
-
-      // Apply sorting
-      switch (sortBy) {
-        case "latest":
-          chunkQuery = query(chunkQuery, orderBy("createdDate", "desc"));
-          break;
-        case "price-low":
-          chunkQuery = query(chunkQuery, orderBy("productDiscountedPrice", "asc"));
-          break;
-        case "price-high":
-          chunkQuery = query(chunkQuery, orderBy("productDiscountedPrice", "desc"));
-          break;
-        default:
-          chunkQuery = query(chunkQuery, orderBy("createdDate", "desc"));
-      }
-
-      // Apply pagination
-      chunkQuery = query(
-        chunkQuery,
-        limit(limitNumber),
-        ...(lastVisibleDoc ? [startAfter(lastVisibleDoc)] : [])
-      );
-
-      queryPromises.push(getDocs(chunkQuery));
-    }
-
-    // Execute all queries in parallel
-    const productsSnapshots = await Promise.all(queryPromises);
-    
-    // Combine and deduplicate results
-    const allProducts = productsSnapshots.flatMap(snapshot => 
-      snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
-    );
-    
-    // Remove duplicates (in case a product belongs to multiple subcategories)
-    let uniqueProducts = [...new Map(allProducts.map(item => [item.id, item])).values()];
-
-    // Apply filters if provided (client-side filtering)
-    uniqueProducts = uniqueProducts.filter(product => {
-      let colorMatch = true;
-      let sizeMatch = true;
-
-      // Check color filter
-if (colorFilter) {
-
-  colorMatch = product.variantDetails?.some(variant => 
-    variant.combination?.some(combo => {
-      // Check if combo exists and has the required properties
-      if (!combo || !combo.name || !combo.value) return false;
-
-      // Case-insensitive comparison for color attribute
-      if (combo.name.toLowerCase().trim() === "color") {
-  
-        const filterValue = colorFilter?.toLowerCase().trim() || '';
-        const variantValue = combo.value?.toLowerCase().trim() || '';
-
-
-        
-        // Check for exact match or partial match
-        return variantValue === filterValue || 
-               variantValue.includes(filterValue);
-      }
-      return false;
-    })
-  ) ?? false; // Use nullish coalescing for undefined cases
-}
-
-      // Check size filter
-      if (sizeFilter && sizeFilter.length > 0) {
-        sizeMatch = product.variantDetails?.some(variant => 
-          variant.combination?.some(combo => 
-            combo.name?.toLowerCase() === "size" && sizeFilter?.includes(combo.value)
+    if (sizeFilter && sizeFilter.length > 0) {
+      sizeMatch =
+        product.variantDetails?.some((variant) =>
+          variant.combination?.some(
+            (combo) =>
+              combo.name?.toLowerCase() === "size" &&
+              sizeFilter.includes(combo.value)
           )
         ) || false;
-      }
+    }
 
-      return colorMatch && sizeMatch;
-    });
-    
-    // Sort the final combined results
+    return colorMatch && sizeMatch;
+  };
+
+  const sortProducts = (list: Product[]) => {
     switch (sortBy) {
-      case "latest":
-        uniqueProducts.sort(
-          (a, b) => (toMillis(b.createdDate) || 0) - (toMillis(a.createdDate) || 0)
-        );
-        break;
       case "price-low":
-        uniqueProducts.sort((a, b) => (a.productDiscountedPrice || 0) - (b.productDiscountedPrice || 0));
+        list.sort(
+          (a, b) =>
+            (a.productDiscountedPrice || 0) - (b.productDiscountedPrice || 0)
+        );
         break;
       case "price-high":
-        uniqueProducts.sort((a, b) => (b.productDiscountedPrice || 0) - (a.productDiscountedPrice || 0));
+        list.sort(
+          (a, b) =>
+            (b.productDiscountedPrice || 0) - (a.productDiscountedPrice || 0)
+        );
+        break;
+      case "latest":
+      default:
+        list.sort(
+          (a, b) =>
+            (toMillis(b.createdDate) || 0) - (toMillis(a.createdDate) || 0)
+        );
+        break;
+    }
+    return list;
+  };
+
+  const buildChunkQuery = (chunk: string[], cursor: DocumentSnapshot | null) => {
+    let chunkQuery = query(
+      collection(db, "products"),
+      where("categories", "array-contains-any", chunk),
+      where("active", "==", true),
+      orderBy("position", "asc")
+    );
+
+    if (minPrice !== undefined && maxPrice !== undefined) {
+      chunkQuery = query(
+        chunkQuery,
+        where("productDiscountedPrice", ">=", minPrice),
+        where("productDiscountedPrice", "<=", maxPrice)
+      );
+    }
+
+    switch (sortBy) {
+      case "price-low":
+        chunkQuery = query(
+          chunkQuery,
+          orderBy("productDiscountedPrice", "asc")
+        );
+        break;
+      case "price-high":
+        chunkQuery = query(
+          chunkQuery,
+          orderBy("productDiscountedPrice", "desc")
+        );
+        break;
+      case "latest":
+      default:
+        chunkQuery = query(chunkQuery, orderBy("createdDate", "desc"));
         break;
     }
 
-    // Apply limit after combining
-    const products = uniqueProducts.slice(0, limitNumber);
+    return query(
+      chunkQuery,
+      limit(limitNumber),
+      ...(cursor ? [startAfter(cursor)] : [])
+    );
+  };
 
-    // Get total count using getCountFromServer (much cheaper than getDocs)
-    let totalCount = 0;
+  // Color/size are applied in memory — keep paging Firestore until we fill
+  // a page or the source is exhausted (avoids early hasMore=false).
+  const hasClientFilters = Boolean(colorFilter) || Boolean(sizeFilter?.length);
+  const maxRounds = hasClientFilters ? 8 : 1;
 
-    const countPromises = [];
+  let cursor = lastVisibleDoc;
+  let collected: Product[] = [];
+  const seenIds = new Set<string>();
+  let firestoreMayHaveMore = false;
+  let lastVisible: DocumentSnapshot | null = lastVisibleDoc;
+  const docsById = new Map<string, DocumentSnapshot>();
+
+  for (let round = 0; round < maxRounds && collected.length < limitNumber; round++) {
+    const queryPromises = [];
     for (let i = 0; i < allCategoryIds.length; i += chunkSize) {
       const chunk = allCategoryIds.slice(i, i + chunkSize);
-      let countQuery = query(
-        collection(db, "products"),
-        where("categories", "array-contains-any", chunk),
-        where("active", "==", true)
-      );
-
-      if (minPrice !== undefined && maxPrice !== undefined) {
-        countQuery = query(
-          countQuery,
-          where("productDiscountedPrice", ">=", minPrice),
-          where("productDiscountedPrice", "<=", maxPrice)
-        );
-      }
-
-      countPromises.push(getCountFromServer(countQuery));
+      queryPromises.push(getDocs(buildChunkQuery(chunk, cursor)));
     }
 
-    const countResults = await Promise.all(countPromises);
-    totalCount = countResults.reduce((sum, snap) => sum + snap.data().count, 0);
-    
+    const productsSnapshots = await Promise.all(queryPromises);
+    firestoreMayHaveMore = productsSnapshots.some(
+      (snap) => snap.docs.length >= limitNumber
+    );
 
-    return {
-      products,
-      categories:categoryData,
-      totalCount,
-      lastVisible: products.length > 0 ? 
-        productsSnapshots[0].docs[productsSnapshots[0].docs.length - 1] : null,
-    };
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    return { products: [], totalCount: 0, lastVisible: null ,categories:{}};
+    docsById.clear();
+    for (const snap of productsSnapshots) {
+      for (const d of snap.docs) docsById.set(d.id, d);
+    }
+
+    if (docsById.size === 0) {
+      firestoreMayHaveMore = false;
+      break;
+    }
+
+    let batch = [...docsById.values()].map(
+      (d) => ({ id: d.id, ...d.data() } as Product)
+    );
+    batch = sortProducts(batch.filter(matchesFilters));
+
+    for (const product of batch) {
+      if (seenIds.has(product.id)) continue;
+      seenIds.add(product.id);
+      collected.push(product);
+      if (collected.length >= limitNumber) break;
+    }
+
+    // Advance cursor from the primary (first) chunk when possible; otherwise
+    // from the last doc of the last product we accepted.
+    const primarySnap = productsSnapshots[0];
+    if (primarySnap?.docs?.length) {
+      lastVisible = primarySnap.docs[primarySnap.docs.length - 1];
+    } else if (collected.length > 0) {
+      lastVisible =
+        docsById.get(collected[collected.length - 1].id) || lastVisible;
+    }
+    cursor = lastVisible;
+
+    if (!firestoreMayHaveMore) break;
   }
+
+  const products = collected.slice(0, limitNumber);
+
+  // Approximate total (price-scoped, not color/size).
+  let totalCount = 0;
+  const countPromises = [];
+  for (let i = 0; i < allCategoryIds.length; i += chunkSize) {
+    const chunk = allCategoryIds.slice(i, i + chunkSize);
+    let countQuery = query(
+      collection(db, "products"),
+      where("categories", "array-contains-any", chunk),
+      where("active", "==", true)
+    );
+    if (minPrice !== undefined && maxPrice !== undefined) {
+      countQuery = query(
+        countQuery,
+        where("productDiscountedPrice", ">=", minPrice),
+        where("productDiscountedPrice", "<=", maxPrice)
+      );
+    }
+    countPromises.push(getCountFromServer(countQuery));
+  }
+  const countResults = await Promise.all(countPromises);
+  totalCount = countResults.reduce((sum, snap) => sum + snap.data().count, 0);
+
+  return {
+    products,
+    categories: categoryData,
+    totalCount,
+    lastVisible: products.length > 0 ? lastVisible : null,
+    hasMore: firestoreMayHaveMore,
+  };
 };
 
 export const getProductById = async (
   productId: string
 ): Promise<Product | null> =>
   withCache(`product-${productId}`, 2 * 60 * 1000, async () => {
-    try {
-      const productRef = doc(db, "products", productId);
-      const productSnap = await getDoc(productRef);
+    const productRef = doc(db, "products", productId);
+    const productSnap = await getDoc(productRef);
 
-      if (productSnap.exists()) {
-        return { ...(productSnap.data() as Product), id: productSnap.id };
-      } else {
-        return null; // Product not found
-      }
-    } catch (error) {
-      console.error("Error fetching product details:", error);
-      return null;
+    if (productSnap.exists()) {
+      return { ...(productSnap.data() as Product), id: productSnap.id };
     }
+    return null;
   });
 
 export const getRelatedProducts = async (

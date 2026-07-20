@@ -26,57 +26,74 @@ type WishlistItem = {
 };
 
 export default function WishListItems() {
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
+    if (!currentUser?.uid) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
     const fetchWishlist = async () => {
       try {
         setLoading(true);
-        if (!currentUser?.uid) return;
-        
+        setError(null);
         const wishlistItems = await getUserWishlist(currentUser.uid);
         const enrichedItems = await Promise.all(
           wishlistItems.map(async (item) => {
             const product = await getProductById(item.id);
-            let stockStatus: "In Stock" | "Out of Stock" | "Low Stock" = "In Stock";
-            
+            let stockStatus: "In Stock" | "Out of Stock" | "Low Stock" =
+              "In Stock";
+
             if (product) {
-              const variant = product.variantDetails.find(v => v.sku === item.variant.sku);
+              const variant = product.variantDetails.find(
+                (v) => v.sku === item.variant.sku
+              );
               if (variant) {
                 if (variant.inventory <= 0) stockStatus = "Out of Stock";
                 else if (variant.inventory < 5) stockStatus = "Low Stock";
               }
             }
-            
+
             return {
               ...item,
               stockStatus,
               image: item.image || product?.images[0] || "/default-product.jpg",
-              product
+              product: product || undefined,
             };
           })
         );
-        
-        setItems(enrichedItems);
+
+        if (!cancelled) setItems(enrichedItems);
       } catch (err) {
         console.error("Wishlist error:", err);
-        setError("Failed to load wishlist");
+        if (!cancelled) setError("Failed to load wishlist");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchWishlist();
-  }, [currentUser]);
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser, authLoading]);
 
   const handleRemoveItem = async (productId: string) => {
     try {
       if (!currentUser?.uid) return;
-      
-      setItems(prev => prev.filter(item => item.id !== productId));
+
+      setItems((prev) => prev.filter((item) => item.id !== productId));
       await removeFromWishlist(currentUser.uid, productId);
     } catch (err) {
       console.error("Remove error:", err);
@@ -101,9 +118,20 @@ export default function WishListItems() {
     });
   };
 
-  if (loading) return <div className="p-4 text-center">Loading wishlist...</div>;
+  if (authLoading || loading) {
+    return <div className="p-4 text-center">Loading wishlist...</div>;
+  }
+  if (!currentUser) {
+    return (
+      <div className="p-4 text-center text-gray-600">
+        Please sign in to view your wishlist.
+      </div>
+    );
+  }
   if (error) return <div className="p-4 text-red-600 text-center">{error}</div>;
-  if (items.length === 0) return <div className="p-4 text-center">Your wishlist is empty</div>;
+  if (items.length === 0) {
+    return <div className="p-4 text-center">Your wishlist is empty</div>;
+  }
 
   return (
     <div className="p-4 pb-20 md:pb-0">

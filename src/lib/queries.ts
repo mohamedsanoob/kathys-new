@@ -65,51 +65,41 @@ export interface CollectionWithProducts {
 
 export async function getAllCategoriesServer(): Promise<Category[]> {
   return withCache("allCategories", 5 * MIN, async () => {
-    try {
-      const snap = await getAdminDb()
-        .collection("categories")
-        .where("active", "==", true)
-        .get();
-      const categories = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as Category[];
-      // Sort by the admin-controlled `order` field (set via the backoffice
-      // rearrange tool). Done client-side because `order` is optional — a
-      // Firestore orderBy on it could drop docs missing the field and would
-      // need a composite (active, order) index. Categories without an `order`
-      // sort last, with name as a stable tiebreaker.
-      return categories.sort((a, b) => {
-        const ao = typeof a.order === "number" ? a.order : Infinity;
-        const bo = typeof b.order === "number" ? b.order : Infinity;
-        if (ao !== bo) return ao - bo;
-        return (a.categoryName || "").localeCompare(b.categoryName || "");
-      });
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-      return [];
-    }
+    const snap = await getAdminDb()
+      .collection("categories")
+      .where("active", "==", true)
+      .get();
+    const categories = snap.docs.map((d) => ({
+      ...d.data(),
+      id: d.id,
+    })) as Category[];
+    // Sort by the admin-controlled `order` field (set via the backoffice
+    // rearrange tool). Done in memory because `order` is optional — a
+    // Firestore orderBy on it could drop docs missing the field and would
+    // need a composite (active, order) index. Categories without an `order`
+    // sort last, with name as a stable tiebreaker.
+    return categories.sort((a, b) => {
+      const ao = typeof a.order === "number" ? a.order : Infinity;
+      const bo = typeof b.order === "number" ? b.order : Infinity;
+      if (ao !== bo) return ao - bo;
+      return (a.categoryName || "").localeCompare(b.categoryName || "");
+    });
   });
 }
 
 export async function getCategoryByIdServer(id: string): Promise<Category | null> {
   return withCache(`category-${id}`, 5 * MIN, async () => {
-    try {
-      // Query by the stored `id` FIELD (not the doc id) to match the client
-      // implementation exactly — the two can differ.
-      const snap = await getAdminDb()
-        .collection("categories")
-        .where("id", "==", id)
-        .where("active", "==", true)
-        .limit(1)
-        .get();
-      if (snap.empty) return null;
-      const d = snap.docs[0];
-      return serializeCategory({ id: d.id, ...(d.data() as object) });
-    } catch (error) {
-      console.error("Error fetching category:", error);
-      return null;
-    }
+    // Query by the stored `id` FIELD (not the doc id) to match the client
+    // implementation exactly — the two can differ.
+    const snap = await getAdminDb()
+      .collection("categories")
+      .where("id", "==", id)
+      .where("active", "==", true)
+      .limit(1)
+      .get();
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return serializeCategory({ id: d.id, ...(d.data() as object) });
   });
 }
 
@@ -136,71 +126,74 @@ export async function getCategoryByNameServer(name: string): Promise<Category | 
 
 export async function getCollectionsWithProductsServer(): Promise<CollectionWithProducts[]> {
   return withCache("collectionsWithProducts", 5 * MIN, async () => {
-    try {
-      const catSnap = await getAdminDb()
-        .collection("categories")
-        .where("active", "==", true)
-        .orderBy("order", "asc")
-        .get();
-      const categories = catSnap.docs.map((d) => ({
-        id: d.id,
+    const catSnap = await getAdminDb()
+      .collection("categories")
+      .where("active", "==", true)
+      .get();
+    const categories = (
+      catSnap.docs.map((d) => ({
         ...(d.data() as Record<string, unknown>),
-      })) as Category[];
+        id: d.id,
+      })) as Category[]
+    ).sort((a, b) => {
+      const ao = typeof a.order === "number" ? a.order : Infinity;
+      const bo = typeof b.order === "number" ? b.order : Infinity;
+      if (ao !== bo) return ao - bo;
+      return (a.categoryName || "").localeCompare(b.categoryName || "");
+    });
 
-      const topLevel = categories.filter((c) => !c.isSubcategory);
-      const categoryIds = topLevel.map((c) => c.id);
-      if (categoryIds.length === 0) return [];
+    const topLevel = categories.filter((c) => !c.isSubcategory);
+    const categoryIds = topLevel.map((c) => c.id);
+    if (categoryIds.length === 0) return [];
 
-      // ONE query per ≤10-id chunk (was: 1 query per category).
-      const productSnaps = await Promise.all(
-        chunk(categoryIds).map((c) =>
-          getAdminDb()
-            .collection("products")
-            .where("categories", "array-contains-any", c)
-            .where("active", "==", true)
-            .orderBy("position", "asc")
-            .get()
-        )
-      );
+    // ONE query per ≤10-id chunk (was: 1 query per category).
+    const productSnaps = await Promise.all(
+      chunk(categoryIds).map((c) =>
+        getAdminDb()
+          .collection("products")
+          .where("categories", "array-contains-any", c)
+          .where("active", "==", true)
+          .orderBy("position", "asc")
+          .get()
+      )
+    );
 
-      // Flatten + dedupe by id.
-      const seen = new Set<string>();
-      const allProducts: Product[] = [];
-      for (const snap of productSnaps) {
-        for (const d of snap.docs) {
-          if (seen.has(d.id)) continue;
-          seen.add(d.id);
-          allProducts.push({ id: d.id, ...(d.data() as object) } as Product);
-        }
+    // Flatten + dedupe by id.
+    const seen = new Set<string>();
+    const allProducts: Product[] = [];
+    for (const snap of productSnaps) {
+      for (const d of snap.docs) {
+        if (seen.has(d.id)) continue;
+        seen.add(d.id);
+        allProducts.push({ id: d.id, ...(d.data() as object) } as Product);
       }
-
-      // Group ≤4 products per category, ordered by position.
-      const idSet = new Set(categoryIds);
-      const buckets = new Map<string, Product[]>();
-      for (const p of allProducts) {
-        for (const catId of (p.categories || []) as string[]) {
-          if (!idSet.has(catId)) continue;
-          let arr = buckets.get(catId);
-          if (!arr) {
-            arr = [];
-            buckets.set(catId, arr);
-          }
-          arr.push(p);
-        }
-      }
-      buckets.forEach((arr) => arr.sort((a, b) => (a.position || 0) - (b.position || 0)));
-
-      return topLevel.map((c) => ({
-        id: c.id,
-        categoryName: c.categoryName,
-        description: c.description,
-        isSubcategory: c.isSubcategory,
-        products: (buckets.get(c.id) || []).slice(0, 4).map(serializeProduct),
-      }));
-    } catch (error) {
-      console.error("Error fetching collections with products:", error);
-      return [];
     }
+
+    // Group ≤4 products per category, ordered by position.
+    const idSet = new Set(categoryIds);
+    const buckets = new Map<string, Product[]>();
+    for (const p of allProducts) {
+      for (const catId of (p.categories || []) as string[]) {
+        if (!idSet.has(catId)) continue;
+        let arr = buckets.get(catId);
+        if (!arr) {
+          arr = [];
+          buckets.set(catId, arr);
+        }
+        arr.push(p);
+      }
+    }
+    buckets.forEach((arr) =>
+      arr.sort((a, b) => (a.position || 0) - (b.position || 0))
+    );
+
+    return topLevel.map((c) => ({
+      id: c.id,
+      categoryName: c.categoryName,
+      description: c.description,
+      isSubcategory: c.isSubcategory,
+      products: (buckets.get(c.id) || []).slice(0, 4).map(serializeProduct),
+    }));
   });
 }
 
@@ -208,14 +201,9 @@ export async function getCollectionsWithProductsServer(): Promise<CollectionWith
 
 export async function getProductByIdServer(productId: string): Promise<Product | null> {
   return withCache(`product-${productId}`, 2 * MIN, async () => {
-    try {
-      const d = await getAdminDb().collection("products").doc(productId).get();
-      if (!d.exists) return null;
-      return serializeProduct({ id: d.id, ...(d.data() as object) });
-    } catch (error) {
-      console.error("Error fetching product details:", error);
-      return null;
-    }
+    const d = await getAdminDb().collection("products").doc(productId).get();
+    if (!d.exists) return null;
+    return serializeProduct({ id: d.id, ...(d.data() as object) });
   });
 }
 

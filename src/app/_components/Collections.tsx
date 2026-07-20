@@ -62,27 +62,39 @@ const Collections = ({ initialData }: { initialData?: Category[] }) => {
   const [categoriesWithProducts, setCategoriesWithProducts] = useState<
     Category[]
   >(() => (initialData as Category[] | undefined) ?? []);
-  const [loading, setLoading] = useState<boolean>(!initialData);
+  // Empty SSR payload may be a failed fetch — allow one client retry.
+  const [loading, setLoading] = useState<boolean>(
+    !initialData || initialData.length === 0
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialData) return;
+    if (initialData && initialData.length > 0) {
+      setLoading(false);
+      return;
+    }
 
+    let cancelled = false;
     const fetchData = async () => {
       try {
         setLoading(true);
         const data = await getCollectionsWithProducts();
-        setCategoriesWithProducts(data as Category[]);
+        if (!cancelled) setCategoriesWithProducts(data as Category[]);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch collections"
-        );
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : "Failed to fetch collections"
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchData();
+    return () => {
+      cancelled = true;
+    };
   }, [initialData]);
 
   const isOutOfStock = (product: Product): boolean => {

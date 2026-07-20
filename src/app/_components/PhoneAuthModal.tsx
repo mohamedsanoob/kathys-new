@@ -44,7 +44,9 @@ const PhoneAuthModal = ({
   const [canResend, setCanResend] = useState(false);
 
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
-  const baseUrl = process.env.BASE_URL;
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_URL ||
+    "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api";
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -148,7 +150,7 @@ const PhoneAuthModal = ({
           phone: user.phoneNumber,
           preferences: {
             language: "en",
-            marketingOptIn: true,
+            marketingOptIn: false,
             currency: "INR",
           },
           account_status: "active",
@@ -158,15 +160,24 @@ const PhoneAuthModal = ({
       }
 
       try {
-        const response = await axios.post(`${baseUrl}/orders/migrate-orders`, {
-          phoneNumber: user.phoneNumber,
-          uid: user.uid,
-        });
-
-        if (!response?.data?.success) {
-          throw new Error("Failed to migrate");
-        }
-      } catch (error: any) {}
+        const idToken = await user.getIdToken();
+        const phone = user.phoneNumber || "";
+        const digits = phone.replace(/\D/g, "");
+        const last10 = digits.slice(-10);
+        await axios.post(
+          `${baseUrl}/orders/migrate-orders`,
+          {
+            phoneNumber: phone,
+            phoneLast10: last10,
+            uid: user.uid,
+          },
+          {
+            headers: { Authorization: `Bearer ${idToken}` },
+          }
+        );
+      } catch (migrateErr) {
+        console.warn("Order migration skipped/failed:", migrateErr);
+      }
 
       toast.success("Phone number verified successfully!");
       onSuccess(user.phoneNumber!);

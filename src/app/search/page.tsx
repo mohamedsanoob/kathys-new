@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation"; // Import your actual search function
 import { searchProducts } from "@/actions/search";
@@ -26,23 +26,30 @@ export default function SearchPage() {
   const [results, setResults] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const genRef = useRef(0);
 
   useEffect(() => {
     if (initialQuery) {
       handleSearch(initialQuery);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery]);
 
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
       setResults([]);
       setHasSearched(false);
+      setSearchError(null);
       return;
     }
 
+    const gen = ++genRef.current;
     setIsLoading(true);
+    setSearchError(null);
     try {
       const data = await searchProducts(query);
+      if (gen !== genRef.current) return;
       setResults(data);
       setHasSearched(true);
       router.replace(`/search?q=${encodeURIComponent(query)}`, {
@@ -50,9 +57,12 @@ export default function SearchPage() {
       });
     } catch (error) {
       console.error("Search failed:", error);
+      if (gen !== genRef.current) return;
       setResults([]);
+      setHasSearched(true);
+      setSearchError("Search failed. Please try again.");
     } finally {
-      setIsLoading(false);
+      if (gen === genRef.current) setIsLoading(false);
     }
   };
 
@@ -115,9 +125,14 @@ export default function SearchPage() {
               </div>
             ) : hasSearched ? (
               <>
+                {searchError && (
+                  <p className="text-center text-red-600 mb-4">{searchError}</p>
+                )}
                 <div className="flex justify-between items-center mb-4 max-w-2xl mx-auto">
                   <h2 className="text-lg font-medium text-gray-900">
-                    {results.length > 0
+                    {searchError
+                      ? "Search unavailable"
+                      : results.length > 0
                       ? `Found ${results.length} ${
                           results.length === 1 ? "item" : "items"
                         }`

@@ -23,15 +23,25 @@ const serializeProduct = (product: any) => ({
   updatedDate: toMillis(product.updatedDate),
 });
 
+/** UI-only search params that must not bust the product cache / refetch. */
+const UI_ONLY_PARAMS = new Set(["filter"]);
+
+const dataCacheKey = (id: string, searchParams: URLSearchParams) => {
+  const params = new URLSearchParams();
+  searchParams.forEach((value, key) => {
+    if (!UI_ONLY_PARAMS.has(key)) params.set(key, value);
+  });
+  params.sort();
+  return `${id}?${params.toString()}`;
+};
+
 export interface CategoryInitialData {
   products: any[];
   totalCount: number;
   currentCategory: any;
   subCategoriesDetails: any[];
-  /** id of the last product in the seeded first page — used to rebuild the
-   *  pagination cursor on the first `loadMore` (admin snapshots can't cross
-   *  the RSC boundary, so we pass an id and fetch the snapshot client-side). */
   lastProductId: string | null;
+  hasMore?: boolean;
 }
 
 interface CategoryState {
@@ -59,9 +69,6 @@ const CategoryContext = createContext<CategoryContextProps | undefined>(
   undefined
 );
 
-// Module-level cache to survive component unmounts (e.g. navigating to product page and back).
-// Partial so `cache[key]` is `CategoryState | undefined` — a plain Record makes TS treat
-// every lookup as defined, which collapses `useState(!cache[key])` to `useState<false>`.
 const globalCategoryCache: Partial<Record<string, CategoryState>> = {};
 
 export const CategoryProvider = ({
@@ -76,13 +83,11 @@ export const CategoryProvider = ({
   const searchParams = useSearchParams();
   const ITEMS_PER_PAGE = 10;
 
-  const params = new URLSearchParams(searchParams);
-  params.sort();
-  const cacheKey = `${id}?${params.toString()}`;
+  const cacheKey = dataCacheKey(id || "", searchParams);
 
   const [state, setState] = useState<CategoryState>(() => {
     if (globalCategoryCache[cacheKey]) {
-      return globalCategoryCache[cacheKey];
+      return globalCategoryCache[cacheKey]!;
     }
     return initialData
       ? {
@@ -92,7 +97,9 @@ export const CategoryProvider = ({
           subCategoriesDetails: initialData.subCategoriesDetails,
           lastDoc: null,
           lastProductId: initialData.lastProductId,
-          hasMore: initialData.products.length === ITEMS_PER_PAGE,
+          hasMore:
+            initialData.hasMore ??
+            initialData.products.length === ITEMS_PER_PAGE,
           scrollPosition: 0,
         }
       : {
@@ -112,28 +119,55 @@ export const CategoryProvider = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // When seeded with server-prefetched data, skip the FIRST client fetch
-  // (initialData already reflects the current id + searchParams). Subsequent
-  // id/searchParams changes fetch normally. If we restored from cache, also skip.
   const seededRef = useRef<boolean>(
     !!initialData || !!globalCategoryCache[cacheKey]
   );
+  const fetchGenRef = useRef(0);
+  const loadingMoreRef = useRef(false);
+  const cacheKeyRef = useRef(cacheKey);
+  cacheKeyRef.current = cacheKey;
+
+  // Reset provider state when navigating to a different category/filter set.
+  const prevCacheKeyRef = useRef(cacheKey);
+  useEffect(() => {
+    if (prevCacheKeyRef.current === cacheKey) return;
+    prevCacheKeyRef.current = cacheKey;
+
+    if (globalCategoryCache[cacheKey]) {
+      setState(globalCategoryCache[cacheKey]!);
+      setLoading(false);
+      setError(null);
+      seededRef.current = true;
+      return;
+    }
+
+    seededRef.current = false;
+    setState({
+      products: [],
+      totalCount: 0,
+      currentCategory: null,
+      subCategoriesDetails: [],
+      lastDoc: null,
+      lastProductId: null,
+      hasMore: true,
+      scrollPosition: 0,
+    });
+    setLoading(true);
+    setError(null);
+  }, [cacheKey]);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
 
-    // Create a unique key based on category and filters
-    const params = new URLSearchParams(searchParams);
-    params.sort();
-    const currentCacheKey = `${id}?${params.toString()}`;
+    const currentCacheKey = dataCacheKey(id, searchParams);
 
-    // Use cached data if available (including scroll position)
     if (globalCategoryCache[currentCacheKey]) {
-      setState(globalCategoryCache[currentCacheKey]);
+      setState(globalCategoryCache[currentCacheKey]!);
       setLoading(false);
       return;
     }
 
+    const gen = ++fetchGenRef.current;
     setLoading(true);
     setError(null);
 
@@ -149,7 +183,7 @@ export const CategoryProvider = ({
         getProductsByCategory(
           id,
           ITEMS_PER_PAGE,
-          null, // Always fetch from the start for a new filter/category
+          null,
           sortBy,
           minPrice ? parseInt(minPrice) : undefined,
           maxPrice ? parseInt(maxPrice) : undefined,
@@ -158,7 +192,10 @@ export const CategoryProvider = ({
         ),
       ]);
 
-      let subCategories = [];
+      if (gen !== fetchGenRef.current) return;
+      if (cacheKeyRef.current !== currentCacheKey) return;
+
+      let subCategories: any[] = [];
       if (productsData.categories?.subCategories?.length) {
         subCategories = (
           await Promise.all(
@@ -169,36 +206,41 @@ export const CategoryProvider = ({
         ).filter(Boolean);
       }
 
-      const newState = {
+      if (gen !== fetchGenRef.current) return;
+      if (cacheKeyRef.current !== currentCacheKey) return;
+
+      const newState: CategoryState = {
         products: productsData.products.map(serializeProduct),
         totalCount: productsData.totalCount,
         currentCategory: categoryDetails,
         subCategoriesDetails: subCategories,
         lastDoc: productsData.lastVisible,
         lastProductId: null,
-        hasMore: productsData.products.length === ITEMS_PER_PAGE,
-        scrollPosition: 0, // Reset scroll position for new data
+        hasMore: productsData.hasMore,
+        scrollPosition: 0,
       };
 
       setState(newState);
-      globalCategoryCache[currentCacheKey] = newState; // Cache the new state
+      globalCategoryCache[currentCacheKey] = newState;
     } catch (err) {
+      if (gen !== fetchGenRef.current) return;
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
-      setLoading(false);
+      if (gen === fetchGenRef.current) setLoading(false);
     }
   }, [id, searchParams]);
 
   useEffect(() => {
     if (seededRef.current) {
       seededRef.current = false;
-      return; // server already pre-fetched the first page
+      return;
     }
     fetchData();
   }, [fetchData]);
 
   const loadMoreProducts = useCallback(async () => {
-    if (loadingMore || !state.hasMore || !id) return;
+    if (loadingMoreRef.current || !state.hasMore || !id) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
 
     try {
@@ -208,17 +250,25 @@ export const CategoryProvider = ({
       const color = searchParams.get("color");
       const sizes = searchParams.get("sizes");
 
-      // Rebuild the cursor: prefer the last snapshot; otherwise reconstruct
-      // it from the seeded last product id (first loadMore after a seed).
       let cursorDoc: any = state.lastDoc;
       if (!cursorDoc && state.lastProductId) {
-        cursorDoc = await getDoc(doc(db, "products", state.lastProductId));
+        const snap = await getDoc(doc(db, "products", state.lastProductId));
+        cursorDoc = snap.exists() ? snap : null;
       }
       if (!cursorDoc) {
-        return; // nothing to paginate from
+        setState((prev) => {
+          const updated = { ...prev, hasMore: false };
+          globalCategoryCache[dataCacheKey(id, searchParams)] = updated;
+          return updated;
+        });
+        return;
       }
 
-      const { products: newProducts, lastVisible } = await getProductsByCategory(
+      const {
+        products: newProducts,
+        lastVisible,
+        hasMore,
+      } = await getProductsByCategory(
         id,
         ITEMS_PER_PAGE,
         cursorDoc,
@@ -235,42 +285,50 @@ export const CategoryProvider = ({
           .map(serializeProduct)
           .filter((p) => !existingIds.has(p.id));
 
-        const updatedState = {
+        const updatedState: CategoryState = {
           ...prev,
           products: [...prev.products, ...uniqueNew],
           lastDoc: lastVisible,
-          lastProductId: null, // real cursor now held in lastDoc
-          hasMore: newProducts.length === ITEMS_PER_PAGE,
-          // Keep the existing scroll position when loading more
+          lastProductId: null,
+          hasMore: hasMore && uniqueNew.length > 0 ? hasMore : hasMore,
         };
 
-        const params = new URLSearchParams(searchParams);
-        params.sort();
-        const currentCacheKey = `${id}?${params.toString()}`;
-        globalCategoryCache[currentCacheKey] = updatedState; // Update cache
+        // If Firestore says more but we got zero new unique items, stop.
+        if (uniqueNew.length === 0) {
+          updatedState.hasMore = false;
+        }
 
+        globalCategoryCache[dataCacheKey(id, searchParams)] = updatedState;
         return updatedState;
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load more products");
+      setError(
+        err instanceof Error ? err.message : "Failed to load more products"
+      );
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [id, searchParams, loadingMore, state.hasMore, state.lastDoc, state.lastProductId]);
+  }, [
+    id,
+    searchParams,
+    state.hasMore,
+    state.lastDoc,
+    state.lastProductId,
+  ]);
 
-  const setScrollPosition = useCallback((position: number) => {
-    setState((prev) => {
-      const updatedState = { ...prev, scrollPosition: position };
-
-      // Update cache with new scroll position
-      const params = new URLSearchParams(searchParams);
-      params.sort();
-      const currentCacheKey = `${id}?${params.toString()}`;
-      globalCategoryCache[currentCacheKey] = updatedState;
-
-      return updatedState;
-    });
-  }, [id, searchParams]);
+  const setScrollPosition = useCallback(
+    (position: number) => {
+      setState((prev) => {
+        const updatedState = { ...prev, scrollPosition: position };
+        if (id) {
+          globalCategoryCache[dataCacheKey(id, searchParams)] = updatedState;
+        }
+        return updatedState;
+      });
+    },
+    [id, searchParams]
+  );
 
   return (
     <CategoryContext.Provider

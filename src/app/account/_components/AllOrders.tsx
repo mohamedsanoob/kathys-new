@@ -47,12 +47,13 @@ const statusOptions = [
 ];
 
 const AllOrders = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const [userOrders, setUserOrders] = useState<OrderType[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<OrderType[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [isMobile, setIsMobile] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Check if device is mobile
   useEffect(() => {
@@ -66,22 +67,36 @@ const AllOrders = () => {
     return () => window.removeEventListener("resize", checkIsMobile);
   }, []);
 
-  const fetchOrders = async (uid: string | undefined) => {
-    if (!uid) return;
-    const orders = await getUserOrders(uid);
-    if (orders.length > 0) {
-      setUserOrders(orders);
-      setFilteredOrders(orders);
-    } else {
-      console.log("No orders found for this user");
+  useEffect(() => {
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+    if (!currentUser?.uid) {
       setUserOrders([]);
       setFilteredOrders([]);
+      setLoading(false);
+      return;
     }
-  };
 
-  useEffect(() => {
-    fetchOrders(currentUser?.uid);
-  }, [currentUser?.uid]);
+    let cancelled = false;
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const orders = (await getUserOrders(currentUser.uid)) as unknown as OrderType[];
+        if (cancelled) return;
+        setUserOrders(orders);
+        setFilteredOrders(orders);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchOrders();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.uid, authLoading]);
 
   useEffect(() => {
     applyFilters();
@@ -155,7 +170,15 @@ const AllOrders = () => {
       </div>
 
       {/* Orders list or empty state */}
-      {filteredOrders.length === 0 ? (
+      {authLoading || loading ? (
+        <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+          Loading orders...
+        </div>
+      ) : !currentUser ? (
+        <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+          Please sign in to view your orders.
+        </div>
+      ) : filteredOrders.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12">
           <ShoppingBag className="w-12 h-12 text-gray-300 mb-4" />
           <h3 className="text-lg font-medium text-gray-500 mb-1">
