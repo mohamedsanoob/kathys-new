@@ -125,8 +125,8 @@ export async function getCategoryByNameServer(name: string): Promise<Category | 
 // ── Home: collections + products (batched N+1 fix) ───────────────────
 
 export async function getCollectionsWithProductsServer(): Promise<CollectionWithProducts[]> {
-  // Separate cache key — older entries pulled every product in the catalog.
-  return withCache("collectionsWithProducts:v2", 5 * MIN, async () => {
+  // Separate cache key — home now caps to top 4 ordered parent categories.
+  return withCache("collectionsWithProducts:v4", 5 * MIN, async () => {
     const catSnap = await getAdminDb()
       .collection("categories")
       .where("active", "==", true)
@@ -143,10 +143,23 @@ export async function getCollectionsWithProductsServer(): Promise<CollectionWith
       return (a.categoryName || "").localeCompare(b.categoryName || "");
     });
 
-    const topLevel = categories.filter((c) => !c.isSubcategory);
+    // Home: top 4 parent categories with an `order` field (ascending).
+    const topLevel = categories
+      .filter(
+        (c) =>
+          !c.isSubcategory &&
+          typeof (c as { order?: unknown }).order === "number"
+      )
+      .sort((a, b) => {
+        const ao = (a as { order: number }).order;
+        const bo = (b as { order: number }).order;
+        if (ao !== bo) return ao - bo;
+        return (a.categoryName || "").localeCompare(b.categoryName || "");
+      })
+      .slice(0, 4);
+
     if (topLevel.length === 0) return [];
 
-    // Limit(4) per category — never download the full product catalog for Home.
     const sections = await Promise.all(
       topLevel.map(async (c) => {
         const snap = await getAdminDb()
@@ -169,7 +182,7 @@ export async function getCollectionsWithProductsServer(): Promise<CollectionWith
       })
     );
 
-    return sections.filter((s) => s.products.length > 0);
+    return sections;
   });
 }
 

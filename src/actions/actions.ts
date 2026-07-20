@@ -321,12 +321,13 @@ export const getCollectionsWithProducts = async (): Promise<
     description: string;
     products: Product[];
   }[]
-> => withCache("collectionsWithProducts:v2", 5 * 60 * 1000, async () => {
+> => withCache("collectionsWithProducts:v4", 5 * 60 * 1000, async () => {
   const categoriesQuery = query(
     collection(db, "categories"),
     where("active", "==", true)
   );
   const categoriesSnapshot = await getDocs(categoriesQuery);
+  // Home: top 4 parent categories with an `order` field (ascending).
   const categories: Category[] = categoriesSnapshot.docs
     .map((docSnap) => {
       const data = docSnap.data();
@@ -343,15 +344,14 @@ export const getCollectionsWithProducts = async (): Promise<
         mobileBanner: data.mobileBanner,
       } as Category;
     })
-    .filter((c) => !c.isSubcategory)
+    .filter((c) => !c.isSubcategory && typeof (c as any).order === "number")
     .sort((a, b) => {
-      const ao =
-        typeof (a as any).order === "number" ? (a as any).order : Infinity;
-      const bo =
-        typeof (b as any).order === "number" ? (b as any).order : Infinity;
+      const ao = (a as any).order as number;
+      const bo = (b as any).order as number;
       if (ao !== bo) return ao - bo;
       return (a.categoryName || "").localeCompare(b.categoryName || "");
-    });
+    })
+    .slice(0, 4);
 
   const collectionsWithProducts = await Promise.all(
     categories.map(async (category) => {
@@ -404,7 +404,7 @@ export const getCollectionsWithProducts = async (): Promise<
     })
   );
 
-  return collectionsWithProducts.filter((c) => c.products.length > 0);
+  return collectionsWithProducts;
 });
 
 
