@@ -31,7 +31,7 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
   }, [layoutNode]);
 
   return (
-    <div ref={layoutRefCallback} className="flex flex-col h-full">
+    <div ref={layoutRefCallback} className="flex flex-col h-full min-h-0">
       {children}
     </div>
   );

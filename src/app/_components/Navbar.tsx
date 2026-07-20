@@ -26,9 +26,13 @@ useTrackView()
   };
 
   useEffect(() => {
-    document.body.style.overflow = isMobileMenuOpen ? "hidden" : "auto";
+    // App scrolls inside <main>, not body — keep body non-scrollable.
+    // Only toggle a lock class for the mobile drawer overlay.
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = "auto";
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
     };
   }, [isMobileMenuOpen]);
 

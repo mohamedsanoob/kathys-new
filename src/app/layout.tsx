@@ -32,12 +32,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full overflow-hidden">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <AdSense pId="ca-pub-8258677943197720" />
       </head>
-      <body className={`${jost.className} antialiased flex flex-col h-full`}>
+      <body
+        className={`${jost.className} antialiased flex flex-col h-full min-h-0 overflow-hidden`}
+      >
         <Suspense fallback={null}>
           <RouteLoader />
         </Suspense>

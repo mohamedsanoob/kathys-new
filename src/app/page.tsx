@@ -12,21 +12,22 @@ import { getCollectionsWithProductsServer } from "@/lib/queries";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  let collections: Awaited<
-    ReturnType<typeof getCollectionsWithProductsServer>
-  > = [];
+  // `undefined` = SSR failed → client may retry.
+  // `[]` = loaded successfully with no sections.
+  let collections:
+    | Awaited<ReturnType<typeof getCollectionsWithProductsServer>>
+    | undefined = undefined;
   try {
     collections = await getCollectionsWithProductsServer();
   } catch (error) {
     console.error("Home collections SSR failed:", error);
-    // Client Collections will retry when initialData is empty.
   }
 
   return (
     <div className="relative w-full overflow-x-hidden">
       {/* <ImageSwiper /> */}
       {/* <Community /> */}
-      <Collections initialData={collections as any} />
+      <Collections initialData={collections} />
       <Rating />
       <Help />
       <Footer />

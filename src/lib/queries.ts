@@ -125,7 +125,8 @@ export async function getCategoryByNameServer(name: string): Promise<Category | 
 // ── Home: collections + products (batched N+1 fix) ───────────────────
 
 export async function getCollectionsWithProductsServer(): Promise<CollectionWithProducts[]> {
-  return withCache("collectionsWithProducts", 5 * MIN, async () => {
+  // Separate cache key — older entries pulled every product in the catalog.
+  return withCache("collectionsWithProducts:v2", 5 * MIN, async () => {
     const catSnap = await getAdminDb()
       .collection("categories")
       .where("active", "==", true)
@@ -143,57 +144,32 @@ export async function getCollectionsWithProductsServer(): Promise<CollectionWith
     });
 
     const topLevel = categories.filter((c) => !c.isSubcategory);
-    const categoryIds = topLevel.map((c) => c.id);
-    if (categoryIds.length === 0) return [];
+    if (topLevel.length === 0) return [];
 
-    // ONE query per ≤10-id chunk (was: 1 query per category).
-    const productSnaps = await Promise.all(
-      chunk(categoryIds).map((c) =>
-        getAdminDb()
+    // Limit(4) per category — never download the full product catalog for Home.
+    const sections = await Promise.all(
+      topLevel.map(async (c) => {
+        const snap = await getAdminDb()
           .collection("products")
-          .where("categories", "array-contains-any", c)
+          .where("categories", "array-contains", c.id)
           .where("active", "==", true)
           .orderBy("position", "asc")
-          .get()
-      )
+          .limit(4)
+          .get();
+
+        return {
+          id: c.id,
+          categoryName: c.categoryName,
+          description: c.description,
+          isSubcategory: c.isSubcategory,
+          products: snap.docs.map((d) =>
+            serializeProduct({ id: d.id, ...(d.data() as object) })
+          ),
+        };
+      })
     );
 
-    // Flatten + dedupe by id.
-    const seen = new Set<string>();
-    const allProducts: Product[] = [];
-    for (const snap of productSnaps) {
-      for (const d of snap.docs) {
-        if (seen.has(d.id)) continue;
-        seen.add(d.id);
-        allProducts.push({ id: d.id, ...(d.data() as object) } as Product);
-      }
-    }
-
-    // Group ≤4 products per category, ordered by position.
-    const idSet = new Set(categoryIds);
-    const buckets = new Map<string, Product[]>();
-    for (const p of allProducts) {
-      for (const catId of (p.categories || []) as string[]) {
-        if (!idSet.has(catId)) continue;
-        let arr = buckets.get(catId);
-        if (!arr) {
-          arr = [];
-          buckets.set(catId, arr);
-        }
-        arr.push(p);
-      }
-    }
-    buckets.forEach((arr) =>
-      arr.sort((a, b) => (a.position || 0) - (b.position || 0))
-    );
-
-    return topLevel.map((c) => ({
-      id: c.id,
-      categoryName: c.categoryName,
-      description: c.description,
-      isSubcategory: c.isSubcategory,
-      products: (buckets.get(c.id) || []).slice(0, 4).map(serializeProduct),
-    }));
+    return sections.filter((s) => s.products.length > 0);
   });
 }
 

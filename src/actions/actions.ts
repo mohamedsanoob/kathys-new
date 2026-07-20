@@ -321,96 +321,90 @@ export const getCollectionsWithProducts = async (): Promise<
     description: string;
     products: Product[];
   }[]
-> => withCache("collectionsWithProducts", 5 * 60 * 1000, async () => {
-  try {
-    const categoriesQuery = query(
-      collection(db, "categories"),
-      where("active", "==", true)
-    );
-    const categoriesSnapshot = await getDocs(categoriesQuery);
-    const categories: Category[] = categoriesSnapshot.docs
-      .map((docSnap) => {
+> => withCache("collectionsWithProducts:v2", 5 * 60 * 1000, async () => {
+  const categoriesQuery = query(
+    collection(db, "categories"),
+    where("active", "==", true)
+  );
+  const categoriesSnapshot = await getDocs(categoriesQuery);
+  const categories: Category[] = categoriesSnapshot.docs
+    .map((docSnap) => {
+      const data = docSnap.data();
+      return {
+        ...data,
+        id: docSnap.id,
+        categoryName: data.categoryName,
+        description: data.description,
+        active: data.active,
+        desktopBanner: data.desktopBanner,
+        images: data.images || [],
+        isSubcategory: data.isSubcategory,
+        slug: data.slug,
+        mobileBanner: data.mobileBanner,
+      } as Category;
+    })
+    .filter((c) => !c.isSubcategory)
+    .sort((a, b) => {
+      const ao =
+        typeof (a as any).order === "number" ? (a as any).order : Infinity;
+      const bo =
+        typeof (b as any).order === "number" ? (b as any).order : Infinity;
+      if (ao !== bo) return ao - bo;
+      return (a.categoryName || "").localeCompare(b.categoryName || "");
+    });
+
+  const collectionsWithProducts = await Promise.all(
+    categories.map(async (category) => {
+      const productsQuery = query(
+        collection(db, "products"),
+        where("categories", "array-contains", category.id),
+        where("active", "==", true),
+        orderBy("position", "asc"),
+        limit(4)
+      );
+      const productsSnapshot = await getDocs(productsQuery);
+      const products: Product[] = productsSnapshot.docs.map((docSnap) => {
         const data = docSnap.data();
         return {
-          ...data,
           id: docSnap.id,
-          categoryName: data.categoryName,
+          unitQuantity: data.unitQuantity,
+          productCategory: data.productCategory,
+          variants: data.variants || [],
+          productPrice: data.productPrice,
+          productName: data.productName,
           description: data.description,
+          quantity: data.quantity,
           active: data.active,
-          desktopBanner: data.desktopBanner,
+          productDiscountedPrice: data.productDiscountedPrice,
+          variantDetails: data.variantDetails || [],
+          productUnit: data.productUnit,
           images: data.images || [],
-          isSubcategory: data.isSubcategory,
-          slug: data.slug,
-          mobileBanner: data.mobileBanner,
-        } as Category;
-      })
-      .filter((c) => !c.isSubcategory)
-      .sort((a, b) => {
-        const ao = typeof (a as any).order === "number" ? (a as any).order : Infinity;
-        const bo = typeof (b as any).order === "number" ? (b as any).order : Infinity;
-        if (ao !== bo) return ao - bo;
-        return (a.categoryName || "").localeCompare(b.categoryName || "");
+          taxRate: data.taxRate,
+          categories: data.categories || [],
+          position: data?.position,
+          shippingCost: data.shippingCost,
+          skuId: data.skuId,
+          createdDate: data.createdDate,
+          updatedDate: data.updatedDate,
+        } as Product;
       });
 
-    const collectionsWithProducts = await Promise.all(
-      categories.map(async (category) => {
-        const productsQuery = query(
-          collection(db, "products"),
-          where("categories", "array-contains", category.id),
-           where("active", "==", true),
-            orderBy("position", "asc"),    
-          limit(4)
-        );
-        const productsSnapshot = await getDocs(productsQuery);
-        const products: Product[] = productsSnapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            unitQuantity: data.unitQuantity,
-            productCategory: data.productCategory,
-            variants: data.variants || [],
-            productPrice: data.productPrice,
-            productName: data.productName,
-            description: data.description,
-            quantity: data.quantity,
-            active: data.active,
-            productDiscountedPrice: data.productDiscountedPrice,
-            variantDetails: data.variantDetails || [],
-            productUnit: data.productUnit,
-            images: data.images || [],
-            taxRate: data.taxRate,
-            categories: data.categories || [],
-            position : data?.position,
-            shippingCost: data.shippingCost,
-            skuId: data.skuId,
-            createdDate: data.createdDate,
-            updatedDate: data.updatedDate,
-          } as Product;
-        });
-
-        return {
-          id: category?.id,
-          categoryName: category?.categoryName,
-          description: category?.description,
-               active: category?.active,
+      return {
+        id: category?.id,
+        categoryName: category?.categoryName,
+        description: category?.description,
+        active: category?.active,
         desktopBanner: category?.desktopBanner,
-        images: category?.images || [], // Default to empty array if missing
+        images: category?.images || [],
         isSubcategory: category?.isSubcategory,
         slug: category?.slug,
         mobileBanner: category?.mobileBanner,
-          products: products,
-        };
-      })
-    );
+        products,
+      };
+    })
+  );
 
-    return collectionsWithProducts;
-  } catch (error) {
-    console.error(
-      "Error fetching collections with products from Firestore:",
-      error
-    );
-    throw error;
-  }
+  return collectionsWithProducts.filter((c) => c.products.length > 0);
 });
 
 
