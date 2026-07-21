@@ -321,37 +321,57 @@ export const getCollectionsWithProducts = async (): Promise<
     description: string;
     products: Product[];
   }[]
-> => withCache("collectionsWithProducts:v4", 5 * 60 * 1000, async () => {
-  const categoriesQuery = query(
-    collection(db, "categories"),
-    where("active", "==", true)
-  );
-  const categoriesSnapshot = await getDocs(categoriesQuery);
-  // Home: top 4 parent categories with an `order` field (ascending).
-  const categories: Category[] = categoriesSnapshot.docs
-    .map((docSnap) => {
-      const data = docSnap.data();
-      return {
-        ...data,
-        id: docSnap.id,
-        categoryName: data.categoryName,
-        description: data.description,
-        active: data.active,
-        desktopBanner: data.desktopBanner,
-        images: data.images || [],
-        isSubcategory: data.isSubcategory,
-        slug: data.slug,
-        mobileBanner: data.mobileBanner,
-      } as Category;
-    })
-    .filter((c) => !c.isSubcategory && typeof (c as any).order === "number")
-    .sort((a, b) => {
-      const ao = (a as any).order as number;
-      const bo = (b as any).order as number;
-      if (ao !== bo) return ao - bo;
-      return (a.categoryName || "").localeCompare(b.categoryName || "");
-    })
-    .slice(0, 4);
+> => withCache("collectionsWithProducts:v5", 5 * 60 * 1000, async () => {
+  const mapCat = (docSnap: { id: string; data: () => Record<string, any> }) => {
+    const data = docSnap.data();
+    return {
+      ...data,
+      id: docSnap.id,
+      categoryName: data.categoryName,
+      description: data.description,
+      active: data.active,
+      desktopBanner: data.desktopBanner,
+      images: data.images || [],
+      isSubcategory: data.isSubcategory,
+      slug: data.slug,
+      mobileBanner: data.mobileBanner,
+    } as Category;
+  };
+
+  const pickTop = (docs: { id: string; data: () => Record<string, any> }[]) =>
+    docs
+      .map(mapCat)
+      .filter((c) => !c.isSubcategory && typeof (c as any).order === "number")
+      .sort((a, b) => {
+        const ao = (a as any).order as number;
+        const bo = (b as any).order as number;
+        if (ao !== bo) return ao - bo;
+        return (a.categoryName || "").localeCompare(b.categoryName || "");
+      })
+      .slice(0, 4);
+
+  // Prefer indexed query — fall back to full scan if the composite index is missing.
+  let categories: Category[] = [];
+  try {
+    const orderedSnap = await getDocs(
+      query(
+        collection(db, "categories"),
+        where("active", "==", true),
+        orderBy("order", "asc"),
+        limit(24)
+      )
+    );
+    categories = pickTop(orderedSnap.docs);
+  } catch {
+    /* index may be missing locally / before deploy */
+  }
+
+  if (categories.length === 0) {
+    const categoriesSnapshot = await getDocs(
+      query(collection(db, "categories"), where("active", "==", true))
+    );
+    categories = pickTop(categoriesSnapshot.docs);
+  }
 
   const collectionsWithProducts = await Promise.all(
     categories.map(async (category) => {

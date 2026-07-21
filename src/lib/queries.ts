@@ -13,6 +13,7 @@ import "server-only";
 //   • returns serializable shapes (no Firestore snapshots) so results can
 //     cross the RSC boundary as props.
 //
+import { unstable_cache } from "next/cache";
 import type { Product } from "@/types/product";
 import type { Category } from "@/types/category";
 import { getAdminDb } from "@/lib/firebase-admin";
@@ -124,27 +125,16 @@ export async function getCategoryByNameServer(name: string): Promise<Category | 
 
 // ── Home: collections + products (batched N+1 fix) ───────────────────
 
-export async function getCollectionsWithProductsServer(): Promise<CollectionWithProducts[]> {
-  // Separate cache key — home now caps to top 4 ordered parent categories.
-  return withCache("collectionsWithProducts:v4", 5 * MIN, async () => {
-    const catSnap = await getAdminDb()
-      .collection("categories")
-      .where("active", "==", true)
-      .get();
-    const categories = (
-      catSnap.docs.map((d) => ({
-        ...(d.data() as Record<string, unknown>),
+/** Top 4 parent categories that have a numeric `order` (ascending). */
+async function fetchHomeTopCategories(): Promise<Category[]> {
+  const db = getAdminDb();
+  const pickTop = (docs: Array<{ id: string; data: () => Record<string, unknown> }>) =>
+    (
+      docs.map((d) => ({
+        ...d.data(),
         id: d.id,
       })) as Category[]
-    ).sort((a, b) => {
-      const ao = typeof a.order === "number" ? a.order : Infinity;
-      const bo = typeof b.order === "number" ? b.order : Infinity;
-      if (ao !== bo) return ao - bo;
-      return (a.categoryName || "").localeCompare(b.categoryName || "");
-    });
-
-    // Home: top 4 parent categories with an `order` field (ascending).
-    const topLevel = categories
+    )
       .filter(
         (c) =>
           !c.isSubcategory &&
@@ -158,32 +148,66 @@ export async function getCollectionsWithProductsServer(): Promise<CollectionWith
       })
       .slice(0, 4);
 
-    if (topLevel.length === 0) return [];
-
-    const sections = await Promise.all(
-      topLevel.map(async (c) => {
-        const snap = await getAdminDb()
-          .collection("products")
-          .where("categories", "array-contains", c.id)
-          .where("active", "==", true)
-          .orderBy("position", "asc")
-          .limit(4)
-          .get();
-
-        return {
-          id: c.id,
-          categoryName: c.categoryName,
-          description: c.description,
-          isSubcategory: c.isSubcategory,
-          products: snap.docs.map((d) =>
-            serializeProduct({ id: d.id, ...(d.data() as object) })
-          ),
-        };
-      })
+  // Prefer indexed query (active + order) — avoids downloading every category.
+  try {
+    const snap = await db
+      .collection("categories")
+      .where("active", "==", true)
+      .orderBy("order", "asc")
+      .limit(24)
+      .get();
+    const top = pickTop(snap.docs);
+    if (top.length > 0) return top;
+  } catch (err) {
+    console.warn(
+      "Home categories ordered query failed; falling back to full scan:",
+      err
     );
+  }
 
-    return sections;
-  });
+  const catSnap = await db.collection("categories").where("active", "==", true).get();
+  return pickTop(catSnap.docs);
+}
+
+async function fetchCollectionsWithProducts(): Promise<CollectionWithProducts[]> {
+  const topLevel = await fetchHomeTopCategories();
+  if (topLevel.length === 0) return [];
+
+  const db = getAdminDb();
+  return Promise.all(
+    topLevel.map(async (c) => {
+      const snap = await db
+        .collection("products")
+        .where("categories", "array-contains", c.id)
+        .where("active", "==", true)
+        .orderBy("position", "asc")
+        .limit(4)
+        .get();
+
+      return {
+        id: c.id,
+        categoryName: c.categoryName,
+        description: c.description,
+        isSubcategory: c.isSubcategory,
+        products: snap.docs.map((d) =>
+          serializeProduct({ id: d.id, ...(d.data() as object) })
+        ),
+      };
+    })
+  );
+}
+
+export async function getCollectionsWithProductsServer(): Promise<
+  CollectionWithProducts[]
+> {
+  // Next Data Cache survives across serverless invocations (unlike in-memory
+  // withCache alone). Keep a short process cache for bursty repeat renders.
+  return withCache("collectionsWithProducts:v5", 5 * MIN, () =>
+    unstable_cache(fetchCollectionsWithProducts, ["collectionsWithProducts:v5"], {
+      revalidate: 300,
+      tags: ["home-collections"],
+    })()
+  );
 }
 
 // ── Products ─────────────────────────────────────────────────────────

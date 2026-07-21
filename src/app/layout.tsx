@@ -14,6 +14,7 @@ import { WhatsApp } from "./_components/whatsapp-icon";
 import AdSense from "./_components/AdSense";
 import LayoutWrapper from "./_components/LayoutWrapper";
 import RouteLoader from "./_components/RouteLoader";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Kathy's - Shop the Latest Collections",
@@ -63,7 +64,8 @@ export default function RootLayout({
             />
           </ScrollProvider>
         </AuthProvider>
-        <WhatsApp/>
+        <WhatsApp />
+        <SpeedInsights />
       </body>
     </html>
   );
