@@ -29,7 +29,7 @@ const RelatedProducts = ({
       try {
         setLoading(true);
         const data = await getRelatedProducts(categories);
-        if (active) setRelatedProducts(data);
+        if (active) setRelatedProducts(data.slice(0, 4));
       } catch (error) {
         console.error("Error fetching related products:", error);
       } finally {

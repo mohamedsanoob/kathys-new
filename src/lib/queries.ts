@@ -213,41 +213,53 @@ export async function getCollectionsWithProductsServer(): Promise<
 // ── Products ─────────────────────────────────────────────────────────
 
 export async function getProductByIdServer(productId: string): Promise<Product | null> {
-  return withCache(`product-${productId}`, 2 * MIN, async () => {
-    const d = await getAdminDb().collection("products").doc(productId).get();
-    if (!d.exists) return null;
-    return serializeProduct({ id: d.id, ...(d.data() as object) });
-  });
+  return withCache(`product-${productId}`, 2 * MIN, () =>
+    unstable_cache(
+      async () => {
+        const d = await getAdminDb().collection("products").doc(productId).get();
+        if (!d.exists) return null;
+        return serializeProduct({ id: d.id, ...(d.data() as object) });
+      },
+      [`product-${productId}`],
+      { revalidate: 120, tags: [`product-${productId}`] }
+    )()
+  );
 }
 
-export async function getRelatedProductsServer(categoryValues: string[]): Promise<Product[]> {
+export async function getRelatedProductsServer(
+  categoryValues: string[]
+): Promise<Product[]> {
   if (!categoryValues.length) return [];
-  const key = `related-${[...categoryValues].sort().join(",")}`;
-  return withCache(key, 2 * MIN, async () => {
-    try {
-      // Chunk ≤10 — the client version passed the whole array to
-      // array-contains-any, which silently breaks for >10 categories.
-      const snaps = await Promise.all(
-        chunk(categoryValues).map((c) =>
-          getAdminDb()
+  // One primary category is enough for "related" and avoids multi-chunk
+  // array-contains-any queries that stall the product page.
+  const cats = [...new Set(categoryValues)].slice(0, 1);
+  const key = `related-v2-${cats.join(",")}`;
+
+  return withCache(key, 2 * MIN, () =>
+    unstable_cache(
+      async () => {
+        try {
+          const snap = await getAdminDb()
             .collection("products")
-            .where("categories", "array-contains-any", c)
+            .where("categories", "array-contains", cats[0])
             .where("active", "==", true)
             .orderBy("position", "asc")
-            .limit(8)
-            .get()
-        )
-      );
-      const all = snaps.flatMap((s) =>
-        s.docs.map((d) => ({ id: d.id, ...(d.data() as object) }))
-      );
-      const unique = [...new Map(all.map((p) => [p.id, p])).values()];
-      return unique.slice(0, 8).map((p) => serializeProduct(p));
-    } catch (error) {
-      console.error("Error fetching related products:", error);
-      return [];
-    }
-  });
+            // Fetch 5 so after excluding the current product we can still show 4.
+            .limit(5)
+            .get();
+
+          return snap.docs.map((d) =>
+            serializeProduct({ id: d.id, ...(d.data() as object) })
+          );
+        } catch (error) {
+          console.error("Error fetching related products:", error);
+          return [];
+        }
+      },
+      [key],
+      { revalidate: 120, tags: ["related-products"] }
+    )()
+  );
 }
 
 export interface ProductsByCategoryResult {

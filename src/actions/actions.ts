@@ -835,19 +835,20 @@ export const getRelatedProducts = async (
     const productsCollection = collection(db, "products");
     const q = query(
       productsCollection,
-      where("categories", "array-contains-any", categoryValues),
+      where("categories", "array-contains-any", categoryValues.slice(0, 10)),
       where("active", "==", true),
-       limit(8),
-              orderBy("position", "asc"),    
+      limit(5),
+      orderBy("position", "asc")
     );
 
     const querySnapshot = await getDocs(q);
 
-    return querySnapshot.docs.map((doc) => {
-      const productData = doc.data() as Product;
-   
-      return { ...productData, id: doc.id };
-    });
+    return querySnapshot.docs
+      .map((docSnap) => {
+        const productData = docSnap.data() as Product;
+        return { ...productData, id: docSnap.id };
+      })
+      .slice(0, 4);
   } catch (error) {
     console.error("Error fetching products in categories:", error);
     return [];

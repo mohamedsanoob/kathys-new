@@ -1,24 +1,23 @@
 "use client";
 
+import { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Product } from "@/types/product";
 import ProductImage from "./ProductImage";
 import ProductDetails from "./ProductDetails";
 import ProductDescription from "./ProductDescription";
-import RelatedProducts from "./RelatedProducts";
 import AdBanner from "@/app/_components/AdBanner";
 
-// Interactive shell for the product page. The product + related products are
-// pre-fetched on the server and passed in as serializable props, so first
-// paint already has content. Only the interactive bits (back button,
-// variant picker, add-to-cart) live here.
+// Interactive shell for the product page. Product data is server-fetched for
+// first paint; related products stream in via children (Suspense) so they
+// don't block landing.
 export default function ProductClient({
   product,
-  relatedProducts,
+  children,
 }: {
   product: Product;
-  relatedProducts: Product[];
+  children?: ReactNode;
 }) {
   const router = useRouter();
 
@@ -45,8 +44,11 @@ export default function ProductClient({
           dataAdSlot="8608034205"
         />
       </div>
-      <ProductDescription description={product.description} variants={product?.variants || []} />
-      <RelatedProducts categories={product.categories} initialProducts={relatedProducts} />
+      <ProductDescription
+        description={product.description}
+        variants={product?.variants || []}
+      />
+      {children}
     </div>
   );
 }
