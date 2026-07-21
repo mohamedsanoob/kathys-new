@@ -175,7 +175,7 @@ export const CategoryProvider = ({
     setError(null);
 
     try {
-      const sortBy = sp.get("sortBy") || "latest";
+      const sortBy = sp.get("sortBy") || "position";
       const minPrice = sp.get("minPrice");
       const maxPrice = sp.get("maxPrice");
       const color = sp.get("color");
@@ -249,7 +249,7 @@ export const CategoryProvider = ({
     setLoadingMore(true);
 
     try {
-      const sortBy = searchParams.get("sortBy") || "latest";
+      const sortBy = searchParams.get("sortBy") || "position";
       const minPrice = searchParams.get("minPrice");
       const maxPrice = searchParams.get("maxPrice");
       const color = searchParams.get("color");

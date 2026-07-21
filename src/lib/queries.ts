@@ -169,29 +169,60 @@ async function fetchHomeTopCategories(): Promise<Category[]> {
   return pickTop(catSnap.docs);
 }
 
+/** Top 4 products by admin priority (`position` asc), same pool as category listing. */
+async function fetchTopProductsForCategory(
+  categoryId: string,
+  subCategories: string[] = []
+): Promise<Product[]> {
+  const db = getAdminDb();
+  const allCategoryIds = [categoryId, ...subCategories.filter(Boolean)];
+  const snaps = await Promise.all(
+    chunk(allCategoryIds).map((ids) =>
+      db
+        .collection("products")
+        .where(
+          "categories",
+          ids.length === 1 ? "array-contains" : "array-contains-any",
+          ids.length === 1 ? ids[0] : ids
+        )
+        .where("active", "==", true)
+        .orderBy("position", "asc")
+        .limit(4)
+        .get()
+    )
+  );
+
+  const unique = [
+    ...new Map(
+      snaps
+        .flatMap((s) => s.docs)
+        .map((d) => [d.id, { id: d.id, ...(d.data() as object) } as Product])
+    ).values(),
+  ];
+
+  unique.sort(
+    (a, b) => ((a.position as number) ?? 0) - ((b.position as number) ?? 0)
+  );
+  return unique.slice(0, 4).map((p) => serializeProduct(p));
+}
+
 async function fetchCollectionsWithProducts(): Promise<CollectionWithProducts[]> {
   const topLevel = await fetchHomeTopCategories();
   if (topLevel.length === 0) return [];
 
-  const db = getAdminDb();
   return Promise.all(
     topLevel.map(async (c) => {
-      const snap = await db
-        .collection("products")
-        .where("categories", "array-contains", c.id)
-        .where("active", "==", true)
-        .orderBy("position", "asc")
-        .limit(4)
-        .get();
+      const products = await fetchTopProductsForCategory(
+        c.id,
+        c.subCategories || []
+      );
 
       return {
         id: c.id,
         categoryName: c.categoryName,
         description: c.description,
         isSubcategory: c.isSubcategory,
-        products: snap.docs.map((d) =>
-          serializeProduct({ id: d.id, ...(d.data() as object) })
-        ),
+        products,
       };
     })
   );
@@ -202,8 +233,8 @@ export async function getCollectionsWithProductsServer(): Promise<
 > {
   // Next Data Cache survives across serverless invocations (unlike in-memory
   // withCache alone). Keep a short process cache for bursty repeat renders.
-  return withCache("collectionsWithProducts:v5", 5 * MIN, () =>
-    unstable_cache(fetchCollectionsWithProducts, ["collectionsWithProducts:v5"], {
+  return withCache("collectionsWithProducts:v7", 5 * MIN, () =>
+    unstable_cache(fetchCollectionsWithProducts, ["collectionsWithProducts:v7"], {
       revalidate: 300,
       tags: ["home-collections"],
     })()
@@ -290,7 +321,7 @@ export async function getProductsByCategoryServer(
   const {
     categoryId,
     limit: limitNumber = 10,
-    sortBy = "latest",
+    sortBy = "position",
     minPrice,
     maxPrice,
     colorFilter,
@@ -329,8 +360,12 @@ export async function getProductsByCategoryServer(
           q = q.orderBy("productDiscountedPrice", "desc");
           break;
         case "latest":
-        default:
           q = q.orderBy("createdDate", "desc");
+          break;
+        case "position":
+        default:
+          // Already ordered by rearrange `position`.
+          break;
       }
       return q.limit(limitNumber).get();
     });
@@ -389,6 +424,12 @@ export async function getProductsByCategoryServer(
         break;
       case "price-high":
         unique.sort((a, b) => (b.productDiscountedPrice || 0) - (a.productDiscountedPrice || 0));
+        break;
+      case "position":
+      default:
+        unique.sort(
+          (a, b) => ((a.position as number) ?? 0) - ((b.position as number) ?? 0)
+        );
         break;
     }
 

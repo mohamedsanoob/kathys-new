@@ -38,7 +38,7 @@ const ProductsSection: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const sortBy = searchParams.get("sortBy") || "latest";
+  const sortBy = searchParams.get("sortBy") || "position";
   const categoryId = pathname.split("/").pop() || "";
   const filterKey = categoryDataCacheKey(categoryId, searchParams);
 
@@ -172,7 +172,7 @@ const ProductsSection: React.FC = () => {
     const newSortBy = e.target.value;
     const current = new URLSearchParams(Array.from(searchParams.entries()));
 
-    if (newSortBy === "latest") {
+    if (newSortBy === "position") {
       current.delete("sortBy");
     } else {
       current.set("sortBy", newSortBy);
@@ -266,6 +266,7 @@ const ProductsSection: React.FC = () => {
             onChange={handleSortChange}
             className="py-1 px-2 text-sm"
           >
+            <option value="position">Featured</option>
             <option value="latest">Latest</option>
             <option value="price-low">Price: Low to High</option>
             <option value="price-high">Price: High to Low</option>

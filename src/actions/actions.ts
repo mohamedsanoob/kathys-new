@@ -276,6 +276,7 @@ interface Category {
   images: string[];
   isSubcategory: boolean;
   slug: string;
+  subCategories?: string[];
   // mobileBanner?: string;
   // Add any other properties
 }
@@ -321,7 +322,7 @@ export const getCollectionsWithProducts = async (): Promise<
     description: string;
     products: Product[];
   }[]
-> => withCache("collectionsWithProducts:v5", 5 * 60 * 1000, async () => {
+> => withCache("collectionsWithProducts:v7", 5 * 60 * 1000, async () => {
   const mapCat = (docSnap: { id: string; data: () => Record<string, any> }) => {
     const data = docSnap.data();
     return {
@@ -335,6 +336,7 @@ export const getCollectionsWithProducts = async (): Promise<
       isSubcategory: data.isSubcategory,
       slug: data.slug,
       mobileBanner: data.mobileBanner,
+      subCategories: data.subCategories || [],
     } as Category;
   };
 
@@ -375,39 +377,70 @@ export const getCollectionsWithProducts = async (): Promise<
 
   const collectionsWithProducts = await Promise.all(
     categories.map(async (category) => {
-      const productsQuery = query(
-        collection(db, "products"),
-        where("categories", "array-contains", category.id),
-        where("active", "==", true),
-        orderBy("position", "asc"),
-        limit(4)
+      // Same product pool + priority as category listing: parent + subs, position asc.
+      const allCategoryIds = [
+        category.id,
+        ...(category.subCategories || []).filter(Boolean),
+      ];
+      const chunkSize = 10;
+      const snaps = await Promise.all(
+        Array.from(
+          { length: Math.ceil(allCategoryIds.length / chunkSize) },
+          (_, i) => {
+            const ids = allCategoryIds.slice(i * chunkSize, (i + 1) * chunkSize);
+            return getDocs(
+              query(
+                collection(db, "products"),
+                where(
+                  "categories",
+                  ids.length === 1 ? "array-contains" : "array-contains-any",
+                  ids.length === 1 ? ids[0] : ids
+                ),
+                where("active", "==", true),
+                orderBy("position", "asc"),
+                limit(4)
+              )
+            );
+          }
+        )
       );
-      const productsSnapshot = await getDocs(productsQuery);
-      const products: Product[] = productsSnapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          unitQuantity: data.unitQuantity,
-          productCategory: data.productCategory,
-          variants: data.variants || [],
-          productPrice: data.productPrice,
-          productName: data.productName,
-          description: data.description,
-          quantity: data.quantity,
-          active: data.active,
-          productDiscountedPrice: data.productDiscountedPrice,
-          variantDetails: data.variantDetails || [],
-          productUnit: data.productUnit,
-          images: data.images || [],
-          taxRate: data.taxRate,
-          categories: data.categories || [],
-          position: data?.position,
-          shippingCost: data.shippingCost,
-          skuId: data.skuId,
-          createdDate: data.createdDate,
-          updatedDate: data.updatedDate,
-        } as Product;
-      });
+
+      const products: Product[] = [
+        ...new Map(
+          snaps
+            .flatMap((s) => s.docs)
+            .map((docSnap) => {
+              const data = docSnap.data();
+              return [
+                docSnap.id,
+                {
+                  id: docSnap.id,
+                  unitQuantity: data.unitQuantity,
+                  productCategory: data.productCategory,
+                  variants: data.variants || [],
+                  productPrice: data.productPrice,
+                  productName: data.productName,
+                  description: data.description,
+                  quantity: data.quantity,
+                  active: data.active,
+                  productDiscountedPrice: data.productDiscountedPrice,
+                  variantDetails: data.variantDetails || [],
+                  productUnit: data.productUnit,
+                  images: data.images || [],
+                  taxRate: data.taxRate,
+                  categories: data.categories || [],
+                  position: data?.position,
+                  shippingCost: data.shippingCost,
+                  skuId: data.skuId,
+                  createdDate: data.createdDate,
+                  updatedDate: data.updatedDate,
+                } as Product,
+              ] as const;
+            })
+        ).values(),
+      ]
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        .slice(0, 4);
 
       return {
         id: category?.id,
@@ -583,7 +616,7 @@ export const getProductsByCategory = async (
   categoryId: string,
   limitNumber: number,
   lastVisibleDoc: DocumentSnapshot | null = null,
-  sortBy: string = "latest",
+  sortBy: string = "position",
   minPrice?: number,
   maxPrice?: number,
   colorFilter?: string,
@@ -664,11 +697,15 @@ export const getProductsByCategory = async (
         );
         break;
       case "latest":
-      default:
         list.sort(
           (a, b) =>
             (toMillis(b.createdDate) || 0) - (toMillis(a.createdDate) || 0)
         );
+        break;
+      case "position":
+      default:
+        // Backoffice "Rearrange Products" writes `position` (0 = top).
+        list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
         break;
     }
     return list;
@@ -704,8 +741,11 @@ export const getProductsByCategory = async (
         );
         break;
       case "latest":
-      default:
         chunkQuery = query(chunkQuery, orderBy("createdDate", "desc"));
+        break;
+      case "position":
+      default:
+        // Primary order is already `position` asc (rearrange priority).
         break;
     }
 
