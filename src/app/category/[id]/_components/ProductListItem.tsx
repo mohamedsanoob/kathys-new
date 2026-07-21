@@ -3,6 +3,11 @@ import { Product } from '@/types/product';
 import Image from 'next/image';
 import Link from 'next/link';
 import React from 'react'
+import { useParams, useSearchParams } from 'next/navigation';
+import {
+  categoryDataCacheKey,
+  markCategoryScrollRestore,
+} from '@/lib/categoryScrollRestore';
 
 const ProductListItem = ({
   product,
@@ -11,6 +16,8 @@ const ProductListItem = ({
   product: Product;
   categoryName: string;
 }) => {
+  const { id: categoryId } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   // Check if product is out of stock
   const isOutOfStock = () => {
     // If product has variants but no variantDetails, it's out of stock
@@ -36,6 +43,13 @@ const ProductListItem = ({
           href={outOfStock ? '#' : "/product/" + product.id}
           className={`w-full md:w-60 relative aspect-square md:h-80 flex-shrink-0 bg-gray-50 overflow-hidden ${outOfStock ? 'cursor-not-allowed' : ''}`}
           aria-disabled={outOfStock}
+          onClick={() => {
+            if (!outOfStock && categoryId) {
+              markCategoryScrollRestore(
+                categoryDataCacheKey(categoryId, searchParams)
+              );
+            }
+          }}
         >
       {product?.images?.[0] ? (
   <Image

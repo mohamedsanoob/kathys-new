@@ -3,8 +3,15 @@ import { Product } from '@/types/product';
 import Image from 'next/image';
 import Link from 'next/link';
 import React from 'react'
+import { useParams, useSearchParams } from 'next/navigation';
+import {
+  categoryDataCacheKey,
+  markCategoryScrollRestore,
+} from '@/lib/categoryScrollRestore';
 
 const ProductGridItem = ({ product }: { product: Product }) => {
+  const { id: categoryId } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   // Check if product is out of stock
   const isOutOfStock = () => {
     // If product has variants but no variantDetails, it's out of stock
@@ -29,6 +36,13 @@ const ProductGridItem = ({ product }: { product: Product }) => {
         href={outOfStock ? '#' : "/product/" + product.id}
         className={`w-full h-75 aspect-square relative bg-gray-50 overflow-hidden ${outOfStock ? 'cursor-not-allowed' : ''}`}
         aria-disabled={outOfStock}
+        onClick={() => {
+          if (!outOfStock && categoryId) {
+            markCategoryScrollRestore(
+              categoryDataCacheKey(categoryId, searchParams)
+            );
+          }
+        }}
       >
          {product?.images?.[0] ? (
         <Image

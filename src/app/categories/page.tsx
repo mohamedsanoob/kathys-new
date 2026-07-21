@@ -7,6 +7,7 @@ import Link from "next/link";
 import { getAllCategories } from "@/actions/actions";
 import AdBanner from "../_components/AdBanner";
 import CategoryCouponPromo from "../_components/CategoryCouponPromo";
+import { clearCategoryScrollRestore } from "@/lib/categoryScrollRestore";
 
 interface Category {
   id: string;
@@ -65,6 +66,7 @@ export default function CategoriesList() {
       className="group relative block rounded-lg overflow-hidden hover:shadow-md transition-all"
       aria-label={category.categoryName}
       prefetch={true}
+      onClick={() => clearCategoryScrollRestore()}
     >
       <CategoryCouponPromo categoryId={category.id} variant="badge" />
       {/* Category Banner Image */}

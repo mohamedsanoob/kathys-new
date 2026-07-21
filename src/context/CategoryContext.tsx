@@ -126,6 +126,8 @@ export const CategoryProvider = ({
   const loadingMoreRef = useRef(false);
   const cacheKeyRef = useRef(cacheKey);
   cacheKeyRef.current = cacheKey;
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
 
   // Reset provider state when navigating to a different category/filter set.
   const prevCacheKeyRef = useRef(cacheKey);
@@ -159,7 +161,8 @@ export const CategoryProvider = ({
   const fetchData = useCallback(async () => {
     if (!id) return;
 
-    const currentCacheKey = dataCacheKey(id, searchParams);
+    const sp = searchParamsRef.current;
+    const currentCacheKey = dataCacheKey(id, sp);
 
     if (globalCategoryCache[currentCacheKey]) {
       setState(globalCategoryCache[currentCacheKey]!);
@@ -172,11 +175,11 @@ export const CategoryProvider = ({
     setError(null);
 
     try {
-      const sortBy = searchParams.get("sortBy") || "latest";
-      const minPrice = searchParams.get("minPrice");
-      const maxPrice = searchParams.get("maxPrice");
-      const color = searchParams.get("color");
-      const sizes = searchParams.get("sizes");
+      const sortBy = sp.get("sortBy") || "latest";
+      const minPrice = sp.get("minPrice");
+      const maxPrice = sp.get("maxPrice");
+      const color = sp.get("color");
+      const sizes = sp.get("sizes");
 
       const [categoryDetails, productsData] = await Promise.all([
         getCategoryById(id),
@@ -228,7 +231,9 @@ export const CategoryProvider = ({
     } finally {
       if (gen === fetchGenRef.current) setLoading(false);
     }
-  }, [id, searchParams]);
+    // Depend on cacheKey (ignores UI-only params like ?filter=) so opening
+    // the filter drawer does not re-fetch or remount and yank scroll.
+  }, [id, cacheKey]);
 
   useEffect(() => {
     if (seededRef.current) {

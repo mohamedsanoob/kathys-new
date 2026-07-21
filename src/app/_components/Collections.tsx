@@ -7,6 +7,7 @@ import Link from "next/link";
 import { getCollectionsWithProducts } from "@/actions/actions";
 import AdBanner from "./AdBanner";
 import CategoryCouponPromo from "./CategoryCouponPromo";
+import { clearCategoryScrollRestore } from "@/lib/categoryScrollRestore";
 
 interface VariantCombination {
   value: string;
@@ -253,6 +254,7 @@ const Collections = ({
                   href={`/category/${category.id}`}
                   className="border border-gray-400 py-2 px-4 sm:py-3 sm:px-6 flex gap-2 items-center text-sm sm:text-base hover:bg-gray-400 hover:text-white transition rounded-md"
                   prefetch={false}
+                  onClick={() => clearCategoryScrollRestore()}
                 >
                   <span>View more {category.categoryName} collections</span>
                   <ArrowRight size={18} />

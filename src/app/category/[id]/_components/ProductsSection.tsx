@@ -7,6 +7,11 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import ProductListItem from "./ProductListItem";
 import ProductGridItem from "./ProductGridItem";
 import { useCategoryContext } from "@/context/CategoryContext";
+import {
+  categoryDataCacheKey,
+  clearCategoryScrollRestore,
+  shouldRestoreCategoryScroll,
+} from "@/lib/categoryScrollRestore";
 
 const ProductsSection: React.FC = () => {
   const {
@@ -19,107 +24,122 @@ const ProductsSection: React.FC = () => {
     loadMoreProducts,
     scrollPosition,
     setScrollPosition,
-    scrollContainerRef
+    scrollContainerRef,
   } = useCategoryContext();
 
   const [isGridView, setIsGridView] = useState(true);
-  const [scrollRestored, setScrollRestored] = useState(false);
 
   const loaderRef = useRef<HTMLDivElement>(null);
   const isRestoringRef = useRef(false);
+  const hasRestoredRef = useRef(false);
+  // Capture cached scroll once — never re-restore when user scroll updates state.
+  const restoreTargetRef = useRef(scrollPosition || 0);
 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const sortBy = searchParams.get("sortBy") || "latest";
+  const categoryId = pathname.split("/").pop() || "";
+  const filterKey = categoryDataCacheKey(categoryId, searchParams);
 
-  // Save scroll position
+  // Only restore when returning from a product — not from home / categories.
   useEffect(() => {
-    if (loading || isRestoringRef.current) return;
+    hasRestoredRef.current = false;
+    isRestoringRef.current = false;
+    const shouldRestore = shouldRestoreCategoryScroll(filterKey);
+    restoreTargetRef.current = shouldRestore ? scrollPosition || 0 : 0;
+    if (!shouldRestore) {
+      clearCategoryScrollRestore();
+      setScrollPosition(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on route/filter key
+  }, [pathname, filterKey]);
+
+  // Restore once after data is ready (back from product page only).
+  useEffect(() => {
+    if (loading || hasRestoredRef.current) return;
+
+    const target = restoreTargetRef.current;
     const container = scrollContainerRef.current;
-  
-    if (!container) return;
 
-    let throttleTimeout: NodeJS.Timeout | null = null;
-
-    const handleScroll = () => {
-
-      if (throttleTimeout === null && !isRestoringRef.current) {
-        throttleTimeout = setTimeout(() => {
-          const scrollPos = container.scrollTop;
-          if (scrollPos > 10 && setScrollPosition) {
-            setScrollPosition(scrollPos);
-            console.log("Scroll position saved:", scrollPos);
-          }
-          throttleTimeout = null;
-        }, 200);
-      }
-    };
-
-    // Save initial scroll if already scrolled
-    if (container.scrollTop > 10 && !scrollRestored && setScrollPosition) {
-      setScrollPosition(container.scrollTop);
+    if (!container) {
+      hasRestoredRef.current = true;
+      return;
     }
 
-    container.addEventListener("scroll", handleScroll);
+    // Fresh entry from home/categories: always start at top.
+    if (!target || target < 10) {
+      container.scrollTop = 0;
+      hasRestoredRef.current = true;
+      clearCategoryScrollRestore();
+      return;
+    }
 
-    return () => {
-      container.removeEventListener("scroll", handleScroll);
-      if (throttleTimeout) clearTimeout(throttleTimeout);
-    };
-  }, [loading, scrollRestored, setScrollPosition]);
-
-  // Restore scroll position (bounded — never block infinite scroll forever)
-  useEffect(() => {
-    if (loading || scrollRestored || !scrollPosition) return;
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    isRestoringRef.current = true;
     let cancelled = false;
     let attempts = 0;
-    const MAX_ATTEMPTS = 60; // ~1s at 60fps
+    const MAX_ATTEMPTS = 45;
+    isRestoringRef.current = true;
 
     const finish = () => {
       if (cancelled) return;
-      const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-      container.scrollTo({
-        top: Math.min(scrollPosition, maxScroll),
-        behavior: "instant",
+      const maxScroll = Math.max(
+        0,
+        container.scrollHeight - container.clientHeight
+      );
+      container.scrollTop = Math.min(target, maxScroll);
+      hasRestoredRef.current = true;
+      clearCategoryScrollRestore();
+      // Small delay so the save handler ignores restore-induced scroll events.
+      requestAnimationFrame(() => {
+        isRestoringRef.current = false;
       });
-      setScrollRestored(true);
-      setTimeout(() => {
-        if (!cancelled) isRestoringRef.current = false;
-      }, 100);
     };
 
-    const restoreScroll = () => {
+    const tick = () => {
       if (cancelled) return;
       attempts += 1;
-      if (
-        (container.scrollHeight > container.clientHeight &&
-          container.scrollHeight > scrollPosition) ||
-        attempts >= MAX_ATTEMPTS
-      ) {
+      const ready =
+        container.scrollHeight - container.clientHeight >= target - 8;
+      if (ready || attempts >= MAX_ATTEMPTS) {
         finish();
         return;
       }
-      requestAnimationFrame(restoreScroll);
+      requestAnimationFrame(tick);
     };
 
-    const t = setTimeout(restoreScroll, 100);
+    const t = window.setTimeout(tick, 50);
     return () => {
       cancelled = true;
       clearTimeout(t);
       isRestoringRef.current = false;
     };
-  }, [loading, scrollRestored, scrollPosition, scrollContainerRef]);
+  }, [loading, scrollContainerRef]);
 
-  // Reset scroll restore flag on navigation
+  // Persist scroll for back-navigation — does not drive restore.
   useEffect(() => {
-    setScrollRestored(false);
-    isRestoringRef.current = false;
-  }, [pathname, searchParams]);
+    if (loading) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    let throttleTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const handleScroll = () => {
+      if (isRestoringRef.current || !hasRestoredRef.current) return;
+      if (throttleTimeout != null) return;
+      throttleTimeout = setTimeout(() => {
+        throttleTimeout = null;
+        if (isRestoringRef.current) return;
+        const scrollPos = container.scrollTop;
+        if (scrollPos > 10) setScrollPosition(scrollPos);
+      }, 250);
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      if (throttleTimeout) clearTimeout(throttleTimeout);
+    };
+  }, [loading, setScrollPosition, scrollContainerRef]);
 
   // Infinite scroll
   useEffect(() => {
@@ -145,10 +165,7 @@ const ProductsSection: React.FC = () => {
     );
 
     observer.observe(sentinel);
-
-    return () => {
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, [loadMoreProducts, hasMore, loadingMore, loading, scrollContainerRef]);
 
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -164,12 +181,16 @@ const ProductsSection: React.FC = () => {
     const search = current.toString();
     const query = search ? `?${search}` : "";
 
-    if (setScrollPosition) setScrollPosition(0); // reset scroll on sort
+    setScrollPosition(0);
+    restoreTargetRef.current = 0;
+    hasRestoredRef.current = true;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
 
     router.push(`${pathname}${query}`);
   };
 
-  // Keep render order aligned with Firestore cursor order (no client re-sort).
   const productList = useMemo(() => {
     if (isGridView) {
       return (
@@ -194,20 +215,27 @@ const ProductsSection: React.FC = () => {
   }, [isGridView, products, currentCategory?.name]);
 
   return (
-    <div
- 
-      className="flex-1 w-full  px-2 md:px-0 h-screen" // full scrollable container
-    >
+    <div className="flex-1 w-full px-2 md:px-0">
       {(currentCategory?.imageMobile || currentCategory?.imageDesktop) && (
         <div className="w-full relative aspect-[4/1] mb-4">
           <div className="md:hidden w-full h-full">
             {currentCategory?.imageMobile && (
-              <Image src={currentCategory.imageMobile} alt="banner" fill className="object-cover rounded" />
+              <Image
+                src={currentCategory.imageMobile}
+                alt="banner"
+                fill
+                className="object-cover rounded"
+              />
             )}
           </div>
           <div className="hidden md:block w-full h-full">
             {currentCategory?.imageDesktop && (
-              <Image src={currentCategory.imageDesktop} alt="banner" fill className="object-cover rounded" />
+              <Image
+                src={currentCategory.imageDesktop}
+                alt="banner"
+                fill
+                className="object-cover rounded"
+              />
             )}
           </div>
         </div>
@@ -217,11 +245,15 @@ const ProductsSection: React.FC = () => {
         <div className="hidden md:flex items-center gap-4">
           <LayoutGrid
             onClick={() => setIsGridView(true)}
-            className={`cursor-pointer w-5 h-5 ${isGridView ? "text-green-900" : "text-gray-400"}`}
+            className={`cursor-pointer w-5 h-5 ${
+              isGridView ? "text-green-900" : "text-gray-400"
+            }`}
           />
           <List
             onClick={() => setIsGridView(false)}
-            className={`cursor-pointer w-5 h-5 ${!isGridView ? "text-green-900" : "text-gray-400"}`}
+            className={`cursor-pointer w-5 h-5 ${
+              !isGridView ? "text-green-900" : "text-gray-400"
+            }`}
           />
           <p className="text-sm">
             Showing 1–{products.length} of {totalCount} results
@@ -229,7 +261,11 @@ const ProductsSection: React.FC = () => {
         </div>
         <div className="flex items-center space-x-2">
           <label className="text-sm">Sort By:</label>
-          <select value={sortBy} onChange={handleSortChange} className="py-1 px-2 text-sm">
+          <select
+            value={sortBy}
+            onChange={handleSortChange}
+            className="py-1 px-2 text-sm"
+          >
             <option value="latest">Latest</option>
             <option value="price-low">Price: Low to High</option>
             <option value="price-high">Price: High to Low</option>
@@ -237,10 +273,19 @@ const ProductsSection: React.FC = () => {
         </div>
       </div>
 
-      {products.length > 0 ? productList : <p>No products found for the selected criteria.</p>}
+      {products.length > 0 ? (
+        productList
+      ) : (
+        <p>No products found for the selected criteria.</p>
+      )}
 
-      <div ref={loaderRef} className="mt-8 flex justify-center items-center h-20">
-        {loadingMore && <Loader2 className="animate-spin h-12 w-12 text-green-700" />}
+      <div
+        ref={loaderRef}
+        className="mt-8 flex justify-center items-center h-20"
+      >
+        {loadingMore && (
+          <Loader2 className="animate-spin h-12 w-12 text-green-700" />
+        )}
         {!loadingMore && !hasMore && products.length > 0 && (
           <p className="text-gray-500 text-sm">No more products</p>
         )}
