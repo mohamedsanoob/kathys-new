@@ -18,7 +18,8 @@ import axios from "axios";
 interface PhoneAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (phoneNumber: string) => void;
+  /** phoneNumber, uid — uid lets callers refetch user data before AuthContext catches up */
+  onSuccess: (phoneNumber: string, uid: string) => void;
 }
 
 const generateUserId = () =>
@@ -180,7 +181,9 @@ const PhoneAuthModal = ({
       }
 
       toast.success("Phone number verified successfully!");
-      onSuccess(user.phoneNumber!);
+      // Pass uid so checkout/cart can load addresses immediately (AuthContext
+      // onAuthStateChanged can lag one frame and skip the first fetch).
+      onSuccess(user.phoneNumber || "", user.uid);
       handleClose();
     } catch (error: unknown) {
       console.error("OTP Verification Error:", error);

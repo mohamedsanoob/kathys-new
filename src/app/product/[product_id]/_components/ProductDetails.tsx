@@ -299,7 +299,7 @@ const [showPhoneAuth, setShowPhoneAuth] = useState(false);
     }
   }, [product, selectedVariant, productCount, hasVariants, router]);
 
-  const handlePhoneVerified = (phoneNumber: string) => {
+  const handlePhoneVerified = (phoneNumber: string, _uid?: string) => {
     console.log("Verified phone number:", phoneNumber);
     // Do something with the verified phone number
   };

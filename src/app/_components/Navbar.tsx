@@ -17,7 +17,7 @@ useTrackView()
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showPhoneAuth, setShowPhoneAuth] = useState(false);
 
-  const handlePhoneVerified = (phoneNumber: string) => {
+  const handlePhoneVerified = (phoneNumber: string, _uid?: string) => {
     console.log("Verified phone number:", phoneNumber);
   };
 

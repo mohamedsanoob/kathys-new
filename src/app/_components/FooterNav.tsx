@@ -14,7 +14,7 @@ const FooterNav = () => {
   const pathname = usePathname();
   const [showPhoneAuth, setShowPhoneAuth] = useState(false);
 
-  const handlePhoneVerified = (phoneNumber: string) => {
+  const handlePhoneVerified = (phoneNumber: string, _uid?: string) => {
     console.log("Verified phone number:", phoneNumber);
     // Do something with the verified phone number
   };

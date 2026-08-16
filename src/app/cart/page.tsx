@@ -47,7 +47,7 @@ const CartPage = () => {
   const [cartProducts, setCartProducts] = useState<CartProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { refreshCart } = useCart();
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
 
   const fetchCartProducts = useCallback(async () => {
     setIsLoading(true);
@@ -61,9 +61,11 @@ const CartPage = () => {
     }
   }, []);
 
+  // Refetch when login/logout settles (guest cart vs user cart).
   useEffect(() => {
+    if (authLoading) return;
     fetchCartProducts();
-  }, [fetchCartProducts]);
+  }, [authLoading, currentUser?.uid, fetchCartProducts]);
 
   const handleRemoveProduct = async (productId: string, sku?: string) => {
     try {

@@ -1,10 +1,14 @@
 "use client";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { getCartProducts, getBuyNowCartProducts, variantDetailsRecordFromCombination } from "@/actions/actions";
+import {
+  getCartProducts,
+  getBuyNowCartProducts,
+  variantDetailsRecordFromCombination,
+} from "@/actions/actions";
 import { useSearchParams } from "next/navigation";
 import axios from "axios";
-import { db } from "@/firebase/config";
+import { auth, db } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
 import { computeDeliveryFee, isKeralaPincode } from "@/lib/deliveryFee";
 import { useCartCoupon } from "@/hooks/useCartCoupon";
@@ -16,6 +20,7 @@ import {
   getDocs,
   serverTimestamp,
   setDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -31,6 +36,7 @@ import { ArrowLeft, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { PaymentSuccess } from "../_components/PaymentSuccess";
 import { PaymentRejected } from "../_components/PaymentRejected";
 import PhoneAuthModal from "../_components/PhoneAuthModal";
+import { readCampaignAttribution } from "../_components/CampaignAttribution";
 
 // --- Define new type for PhonePe Order Response ---
 interface PhonePeOrderResponse {
@@ -52,6 +58,12 @@ const BASE_URL = "https://asia-south1-resmenu-c1b90.cloudfunctions.net/api";
 const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 const PENDING_PHONEPE_ORDER_KEY = "pendingPhonePeOrderId";
 
+const normalizeIndianPhone = (value: string) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  const last10 = digits.slice(-10);
+  return last10 ? `+91${last10}` : "";
+};
+
 const PaymentLoader = () => (
   <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 bg-opacity-30 backdrop-blur-sm">
     <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center w-[90%]">
@@ -69,7 +81,7 @@ const PaymentLoader = () => (
 const CheckoutPageContent = () => {
   const searchParams = useSearchParams();
   const isBuyNow = searchParams.get("buyNow") === "true";
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const [cartProductsWithDetails, setCartProductsWithDetails] = useState<
     CartProduct[]
   >([]);
@@ -169,8 +181,9 @@ const CheckoutPageContent = () => {
     return () => window.removeEventListener("pageshow", releaseAbandonedOrder);
   }, [searchParams]);
 
-  // Effect to fetch cart details
+  // Effect to fetch cart details (also after login — guest vs user cart)
   useEffect(() => {
+    if (authLoading) return;
     const fetchCartDetails = async () => {
       setIsLoading(true);
       try {
@@ -185,23 +198,22 @@ const CheckoutPageContent = () => {
       }
     };
     fetchCartDetails();
-  }, [isBuyNow]);
+  }, [isBuyNow, authLoading, currentUser?.uid]);
 
-  // Effect to fetch user addresses
-  useEffect(() => {
-    if (currentUser) {
-      fetchUserAddresses();
+  const fetchUserAddresses = useCallback(async (uid?: string) => {
+    const userUid = auth.currentUser?.uid || uid;
+    if (!userUid) {
+      setSavedAddresses([]);
+      setSelectedAddress(null);
+      return;
     }
-  }, [currentUser]);
-
-  const fetchUserAddresses = async () => {
     try {
-      if (!currentUser?.uid) return;
-      const addressesRef = collection(db, `users/${currentUser.uid}/addresses`);
-      const snapshot = await getDocs(addressesRef);
-      const addresses = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
+      const snapshot = await getDocs(
+        collection(db, `users/${userUid}/addresses`)
+      );
+      const addresses = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
       })) as FormData[];
 
       setSavedAddresses(addresses);
@@ -212,7 +224,25 @@ const CheckoutPageContent = () => {
     } catch (error) {
       console.error("Error fetching addresses:", error);
     }
-  };
+  }, []);
+
+  // Load saved addresses when auth settles / uid changes
+  useEffect(() => {
+    if (authLoading) return;
+    if (!currentUser?.uid) {
+      setSavedAddresses([]);
+      setSelectedAddress(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      await fetchUserAddresses(currentUser.uid);
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.uid, authLoading, fetchUserAddresses]);
 
   // Effect to watch pincode for delivery fee
   useEffect(() => {
@@ -423,7 +453,44 @@ const CheckoutPageContent = () => {
           amount: grandTotal,
           currency: "INR",
         },
+        marketing_attribution: readCampaignAttribution(),
       };
+
+      // Ensure guest cart has phone metadata for abandoned-cart WhatsApp recovery.
+      if (!currentUser) {
+        const guestCartId = localStorage.getItem("guestCartId");
+        const normalizedPhone = normalizeIndianPhone(data.mobileNumber || "");
+        if (guestCartId && normalizedPhone) {
+          const guestCartRef = doc(db, "guest-carts", guestCartId);
+          await updateDoc(guestCartRef, {
+            phone: normalizedPhone,
+            mobileNumber: normalizedPhone,
+            customerName: `${data.firstName} ${data.lastName}`.trim(),
+            customer_details: {
+              mobile_number: normalizedPhone,
+              name: `${data.firstName} ${data.lastName}`.trim(),
+              email: data.email || "",
+            },
+            updatedAt: serverTimestamp(),
+          }).catch(async () => {
+            await setDoc(
+              guestCartRef,
+              {
+                phone: normalizedPhone,
+                mobileNumber: normalizedPhone,
+                customerName: `${data.firstName} ${data.lastName}`.trim(),
+                customer_details: {
+                  mobile_number: normalizedPhone,
+                  name: `${data.firstName} ${data.lastName}`.trim(),
+                  email: data.email || "",
+                },
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true },
+            );
+          });
+        }
+      }
 
       // --- COD logic ---
       if (paymentMode === "cod") {
@@ -508,8 +575,16 @@ const CheckoutPageContent = () => {
     handlePlaceOrder();
   };
 
-  const handlePhoneVerified = (phoneNumber: string) => {
-    console.log("Verified phone number:", phoneNumber);
+  const handlePhoneVerified = async (_phoneNumber: string, uid: string) => {
+    setShowLogin(false);
+    setShowAddressForm(false);
+    // Token + addresses right away — don't wait for AuthContext / page refresh.
+    try {
+      await auth.currentUser?.getIdToken();
+    } catch {
+      /* ignore */
+    }
+    await fetchUserAddresses(uid || auth.currentUser?.uid);
   };
 
   // --- RENDER LOGIC ---

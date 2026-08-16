@@ -71,6 +71,9 @@ const Page = () => {
   const itemsTotal = Number(order.items_total) || 0;
   const deliveryFee = Number(order.delivery) || 0;
   const grandTotal = (itemsTotal + deliveryFee).toFixed(2);
+  const trackingHref =
+    order.trackingInfo?.trackingUrl ||
+    "https://www.dtdc.com/track-your-shipment/";
 
   return (
     <div className="max-w-2xl mx-auto p-4 sm:p-6 bg-white rounded-lg shadow-md my-1 md:my-4">
@@ -180,7 +183,7 @@ const Page = () => {
               <h4>Tracking ID : {order.trackingInfo?.trackingId}</h4>
             </div>
             <Link
-              href="https://www.dtdc.in/trace.asp"
+              href={trackingHref}
               className="text-sm font-medium bg-green-700 text-white rounded-md px-4 py-2 transition-colors"
               target="_blank"
               rel="noopener noreferrer"

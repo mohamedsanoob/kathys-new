@@ -14,6 +14,7 @@ import { WhatsApp } from "./_components/whatsapp-icon";
 import AdSense from "./_components/AdSense";
 import LayoutWrapper from "./_components/LayoutWrapper";
 import RouteLoader from "./_components/RouteLoader";
+import CampaignAttributionTracker from "./_components/CampaignAttribution";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
@@ -43,6 +44,7 @@ export default function RootLayout({
       >
         <Suspense fallback={null}>
           <RouteLoader />
+          <CampaignAttributionTracker />
         </Suspense>
         <AuthProvider>
           <ScrollProvider>
