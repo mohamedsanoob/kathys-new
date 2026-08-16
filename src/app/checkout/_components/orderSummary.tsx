@@ -18,7 +18,7 @@ export interface OrderSummaryProps {
   isValid: boolean;
   currentUser: any;
   selectedAddress: string | null | undefined;
-  paymentMode: "online" | "cod" | "cof" | "";
+  paymentMode: "online" | "cod" | "cof" | "" | undefined;
   showPaymentMode: boolean;
   setPaymentModeError: (v: boolean) => void;
   paymentModeError: boolean;
@@ -59,8 +59,10 @@ const OrderSummary = ({
   onRemoveCoupon,
   onSelectCoupon,
 }: OrderSummaryProps) => {
+  const normalizedPaymentMode = paymentMode || "";
+
   const deliveryFee = computeDeliveryFee({
-    paymentMode,
+    paymentMode: normalizedPaymentMode,
     isKerala: isKerala ?? false,
     eligibleLineCount: appliedCoupon?.eligibleLineCount ?? 0,
     couponApplied: !!appliedCoupon,
@@ -70,10 +72,10 @@ const OrderSummary = ({
   const grandTotal = Math.max(0, total + deliveryFee - couponDiscount);
 
   useEffect(() => {
-    if (paymentMode !== "") {
+    if (normalizedPaymentMode !== "") {
       setPaymentModeError(false);
     }
-  }, [paymentMode, setPaymentModeError]);
+  }, [normalizedPaymentMode, setPaymentModeError]);
 
   return (
     <div className="w-full lg:w-1/3 h-max bg-white p-6 rounded-lg shadow-sm">

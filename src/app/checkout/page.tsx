@@ -125,6 +125,45 @@ const CheckoutPageContent = () => {
     mode: "onChange",
   });
 
+  const guestFirstName = watch("firstName");
+  const guestLastName = watch("lastName");
+  const guestEmail = watch("email");
+  const guestMobile = watch("mobileNumber");
+
+  useEffect(() => {
+    if (currentUser) return;
+
+    const normalizedPhone = normalizeIndianPhone(guestMobile || "");
+    if (!normalizedPhone || normalizedPhone.length !== 13) return;
+
+    const guestCartId = localStorage.getItem("guestCartId");
+    if (!guestCartId) return;
+
+    const guestName = `${guestFirstName || ""} ${guestLastName || ""}`.trim();
+    const timer = setTimeout(() => {
+      const guestCartRef = doc(db, "guest-carts", guestCartId);
+      setDoc(
+        guestCartRef,
+        {
+          phone: normalizedPhone,
+          mobileNumber: normalizedPhone,
+          ...(guestName ? { customerName: guestName } : {}),
+          customer_details: {
+            mobile_number: normalizedPhone,
+            ...(guestName ? { name: guestName } : {}),
+            ...(guestEmail ? { email: guestEmail } : {}),
+          },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      ).catch((error) => {
+        console.error("Failed to sync guest cart phone:", error);
+      });
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [currentUser, guestEmail, guestFirstName, guestLastName, guestMobile]);
+
   // --- NEW: Effect to handle payment status from URL ---
   useEffect(() => {
     const status = searchParams.get("status");
@@ -336,6 +375,7 @@ const CheckoutPageContent = () => {
     couponApplied: !!appliedCoupon,
   });
   const grandTotal = Math.max(0, total + deliveryFee - couponDiscount);
+  const paymentModeValue: "online" | "cod" | "cof" | "" = paymentMode || "";
 
   const validateCheckout = () => {
     if (!termsAgreed) {
@@ -680,7 +720,7 @@ const CheckoutPageContent = () => {
             handleSubmit={handleSubmit}
             getValues={getValues}
             setPaymentMode={setPaymentMode}
-            paymentMode={paymentMode}
+            paymentMode={paymentModeValue}
             showPaymentMode={showPaymentMode}
           />
 
@@ -695,7 +735,7 @@ const CheckoutPageContent = () => {
             isValid={isValid}
             currentUser={currentUser}
             selectedAddress={selectedAddress}
-            paymentMode={paymentMode}
+            paymentMode={paymentModeValue}
             showPaymentMode={showPaymentMode}
             setPaymentModeError={setPaymentModeError}
             paymentModeError={paymentModeError}

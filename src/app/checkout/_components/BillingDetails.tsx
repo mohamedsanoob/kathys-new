@@ -20,8 +20,8 @@ interface BillingDetailsProps {
   saveNewAddress: (data: any) => Promise<void>;
   handleSubmit: any;
   getValues: any;
-  paymentMode?: "online" | "cod" | "cof";
-  setPaymentMode?: (mode: "online" | "cod" | "cof") => void;
+  paymentMode?: "online" | "cod" | "cof" | "";
+  setPaymentMode?: (mode: "online" | "cod" | "cof" | "") => void;
   showPaymentMode: boolean; // new prop
 }
 
@@ -133,7 +133,7 @@ const BillingDetails = ({
           </h5>
           <PaymentModeSelector
             onPaymentModeChange={setPaymentMode}
-            currentMode={paymentMode}
+            currentMode={paymentMode || "online"}
           />
         </div>
       )}
