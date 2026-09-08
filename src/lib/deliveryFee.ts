@@ -3,11 +3,11 @@
 // backend (kathys-backend/functions/lib/delivery.js); keep both in sync.
 
 // Rates when a coupon is applied (also the per-item rate the multiplier uses)
-export const COUPON_DELIVERY_FEE_KERALA = 60;
-export const COUPON_DELIVERY_FEE_OUTSIDE_KERALA = 80;
+export const COUPON_DELIVERY_FEE_KERALA = 85;
+export const COUPON_DELIVERY_FEE_OUTSIDE_KERALA = 110;
 // Standard rates when no coupon is applied
-export const STANDARD_DELIVERY_FEE_KERALA = 75;
-export const STANDARD_DELIVERY_FEE_OUTSIDE_KERALA = 100;
+export const STANDARD_DELIVERY_FEE_KERALA = 100;
+export const STANDARD_DELIVERY_FEE_OUTSIDE_KERALA = 125;
 
 /** Kerala pincodes start with 67, 68 or 69. */
 export function isKeralaPincode(pincode?: string | null): boolean {
@@ -27,10 +27,10 @@ export interface ComputeDeliveryFeeArgs {
 /**
  * Delivery fee for an order.
  * - Collect-from-store (pickup) is always free.
- * - With a coupon covering 2+ eligible product lines: ₹60 Kerala / ₹80 outside
+ * - With a coupon covering 2+ eligible product lines: ₹85 Kerala / ₹110 outside
  *   per eligible line (base fee × eligibleLineCount).
- * - Otherwise (no coupon, or a coupon on 0–1 eligible lines): standard ₹75
- *   Kerala / ₹100 outside, flat per order.
+ * - Otherwise (no coupon, or a coupon on 0–1 eligible lines): standard ₹100
+ *   Kerala / ₹125 outside, flat per order.
  */
 export function computeDeliveryFee({
   paymentMode,

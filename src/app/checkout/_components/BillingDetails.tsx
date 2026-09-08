@@ -40,7 +40,7 @@ const BillingDetails = ({
   saveNewAddress,
   handleSubmit,
   getValues,
-  paymentMode = "online",
+  paymentMode = "",
   setPaymentMode = () => {},
   showPaymentMode, // use this to control payment section
 }: BillingDetailsProps) => {
@@ -133,7 +133,7 @@ const BillingDetails = ({
           </h5>
           <PaymentModeSelector
             onPaymentModeChange={setPaymentMode}
-            currentMode={paymentMode || "online"}
+            currentMode={paymentMode}
           />
         </div>
       )}

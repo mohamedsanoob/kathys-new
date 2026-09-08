@@ -1,6 +1,6 @@
 interface PaymentModeProps {
   onPaymentModeChange: (mode: 'online' | 'cod' | 'cof') => void;
-  currentMode: 'online' | 'cod' | 'cof';
+  currentMode: 'online' | 'cod' | 'cof' | '';
 }
 
 const PaymentModeSelector = ({ onPaymentModeChange, currentMode }: PaymentModeProps) => {
